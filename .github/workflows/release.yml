@@ -55,7 +55,7 @@ jobs:
         include:
           - os: macos-14
             target: darwin_arm64
-          - os: macos-13
+          - os: macos-15
             target: darwin_amd64
           - os: ubuntu-latest
             target: linux_amd64
@@ -76,7 +76,7 @@ jobs:
         uses: erlef/setup-beam@v1
         with:
           elixir-version: "1.19"
-          otp-version: "27"
+          otp-version: "27.3.4.8"
 
       - name: Install Zig
         uses: goto-bus-stop/setup-zig@v2
