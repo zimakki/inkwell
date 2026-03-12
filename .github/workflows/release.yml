@@ -17,6 +17,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     env:
+      MIX_ENV: prod
       MIX_HOME: ${{ github.workspace }}/.mix
       HEX_HOME: ${{ github.workspace }}/.hex
 
