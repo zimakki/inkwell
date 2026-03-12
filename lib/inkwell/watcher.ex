@@ -56,10 +56,21 @@ defmodule Inkwell.Watcher do
   @impl true
   def init(dir) do
     Registry.register(Inkwell.Registry, {:watcher, dir}, [])
-    {:ok, watcher} = FileSystem.start_link(dirs: [dir])
-    FileSystem.subscribe(watcher)
-    Logger.info("Watching directory: #{dir}")
-    {:ok, %{dir: dir, watcher: watcher, files: MapSet.new()}}
+
+    case FileSystem.start_link(dirs: [dir]) do
+      {:ok, watcher} ->
+        FileSystem.subscribe(watcher)
+        Logger.info("Watching directory: #{dir}")
+        {:ok, %{dir: dir, watcher: watcher, files: MapSet.new()}}
+
+      {:error, reason} ->
+        Logger.warning("File watcher unavailable for #{dir}: #{inspect(reason)}")
+        {:ok, %{dir: dir, watcher: nil, files: MapSet.new()}}
+
+      :ignore ->
+        Logger.warning("File watcher unavailable for #{dir}: fs backend not supported")
+        {:ok, %{dir: dir, watcher: nil, files: MapSet.new()}}
+    end
   end
 
   @impl true
