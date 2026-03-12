@@ -206,6 +206,11 @@ defmodule Inkwell.Daemon do
   end
 
   defp http_request(method, url) do
+    # Ensure :inets/:ssl are started — needed in escript mode where app: nil
+    # skips extra_applications. No-op when already running.
+    :inets.start()
+    :ssl.start()
+
     request =
       case method do
         :get -> {String.to_charlist(url), []}

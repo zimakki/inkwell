@@ -97,6 +97,9 @@ defmodule Inkwell.CLI do
   end
 
   defp http_get_json(url) do
+    :inets.start()
+    :ssl.start()
+
     http_opts = [timeout: 5_000, connect_timeout: 3_000]
 
     case :httpc.request(:get, {String.to_charlist(url), []}, http_opts, body_format: :binary) do
