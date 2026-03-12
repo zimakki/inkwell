@@ -6,8 +6,8 @@ defmodule Inkwell.ApplicationTest do
              Inkwell.Application.parse_mode(["daemon", "--theme", "light"])
   end
 
-  test "parse_mode returns :daemon with default theme for no args" do
-    assert {:daemon, %{theme: "dark"}} == Inkwell.Application.parse_mode([])
+  test "parse_mode returns :client usage for no args" do
+    assert {:client, %{command: :usage}} == Inkwell.Application.parse_mode([])
   end
 
   test "parse_mode returns :client for preview command" do
