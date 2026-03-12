@@ -24,3 +24,9 @@ inkwell-*.tar
 
 # Local escript build output.
 /inkwell
+
+# Superpowers plugin state.
+/.superpowers/
+
+# Design specs and internal docs.
+/docs/
