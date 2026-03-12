@@ -72,6 +72,7 @@ defmodule Inkwell.Daemon do
 
   def pidfile, do: Path.join(state_dir(), "pid")
   def portfile, do: Path.join(state_dir(), "port")
+  def logfile, do: Path.join(state_dir(), "daemon.log")
 
   @impl true
   def init(_state) do
@@ -165,7 +166,7 @@ defmodule Inkwell.Daemon do
     :ok
   end
 
-  defp wait_until_alive(deadline \\ System.monotonic_time(:millisecond) + 10_000) do
+  defp wait_until_alive(deadline \\ System.monotonic_time(:millisecond) + 30_000) do
     cond do
       alive?() ->
         {:ok, read_port!()}
@@ -204,10 +205,10 @@ defmodule Inkwell.Daemon do
 
     case project_root(exec) do
       {:ok, root} ->
-        "cd #{shell_escape(root)} && nohup mix run --no-halt -e 'Inkwell.CLI.run_daemon(\"#{theme}\")' >/dev/null 2>&1 &"
+        "cd #{shell_escape(root)} && nohup mix run --no-halt -e 'Inkwell.CLI.run_daemon(\"#{theme}\")' >>#{shell_escape(logfile())} 2>&1 &"
 
       :error ->
-        "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >/dev/null 2>&1 &"
+        "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >>#{shell_escape(logfile())} 2>&1 &"
     end
   end
 

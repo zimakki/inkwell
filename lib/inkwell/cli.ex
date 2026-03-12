@@ -34,26 +34,38 @@ defmodule Inkwell.CLI do
   end
 
   defp run_preview(file, opts) do
+    case preview(file, opts) do
+      {:ok, url} ->
+        open_browser(url)
+        IO.puts(url)
+
+      {:error, msg} ->
+        IO.puts("Error: #{msg}")
+        System.halt(1)
+    end
+  end
+
+  @doc false
+  def preview(file, opts, start_daemon \\ &Inkwell.Daemon.ensure_started/1) do
     file = Path.expand(file)
 
-    unless File.exists?(file) do
-      IO.puts("Error: file not found: #{file}")
-      System.halt(1)
-    end
+    if not File.exists?(file) do
+      {:error, "file not found: #{file}"}
+    else
+      theme = Keyword.get(opts, :theme, "dark")
 
-    theme = Keyword.get(opts, :theme, "dark")
-    {:ok, port} = Inkwell.Daemon.ensure_started(theme: theme)
+      case start_daemon.(theme: theme) do
+        {:error, reason} ->
+          {:error, "failed to start inkwell daemon (#{inspect(reason)})"}
 
-    case http_get_json(
-           "http://localhost:#{port}/open?path=#{URI.encode_www_form(file)}&theme=#{URI.encode_www_form(theme)}"
-         ) do
-      {:ok, payload} ->
-        open_browser(payload["url"])
-        IO.puts(payload["url"])
-
-      {:error, reason} ->
-        IO.puts("Failed to open preview: #{inspect(reason)}")
-        System.halt(1)
+        {:ok, port} ->
+          case http_get_json(
+                 "http://localhost:#{port}/open?path=#{URI.encode_www_form(file)}&theme=#{URI.encode_www_form(theme)}"
+               ) do
+            {:ok, payload} -> {:ok, payload["url"]}
+            {:error, reason} -> {:error, "failed to open preview: #{inspect(reason)}"}
+          end
+      end
     end
   end
 
