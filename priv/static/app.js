@@ -1,0 +1,259 @@
+(function() {
+  var ctn = document.getElementById('page-ctn');
+  var headerTitle = document.getElementById('header-title');
+  var pickerOverlay = document.getElementById('picker-overlay');
+  var pickerInput = document.getElementById('picker-input');
+  var pickerListItems = document.getElementById('picker-list-items');
+  var pickerStatus = document.getElementById('picker-status');
+  var pickerPreview = document.getElementById('picker-preview');
+  var ws, pingInterval, reconnectTimer;
+  var currentPath = document.body.dataset.currentPath;
+  var currentTheme = document.querySelector('[data-theme]').dataset.theme;
+  var currentFiles = [];
+  var selectedIndex = 0;
+  var searchTimer = null;
+  var escapeDiv = document.createElement('div');
+  var previewTimer = null;
+  var previewController = null;
+
+  mermaid.initialize({ startOnLoad: false, theme: currentTheme === 'dark' ? 'dark' : 'default' });
+
+  function renderMermaid() {
+    var blocks = ctn.querySelectorAll('pre.mermaid');
+    if (blocks.length > 0) {
+      blocks.forEach(function(el) { el.removeAttribute('data-processed'); });
+      mermaid.run({ nodes: blocks });
+    }
+  }
+
+  // ── Picker ────────────────────────────────────
+
+  function openPicker() {
+    pickerOverlay.classList.add('open');
+    pickerInput.value = '';
+    pickerInput.focus();
+    selectedIndex = 0;
+    loadSearch('');
+  }
+
+  function closePicker() {
+    pickerOverlay.classList.remove('open');
+    pickerInput.blur();
+    currentFiles = [];
+    pickerListItems.innerHTML = '';
+    pickerPreview.innerHTML = '<div class="preview-unavailable">Select a file to preview</div>';
+  }
+
+  function loadSearch(query) {
+    if (previewController) { previewController.abort(); previewController = null; }
+    fetch('/search?current=' + encodeURIComponent(currentPath) + '&q=' + encodeURIComponent(query))
+      .then(function(r) { return r.json(); })
+      .then(function(files) {
+        currentFiles = files;
+        selectedIndex = 0;
+        renderFileList();
+        loadPreview();
+      })
+      .catch(function() {});
+  }
+
+  function renderFileList() {
+    var html = '';
+    var currentSection = null;
+    currentFiles.forEach(function(f, i) {
+      if (f.section !== currentSection) {
+        currentSection = f.section;
+        var label = f.section === 'recent' ? 'Recent' : (f.path.split('/').slice(-2, -1)[0] + '/');
+        html += '<div class="picker-section">' + label + '</div>';
+      }
+      var cls = i === selectedIndex ? 'picker-item selected' : 'picker-item';
+      var title = f.title || f.filename;
+      html += '<div class="' + cls + '" data-index="' + i + '">'
+        + '<div class="picker-item-title">' + escapeHtml(title) + '</div>'
+        + '<div class="picker-item-file">' + escapeHtml(f.filename) + '</div>'
+        + '</div>';
+    });
+    pickerListItems.innerHTML = html;
+    pickerStatus.textContent = currentFiles.length + ' files \u00b7 \u2191\u2193 navigate \u00b7 \u21b5 open';
+
+    var sel = pickerListItems.querySelector('.selected');
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
+
+  function loadPreview() {
+    if (previewTimer) clearTimeout(previewTimer);
+    if (!currentFiles.length) {
+      pickerPreview.innerHTML = '<div class="preview-unavailable">No files found</div>';
+      return;
+    }
+    previewTimer = setTimeout(function() {
+      var file = currentFiles[selectedIndex];
+      if (!file) return;
+      if (previewController) previewController.abort();
+      previewController = new AbortController();
+      fetch('/preview?current=' + encodeURIComponent(currentPath) + '&path=' + encodeURIComponent(file.path), { signal: previewController.signal })
+        .then(function(r) {
+          if (!r.ok) throw new Error('Preview failed');
+          return r.text();
+        })
+        .then(function(html) {
+          pickerPreview.innerHTML = html;
+        })
+        .catch(function(e) {
+          if (e.name !== 'AbortError') {
+            pickerPreview.innerHTML = '<div class="preview-unavailable">Preview unavailable</div>';
+          }
+        });
+    }, 100);
+  }
+
+  function updateSelection(oldIdx, newIdx) {
+    var items = pickerListItems.querySelectorAll('.picker-item');
+    if (items[oldIdx]) items[oldIdx].classList.remove('selected');
+    if (items[newIdx]) {
+      items[newIdx].classList.add('selected');
+      items[newIdx].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function selectFile() {
+    var file = currentFiles[selectedIndex];
+    if (!file) return;
+    fetch('/switch?current=' + encodeURIComponent(currentPath) + '&path=' + encodeURIComponent(file.path))
+      .then(function(r) {
+        if (!r.ok) throw new Error('Switch failed');
+        return r.json();
+      })
+      .then(function(data) {
+        currentPath = data.path;
+        headerTitle.textContent = data.filename;
+        document.title = data.filename;
+        history.replaceState(null, '', '/?path=' + encodeURIComponent(currentPath));
+        reconnectSocket();
+        closePicker();
+      });
+  }
+
+  function escapeHtml(str) {
+    escapeDiv.textContent = str;
+    return escapeDiv.innerHTML;
+  }
+
+  // ── Picker events ─────────────────────────────
+
+  pickerInput.addEventListener('input', function() {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(function() {
+      loadSearch(pickerInput.value);
+    }, 150);
+  });
+
+  pickerInput.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (selectedIndex < currentFiles.length - 1) {
+        var old = selectedIndex;
+        selectedIndex++;
+        updateSelection(old, selectedIndex);
+        loadPreview();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (selectedIndex > 0) {
+        var old = selectedIndex;
+        selectedIndex--;
+        updateSelection(old, selectedIndex);
+        loadPreview();
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      selectFile();
+    }
+  });
+
+  pickerListItems.addEventListener('click', function(e) {
+    var item = e.target.closest('.picker-item');
+    if (item) {
+      var idx = parseInt(item.dataset.index, 10);
+      if (idx === selectedIndex) {
+        selectFile();
+      } else {
+        var old = selectedIndex;
+        selectedIndex = idx;
+        updateSelection(old, selectedIndex);
+        loadPreview();
+      }
+    }
+  });
+
+  pickerOverlay.addEventListener('click', function(e) {
+    if (e.target === pickerOverlay) closePicker();
+  });
+
+  // ── Global keyboard ───────────────────────────
+
+  document.getElementById('page-header').addEventListener('click', function() {
+    if (pickerOverlay.classList.contains('open')) {
+      pickerInput.focus();
+    } else {
+      openPicker();
+    }
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && pickerOverlay.classList.contains('open')) {
+      closePicker();
+      return;
+    }
+    if (e.ctrlKey && e.key === 'p') {
+      e.preventDefault();
+      if (pickerOverlay.classList.contains('open')) {
+        pickerInput.focus();
+      } else {
+        openPicker();
+      }
+      return;
+    }
+    if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+      fetch('/toggle-theme').then(function(r) { return r.json(); }).then(function(data) {
+        var el = document.querySelector('[data-theme]');
+        el.dataset.theme = data.theme;
+        currentTheme = data.theme;
+        mermaid.initialize({ startOnLoad: false, theme: data.theme === 'dark' ? 'dark' : 'default' });
+        renderMermaid();
+      });
+    }
+  });
+
+  // ── WebSocket ─────────────────────────────────
+
+  function reconnectSocket() {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    if (ws) ws.close();
+    connect();
+  }
+
+  function connect() {
+    ws = new WebSocket('ws://' + location.host + '/ws?path=' + encodeURIComponent(currentPath));
+    ws.onmessage = function(e) {
+      if (e.data === 'pong') return;
+      ctn.innerHTML = e.data;
+      renderMermaid();
+    };
+    ws.onclose = function() {
+      if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
+      reconnectTimer = setTimeout(connect, 1000);
+    };
+    ws.onopen = function() {
+      if (pingInterval) clearInterval(pingInterval);
+      pingInterval = setInterval(function() {
+        if (ws.readyState === 1) ws.send('ping');
+      }, 30000);
+    };
+  }
+  connect();
+  renderMermaid();
+})();
