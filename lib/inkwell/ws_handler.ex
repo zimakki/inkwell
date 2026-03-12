@@ -14,7 +14,7 @@ defmodule Inkwell.WsHandler do
   end
 
   @impl true
-  def handle_in({text, _opts}, state) when text == "ping", do: {:push, {:text, "pong"}, state}
+  def handle_in({"ping", _opts}, state), do: {:push, {:text, "pong"}, state}
   def handle_in(_message, state), do: {:ok, state}
 
   @impl true
@@ -22,6 +22,7 @@ defmodule Inkwell.WsHandler do
     {:push, {:text, html}, state}
   end
 
+  @impl true
   def handle_info(_msg, state), do: {:ok, state}
 
   @impl true
