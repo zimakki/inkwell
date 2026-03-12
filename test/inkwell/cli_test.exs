@@ -30,4 +30,28 @@ defmodule Inkwell.CLITest do
     {opts, _rest, _invalid} = OptionParser.parse(["preview", "file.md"], strict: [theme: :string])
     assert opts[:theme] == nil
   end
+
+  # Tests for preview error handling — uses the extracted pure helper so we
+  # never call System.halt() from the test process.
+
+  test "preview returns error when file does not exist" do
+    result = Inkwell.CLI.preview("/nonexistent/path/file.md", [])
+    assert result == {:error, "file not found: /nonexistent/path/file.md"}
+  end
+
+  test "preview returns error with message when daemon fails to start" do
+    # Use a real temp file so the file-exists check passes.
+    tmp = Path.join(System.tmp_dir!(), "test-#{System.unique_integer([:positive])}.md")
+    File.write!(tmp, "# hello")
+
+    on_exit(fn -> File.rm(tmp) end)
+
+    # Daemon isn't running and can't be started (no real daemon process in tests).
+    # ensure_started will return {:error, _} because the spawned process will fail
+    # or time out. We stub at the daemon layer by passing a start_fn.
+    result = Inkwell.CLI.preview(tmp, [], fn _opts -> {:error, :timeout} end)
+    assert {:error, msg} = result
+    assert msg =~ "failed to start inkwell daemon"
+    assert msg =~ "timeout"
+  end
 end
