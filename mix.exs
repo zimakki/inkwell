@@ -8,7 +8,6 @@ defmodule Inkwell.MixProject do
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      escript: [main_module: Inkwell.CLI, app: nil],
       releases: releases(),
       name: "Inkwell",
       source_url: "https://github.com/zimakki/inkwell",
