@@ -186,8 +186,13 @@ defmodule Inkwell.Daemon do
 
   defp current_executable do
     cond do
-      (burrito_bin = System.get_env("BURRITO_BIN_PATH")) && File.exists?(burrito_bin) ->
+      (burrito_bin = System.get_env("__BURRITO_BIN_PATH")) && File.exists?(burrito_bin) ->
         burrito_bin
+
+      burrito?() ->
+        # In a Burrito release, resolve from /proc/self/exe or PATH
+        System.find_executable("inkwell") ||
+          raise "Unable to locate inkwell executable"
 
       (script = List.to_string(:escript.script_name())) != "" ->
         Path.expand(script, File.cwd!())
@@ -258,7 +263,7 @@ defmodule Inkwell.Daemon do
   end
 
   defp burrito? do
-    System.get_env("BURRITO_BIN_PATH") != nil
+    Inkwell.Application.release?() and not escript?()
   end
 
   defp project_root(exec) do

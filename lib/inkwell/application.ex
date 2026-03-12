@@ -28,11 +28,16 @@ defmodule Inkwell.Application do
     end
   end
 
+  @doc false
+  def release? do
+    not Code.ensure_loaded?(Mix)
+  end
+
   @impl true
   def start(_type, _args) do
     {mode, parsed} =
-      if System.get_env("BURRITO_BIN_PATH") do
-        args = apply(Burrito.Util.Args, :argv, [])
+      if release?() do
+        args = :init.get_plain_arguments() |> Enum.map(&List.to_string/1)
         parse_mode(args)
       else
         {:daemon, %{theme: :persistent_term.get(:inkwell_theme, "dark")}}
