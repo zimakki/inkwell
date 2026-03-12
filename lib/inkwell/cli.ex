@@ -42,7 +42,16 @@ defmodule Inkwell.CLI do
     end
 
     theme = Keyword.get(opts, :theme, "dark")
-    {:ok, port} = Inkwell.Daemon.ensure_started(theme: theme)
+
+    port =
+      case Inkwell.Daemon.ensure_started(theme: theme) do
+        {:ok, port} ->
+          port
+
+        {:error, reason} ->
+          IO.puts("Error: failed to start inkwell daemon (#{inspect(reason)})")
+          System.halt(1)
+      end
 
     case http_get_json(
            "http://localhost:#{port}/open?path=#{URI.encode_www_form(file)}&theme=#{URI.encode_www_form(theme)}"
