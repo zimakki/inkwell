@@ -13,7 +13,12 @@ defmodule Inkwell.MixProject do
       source_url: "https://github.com/zimakki/inkwell",
       homepage_url: "https://github.com/zimakki/inkwell",
       docs: [main: "readme", extras: ["README.md"]],
-      package: package()
+      package: package(),
+      aliases: aliases(),
+      usage_rules: [
+        file: "CLAUDE.md",
+        usage_rules: :all
+      ]
     ]
   end
 
@@ -32,7 +37,16 @@ defmodule Inkwell.MixProject do
       {:websock_adapter, "~> 0.5"},
       {:file_system, "~> 1.0"},
       {:jason, "~> 1.4"},
-      {:ex_doc, "~> 0.35", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.35", only: :dev, runtime: false},
+      {:usage_rules, "~> 1.1", only: :dev},
+      {:tidewave, "~> 0.5", only: :dev}
+    ]
+  end
+
+  defp aliases do
+    [
+      tidewave:
+        "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 4000) end)'"
     ]
   end
 
