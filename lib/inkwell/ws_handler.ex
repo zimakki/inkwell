@@ -5,7 +5,7 @@ defmodule Inkwell.WsHandler do
 
   @impl true
   def init(opts) do
-    path = opts[:path] |> Path.expand()
+    path = Keyword.fetch!(opts, :path) |> Path.expand()
     Registry.register(Inkwell.Registry, {:ws_clients, path}, [])
     Inkwell.Watcher.ensure_file(path)
     Inkwell.Daemon.client_connected()
@@ -14,7 +14,7 @@ defmodule Inkwell.WsHandler do
   end
 
   @impl true
-  def handle_in({text, _opts}, state) when text == "ping", do: {:push, {:text, "pong"}, state}
+  def handle_in({"ping", _opts}, state), do: {:push, {:text, "pong"}, state}
   def handle_in(_message, state), do: {:ok, state}
 
   @impl true
@@ -22,6 +22,7 @@ defmodule Inkwell.WsHandler do
     {:push, {:text, html}, state}
   end
 
+  @impl true
   def handle_info(_msg, state), do: {:ok, state}
 
   @impl true

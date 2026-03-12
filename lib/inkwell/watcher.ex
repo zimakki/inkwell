@@ -47,7 +47,7 @@ defmodule Inkwell.Watcher do
     end)
   end
 
-  def broadcast(path, html) do
+  def broadcast(html, path) do
     Registry.dispatch(Inkwell.Registry, {:ws_clients, path}, fn entries ->
       for {pid, _} <- entries, do: send(pid, {:reload, html})
     end)
@@ -56,10 +56,21 @@ defmodule Inkwell.Watcher do
   @impl true
   def init(dir) do
     Registry.register(Inkwell.Registry, {:watcher, dir}, [])
-    {:ok, watcher} = FileSystem.start_link(dirs: [dir])
-    FileSystem.subscribe(watcher)
-    Logger.info("Watching directory: #{dir}")
-    {:ok, %{dir: dir, watcher: watcher, files: MapSet.new()}}
+
+    case FileSystem.start_link(dirs: [dir]) do
+      {:ok, watcher} ->
+        FileSystem.subscribe(watcher)
+        Logger.info("Watching directory: #{dir}")
+        {:ok, %{dir: dir, watcher: watcher, files: MapSet.new()}}
+
+      {:error, reason} ->
+        Logger.warning("File watcher unavailable for #{dir}: #{inspect(reason)}")
+        {:ok, %{dir: dir, watcher: nil, files: MapSet.new()}}
+
+      :ignore ->
+        Logger.warning("File watcher unavailable for #{dir}: fs backend not supported")
+        {:ok, %{dir: dir, watcher: nil, files: MapSet.new()}}
+    end
   end
 
   @impl true
@@ -67,6 +78,7 @@ defmodule Inkwell.Watcher do
     {:reply, :ok, %{state | files: MapSet.put(state.files, path)}}
   end
 
+  @impl true
   def handle_call(:watched_files, _from, state) do
     {:reply, MapSet.to_list(state.files), state}
   end
@@ -90,5 +102,6 @@ defmodule Inkwell.Watcher do
     {:noreply, state}
   end
 
+  @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 end

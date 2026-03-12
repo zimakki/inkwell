@@ -9,7 +9,7 @@ defmodule Inkwell.Renderer do
       tasklist: true,
       footnotes: true
     ],
-    render: [unsafe_: true]
+    render: [unsafe: true]
   ]
 
   def render(markdown) do

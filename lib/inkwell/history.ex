@@ -8,7 +8,7 @@ defmodule Inkwell.History do
     Agent.start_link(fn -> [] end, name: __MODULE__)
   end
 
-  def push(path) do
+  def push(path) when is_binary(path) do
     Agent.update(__MODULE__, fn history ->
       [path | Enum.reject(history, &(&1 == path))] |> Enum.take(@max_size)
     end)
