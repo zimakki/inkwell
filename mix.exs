@@ -8,7 +8,12 @@ defmodule Inkwell.MixProject do
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      escript: [main_module: Inkwell.CLI, app: nil]
+      escript: [main_module: Inkwell.CLI, app: nil],
+      name: "Inkwell",
+      source_url: "https://github.com/zimakki/inkwell",
+      homepage_url: "https://github.com/zimakki/inkwell",
+      docs: [main: "readme", extras: ["README.md"]],
+      package: package()
     ]
   end
 
@@ -26,7 +31,17 @@ defmodule Inkwell.MixProject do
       {:plug, "~> 1.19"},
       {:websock_adapter, "~> 0.5"},
       {:file_system, "~> 1.0"},
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      {:ex_doc, "~> 0.35", only: :dev, runtime: false}
+    ]
+  end
+
+  defp package do
+    [
+      description: "Live markdown preview daemon with file picker and fuzzy search",
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/zimakki/inkwell"},
+      files: ~w(lib priv mix.exs mix.lock README.md LICENSE)
     ]
   end
 end
