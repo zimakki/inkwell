@@ -30,3 +30,6 @@ inkwell-*.tar
 
 # Design specs and internal docs.
 /docs/
+
+# Git worktrees.
+/.worktrees/
