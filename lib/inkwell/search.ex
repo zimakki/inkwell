@@ -4,6 +4,8 @@ defmodule Inkwell.Search do
   Provides fuzzy search across both fields.
   """
 
+  @max_results 50
+
   def extract_title(path) do
     path
     |> File.stream!()
@@ -88,7 +90,7 @@ defmodule Inkwell.Search do
     end)
     |> Enum.reject(fn {_entry, score} -> score == 0 end)
     |> Enum.sort_by(fn {_entry, score} -> score end, :desc)
-    |> Enum.take(50)
+    |> Enum.take(@max_results)
     |> Enum.map(fn {entry, _score} -> entry end)
   end
 

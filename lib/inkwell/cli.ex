@@ -1,4 +1,7 @@
 defmodule Inkwell.CLI do
+  @moduledoc "Command-line interface and escript entry point."
+  require Logger
+
   def main(args) do
     {opts, rest, _invalid} = OptionParser.parse(args, strict: [theme: :string])
 
@@ -24,6 +27,7 @@ defmodule Inkwell.CLI do
   end
 
   def run_daemon(theme) do
+    Logger.info("Starting daemon with theme=#{theme}")
     :persistent_term.put(:inkwell_theme, theme)
     Application.ensure_all_started(:inkwell)
     Process.sleep(:infinity)
@@ -93,10 +97,9 @@ defmodule Inkwell.CLI do
   end
 
   defp http_get_json(url) do
-    :inets.start()
-    :ssl.start()
+    http_opts = [timeout: 5_000, connect_timeout: 3_000]
 
-    case :httpc.request(:get, {String.to_charlist(url), []}, [], body_format: :binary) do
+    case :httpc.request(:get, {String.to_charlist(url), []}, http_opts, body_format: :binary) do
       {:ok, {{_, 200, _}, _headers, body}} -> {:ok, Jason.decode!(body)}
       other -> {:error, other}
     end
@@ -105,12 +108,15 @@ defmodule Inkwell.CLI do
   defp open_browser(url) do
     cond do
       exec = System.find_executable("open") ->
+        Logger.debug("Opening browser: #{url}")
         System.cmd(exec, [url])
 
       exec = System.find_executable("xdg-open") ->
+        Logger.debug("Opening browser: #{url}")
         System.cmd(exec, [url])
 
       true ->
+        Logger.warning("No browser command found (open/xdg-open)")
         :ok
     end
   end

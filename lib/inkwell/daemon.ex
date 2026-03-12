@@ -1,5 +1,7 @@
 defmodule Inkwell.Daemon do
+  @moduledoc "Manages daemon lifecycle, port discovery, health checks, and idle shutdown."
   use GenServer
+  require Logger
 
   @idle_timeout :timer.minutes(10)
 
@@ -74,6 +76,7 @@ defmodule Inkwell.Daemon do
     File.write!(pidfile(), System.pid())
     Process.flag(:trap_exit, true)
     Process.send_after(self(), :refresh_port_info, 100)
+    Logger.info("Daemon started (pid=#{System.pid()})")
     {:ok, %{port: nil, ws_count: 0, idle_timer: nil}}
   end
 
@@ -124,6 +127,7 @@ defmodule Inkwell.Daemon do
         case ThousandIsland.listener_info(pid) do
           {:ok, {_, port}} ->
             File.write!(portfile(), Integer.to_string(port))
+            Logger.info("Listening on port #{port}")
             {:noreply, %{state | port: port}}
 
           _ ->
@@ -135,6 +139,10 @@ defmodule Inkwell.Daemon do
 
   def handle_info(:idle_shutdown, state) do
     if state.ws_count == 0 do
+      Logger.info(
+        "Idle shutdown triggered (no WebSocket clients for #{div(@idle_timeout, 60_000)} minutes)"
+      )
+
       System.stop(0)
     end
 
@@ -144,7 +152,8 @@ defmodule Inkwell.Daemon do
   def handle_info(_msg, state), do: {:noreply, state}
 
   @impl true
-  def terminate(_reason, _state) do
+  def terminate(reason, _state) do
+    Logger.info("Daemon shutting down (reason=#{inspect(reason)})")
     File.rm(pidfile())
     File.rm(portfile())
     :ok
@@ -197,16 +206,15 @@ defmodule Inkwell.Daemon do
   end
 
   defp http_request(method, url) do
-    :inets.start()
-    :ssl.start()
-
     request =
       case method do
         :get -> {String.to_charlist(url), []}
         :post -> {String.to_charlist(url), [], ~c"application/json", ~c""}
       end
 
-    case :httpc.request(method, request, [], body_format: :binary) do
+    http_opts = [timeout: 5_000, connect_timeout: 3_000]
+
+    case :httpc.request(method, request, http_opts, body_format: :binary) do
       {:ok, {{_, status, _}, _headers, body}} -> {:ok, status, body}
       error -> error
     end

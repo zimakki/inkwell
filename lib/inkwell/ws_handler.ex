@@ -1,5 +1,7 @@
 defmodule Inkwell.WsHandler do
+  @moduledoc "WebSocket handler that receives file updates and pushes them to browser clients."
   @behaviour WebSock
+  require Logger
 
   @impl true
   def init(opts) do
@@ -7,6 +9,7 @@ defmodule Inkwell.WsHandler do
     Registry.register(Inkwell.Registry, {:ws_clients, path}, [])
     Inkwell.Watcher.ensure_file(path)
     Inkwell.Daemon.client_connected()
+    Logger.debug("WebSocket connected for #{path}")
     {:ok, %{path: path}}
   end
 
@@ -22,7 +25,8 @@ defmodule Inkwell.WsHandler do
   def handle_info(_msg, state), do: {:ok, state}
 
   @impl true
-  def terminate(_reason, _state) do
+  def terminate(_reason, state) do
+    Logger.debug("WebSocket disconnected for #{state.path}")
     Inkwell.Daemon.client_disconnected()
     :ok
   end

@@ -1,5 +1,8 @@
 defmodule Inkwell.History do
+  @moduledoc "In-memory store of recently opened files."
   use Agent
+
+  @max_size 20
 
   def start_link(_opts) do
     Agent.start_link(fn -> [] end, name: __MODULE__)
@@ -7,7 +10,7 @@ defmodule Inkwell.History do
 
   def push(path) do
     Agent.update(__MODULE__, fn history ->
-      [path | Enum.reject(history, &(&1 == path))] |> Enum.take(20)
+      [path | Enum.reject(history, &(&1 == path))] |> Enum.take(@max_size)
     end)
   end
 

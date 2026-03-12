@@ -1,5 +1,7 @@
 defmodule Inkwell.Watcher do
+  @moduledoc "Filesystem watcher that monitors directories and broadcasts file changes."
   use GenServer
+  require Logger
 
   def start_link(opts) do
     dir = Keyword.fetch!(opts, :dir)
@@ -35,7 +37,13 @@ defmodule Inkwell.Watcher do
   def rebroadcast_all do
     watched_files()
     |> Enum.each(fn path ->
-      path |> File.read!() |> Inkwell.Renderer.render() |> broadcast(path)
+      case File.read(path) do
+        {:ok, content} ->
+          content |> Inkwell.Renderer.render() |> broadcast(path)
+
+        {:error, reason} ->
+          Logger.warning("Failed to read #{path}: #{inspect(reason)}")
+      end
     end)
   end
 
@@ -50,6 +58,7 @@ defmodule Inkwell.Watcher do
     Registry.register(Inkwell.Registry, {:watcher, dir}, [])
     {:ok, watcher} = FileSystem.start_link(dirs: [dir])
     FileSystem.subscribe(watcher)
+    Logger.info("Watching directory: #{dir}")
     {:ok, %{dir: dir, watcher: watcher, files: MapSet.new()}}
   end
 
@@ -67,7 +76,15 @@ defmodule Inkwell.Watcher do
     expanded = Path.expand(changed_path)
 
     if MapSet.member?(state.files, expanded) and :modified in events do
-      expanded |> File.read!() |> Inkwell.Renderer.render() |> broadcast(expanded)
+      Logger.debug("File changed: #{expanded}")
+
+      case File.read(expanded) do
+        {:ok, content} ->
+          content |> Inkwell.Renderer.render() |> broadcast(expanded)
+
+        {:error, reason} ->
+          Logger.warning("Failed to read #{expanded}: #{inspect(reason)}")
+      end
     end
 
     {:noreply, state}
