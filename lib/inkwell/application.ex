@@ -32,7 +32,7 @@ defmodule Inkwell.Application do
   def start(_type, _args) do
     {mode, parsed} =
       if System.get_env("BURRITO_BIN_PATH") do
-        args = :init.get_plain_arguments() |> Enum.map(&List.to_string/1)
+        args = apply(Burrito.Util.Args, :argv, [])
         parse_mode(args)
       else
         {:daemon, %{theme: :persistent_term.get(:inkwell_theme, "dark")}}

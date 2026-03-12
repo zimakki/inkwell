@@ -4,7 +4,7 @@ defmodule Inkwell.MixProject do
   def project do
     [
       app: :inkwell,
-      version: "0.2.1",
+      version: "0.2.2",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -37,7 +37,7 @@ defmodule Inkwell.MixProject do
       {:websock_adapter, "~> 0.5"},
       {:file_system, "~> 1.0"},
       {:jason, "~> 1.4"},
-      {:burrito, "~> 1.0", only: [:dev, :prod]},
+      {:burrito, "~> 1.0", only: :prod},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:usage_rules, "~> 1.1", only: :dev},
       {:tidewave, "~> 0.5", only: :dev}
