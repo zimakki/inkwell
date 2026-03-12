@@ -3,18 +3,70 @@ defmodule Inkwell.Application do
 
   use Application
 
+  @doc """
+  Parses CLI arguments into a mode (:daemon or :client) and parsed args.
+  """
+  def parse_mode(args) do
+    {opts, rest, _invalid} = OptionParser.parse(args, strict: [theme: :string])
+    theme = Keyword.get(opts, :theme, "dark")
+
+    case rest do
+      ["daemon"] ->
+        {:daemon, %{theme: theme}}
+
+      ["preview", file] ->
+        {:client, %{command: :preview, file: file, theme: theme}}
+
+      ["stop"] ->
+        {:client, %{command: :stop}}
+
+      ["status"] ->
+        {:client, %{command: :status}}
+
+      [] ->
+        {:daemon, %{theme: theme}}
+
+      _ ->
+        {:client, %{command: :usage}}
+    end
+  end
+
   @impl true
   def start(_type, _args) do
-    :persistent_term.put(:inkwell_theme, :persistent_term.get(:inkwell_theme, "dark"))
+    {mode, parsed} =
+      if System.get_env("BURRITO_BIN_PATH") do
+        args = :init.get_plain_arguments() |> Enum.map(&List.to_string/1)
+        parse_mode(args)
+      else
+        {:daemon, %{theme: :persistent_term.get(:inkwell_theme, "dark")}}
+      end
 
-    children = [
-      {Registry, keys: :duplicate, name: Inkwell.Registry},
-      {Inkwell.History, []},
-      {Inkwell.Daemon, []},
-      {DynamicSupervisor, strategy: :one_for_one, name: Inkwell.WatcherSupervisor},
-      Supervisor.child_spec({Bandit, plug: Inkwell.Router, port: 0}, id: Inkwell.BanditServer)
-    ]
+    children =
+      case mode do
+        :daemon ->
+          :persistent_term.put(:inkwell_theme, parsed[:theme] || "dark")
 
-    Supervisor.start_link(children, strategy: :one_for_one, name: Inkwell.Supervisor)
+          [
+            {Registry, keys: :duplicate, name: Inkwell.Registry},
+            {Inkwell.History, []},
+            {Inkwell.Daemon, []},
+            {DynamicSupervisor, strategy: :one_for_one, name: Inkwell.WatcherSupervisor},
+            Supervisor.child_spec({Bandit, plug: Inkwell.Router, port: 0},
+              id: Inkwell.BanditServer
+            )
+          ]
+
+        :client ->
+          []
+      end
+
+    {:ok, pid} =
+      Supervisor.start_link(children, strategy: :one_for_one, name: Inkwell.Supervisor)
+
+    if mode == :client do
+      Inkwell.CLI.run_client_command(parsed)
+    end
+
+    {:ok, pid}
   end
 end

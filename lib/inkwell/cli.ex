@@ -33,6 +33,47 @@ defmodule Inkwell.CLI do
     Process.sleep(:infinity)
   end
 
+  @doc "Called by Application.start/2 in client mode. Runs command and halts."
+  def run_client_command(%{command: :preview, file: file, theme: theme}) do
+    case preview(file, theme: theme) do
+      {:ok, url} ->
+        open_browser(url)
+        IO.puts(url)
+        System.halt(0)
+
+      {:error, msg} ->
+        IO.puts("Error: #{msg}")
+        System.halt(1)
+    end
+  end
+
+  def run_client_command(%{command: :stop}) do
+    :inets.start()
+    :ssl.start()
+
+    case Inkwell.Daemon.stop() do
+      :ok -> IO.puts("inkwell daemon stopped")
+      {:error, :not_running} -> IO.puts("inkwell daemon is not running")
+    end
+
+    System.halt(0)
+  end
+
+  def run_client_command(%{command: :status}) do
+    :inets.start()
+    :ssl.start()
+    run_status()
+    System.halt(0)
+  end
+
+  def run_client_command(%{command: :usage}) do
+    usage(1)
+  end
+
+  def run_client_command(_) do
+    usage(1)
+  end
+
   defp run_preview(file, opts) do
     case preview(file, opts) do
       {:ok, url} ->
