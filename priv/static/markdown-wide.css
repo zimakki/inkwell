@@ -1,0 +1,556 @@
+/* ─────────────────────────────────────────────────────────
+   Markdown Preview — Developer Editorial Theme
+   Fonts: Bricolage Grotesque (headings) + Outfit (body)
+   Themes: Controlled by plugin's data-theme attribute
+     mkdp_theme = "dark"   → always dark
+     mkdp_theme = "light"  → always light
+     mkdp_theme = "system" → follows OS preference
+   ───────────────────────────────────────────────────────── */
+
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Outfit:wght@300;400;500;600&display=swap");
+
+/* ── Light tokens (default) ──────────────────────────── */
+
+body {
+  --bg: #faf9f6;
+  --bg-surface: #f0eee8;
+  --bg-hover: #e8e5dd;
+  --text: #2b2b2b;
+  --text-secondary: #484848;
+  --text-muted: #888888;
+
+  --h1: #b45309;
+  --h2: #1e40af;
+  --h3: #047857;
+  --h4: #6d28d9;
+
+  --link: #2563eb;
+  --link-hover: #1d4ed8;
+  --accent: #dc2626;
+
+  --border: #d6d3cc;
+  --border-subtle: #e8e5de;
+
+  --blockquote-bar: #dc2626;
+  --blockquote-bg: rgba(220, 38, 38, 0.04);
+  --blockquote-text: #484848;
+
+  --table-border: rgba(30, 64, 175, 0.2);
+  --table-header-bg: rgba(30, 64, 175, 0.08);
+  --table-header-text: #1e40af;
+  --table-stripe: rgba(30, 64, 175, 0.04);
+  --table-hover: rgba(30, 64, 175, 0.08);
+  --table-accent: #1e40af;
+
+  --code-bg: #eae8e1;
+  --code-text: #a8370e;
+  --code-border: #d6d3cc;
+
+  --pre-bg: #f5f3ee;
+  --pre-border: #d6d3cc;
+  --pre-scrollbar-thumb: #c4c0b8;
+  --pre-scrollbar-track: transparent;
+
+  --header-text: #888888;
+  --header-border: #d6d3cc;
+
+  --mark-bg: rgba(180, 83, 9, 0.12);
+  --mark-text: #b45309;
+
+  --scrollbar-thumb: #c4c0b8;
+  --scrollbar-track: transparent;
+
+  --hr: linear-gradient(
+    90deg,
+    transparent,
+    #d6d3cc 20%,
+    #d6d3cc 80%,
+    transparent
+  );
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --selection: rgba(37, 99, 235, 0.15);
+}
+
+/* ── Dark tokens (when plugin sets data-theme="dark") ── */
+
+body:has([data-theme="dark"]) {
+  --bg: #16161e;
+  --bg-surface: #1f2335;
+  --bg-hover: #292e46;
+  --text: #c0caf5;
+  --text-secondary: #a9b1d6;
+  --text-muted: #565f89;
+
+  --h1: #f0c674;
+  --h2: #7aa2f7;
+  --h3: #73daca;
+  --h4: #bb9af7;
+
+  --link: #7dcfff;
+  --link-hover: #a8e0ff;
+  --accent: #ff757f;
+
+  --border: #2f334d;
+  --border-subtle: #24283b;
+
+  --blockquote-bar: #ff757f;
+  --blockquote-bg: rgba(255, 117, 127, 0.06);
+  --blockquote-text: #a9b1d6;
+
+  --table-border: rgba(122, 162, 247, 0.25);
+  --table-header-bg: rgba(122, 162, 247, 0.12);
+  --table-header-text: #7aa2f7;
+  --table-stripe: rgba(122, 162, 247, 0.05);
+  --table-hover: rgba(122, 162, 247, 0.1);
+  --table-accent: #7aa2f7;
+
+  --code-bg: #24283b;
+  --code-text: #ff9e64;
+  --code-border: #2f334d;
+
+  --pre-bg: #1a1b26;
+  --pre-border: #2f334d;
+  --pre-scrollbar-thumb: #3b4261;
+  --pre-scrollbar-track: transparent;
+
+  --header-text: #565f89;
+  --header-border: #2f334d;
+
+  --mark-bg: rgba(240, 198, 116, 0.2);
+  --mark-text: #f0c674;
+
+  --scrollbar-thumb: #3b4261;
+  --scrollbar-track: transparent;
+
+  --hr: linear-gradient(
+    90deg,
+    transparent,
+    #2f334d 20%,
+    #2f334d 80%,
+    transparent
+  );
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --selection: rgba(122, 162, 247, 0.3);
+}
+
+/* ── Base ─────────────────────────────────────────────── */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family:
+    "Outfit",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.75;
+  letter-spacing: -0.005em;
+  color: var(--text);
+  background-color: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+
+body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+body::-webkit-scrollbar {
+  width: 8px;
+}
+
+body::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+body::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+#page-ctn {
+  max-width: 1400px;
+  padding: 2rem 3rem;
+}
+
+/* ── Page header ─────────────────────────────────────── */
+
+#page-header {
+  margin-bottom: 1.5em;
+  padding-bottom: 0.75em;
+  border-bottom: 1px solid var(--header-border);
+}
+
+#page-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: "Outfit", system-ui, sans-serif;
+  font-size: 0.85em;
+  font-weight: 500;
+  color: var(--header-text);
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+#page-header h3 svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  opacity: 0.6;
+}
+
+/* ── Headings ─────────────────────────────────────────── */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  line-height: 1.25;
+  margin-top: 2.5em;
+  margin-bottom: 0.8em;
+  letter-spacing: -0.02em;
+  position: relative;
+}
+
+/* ── Heading anchors ─────────────────────────────────── */
+
+h1 .anchor,
+h2 .anchor,
+h3 .anchor,
+h4 .anchor,
+h5 .anchor,
+h6 .anchor {
+  position: absolute;
+  left: -1.5em;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  text-decoration: none;
+  line-height: 1;
+}
+
+h1:hover .anchor,
+h2:hover .anchor,
+h3:hover .anchor,
+h4:hover .anchor,
+h5:hover .anchor,
+h6:hover .anchor {
+  opacity: 0.4;
+}
+
+h1 .anchor:hover,
+h2 .anchor:hover,
+h3 .anchor:hover,
+h4 .anchor:hover,
+h5 .anchor:hover,
+h6 .anchor:hover {
+  opacity: 0.8;
+}
+
+.anchor .octicon {
+  width: 16px;
+  height: 16px;
+  fill: var(--text-muted);
+  vertical-align: middle;
+}
+
+h1 {
+  font-size: 2.2em;
+  font-weight: 800;
+  color: var(--h1);
+  margin-top: 0;
+  padding-bottom: 0.3em;
+  border-bottom: 2px solid var(--border);
+}
+
+h2 {
+  font-size: 1.6em;
+  font-weight: 700;
+  color: var(--h2);
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+h3 {
+  font-size: 1.3em;
+  font-weight: 700;
+  color: var(--h3);
+}
+
+h4 {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--h4);
+}
+
+h5,
+h6 {
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Paragraphs & inline ─────────────────────────────── */
+
+p {
+  margin-bottom: 1.25em;
+  text-wrap: pretty;
+}
+
+strong {
+  font-weight: 600;
+}
+
+a {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition:
+    text-decoration-color 0.2s ease,
+    color 0.2s ease;
+}
+
+a:hover {
+  color: var(--link-hover);
+  text-decoration-color: var(--link-hover);
+}
+
+/* ── Lists ────────────────────────────────────────────── */
+
+ul,
+ol {
+  margin-bottom: 1.25em;
+  padding-left: 1.5em;
+}
+
+li {
+  margin-bottom: 0.4em;
+}
+
+li > ul,
+li > ol {
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
+}
+
+li::marker {
+  color: var(--text-muted);
+}
+
+li input[type="checkbox"] {
+  margin-right: 0.5em;
+  accent-color: var(--accent);
+}
+
+/* ── Blockquotes ──────────────────────────────────────── */
+
+blockquote {
+  border-left: 3px solid var(--blockquote-bar);
+  background: var(--blockquote-bg);
+  margin: 1.5em 0;
+  padding: 1em 1.5em;
+  border-radius: 0 8px 8px 0;
+  color: var(--blockquote-text);
+  font-style: italic;
+}
+
+blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+blockquote blockquote {
+  margin-top: 0.75em;
+  border-left-color: var(--h4);
+}
+
+/* ── Inline code ─────────────────────────────────────── */
+
+code {
+  font-family:
+    "SF Mono",
+    "Cascadia Code",
+    "Fira Code",
+    ui-monospace,
+    monospace;
+  font-size: 0.88em;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  background: var(--code-bg);
+  color: var(--code-text);
+  border: 1px solid var(--code-border);
+  word-break: break-word;
+}
+
+/* ── Code blocks (fenced) ────────────────────────────── */
+
+pre {
+  margin: 1.5em 0;
+  padding: 1.25em 1.5em;
+  border-radius: 8px;
+  background: var(--pre-bg);
+  border: 1px solid var(--pre-border);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--pre-scrollbar-thumb) var(--pre-scrollbar-track);
+}
+
+pre::-webkit-scrollbar {
+  height: 6px;
+}
+
+pre::-webkit-scrollbar-track {
+  background: var(--pre-scrollbar-track);
+}
+
+pre::-webkit-scrollbar-thumb {
+  background: var(--pre-scrollbar-thumb);
+  border-radius: 3px;
+}
+
+pre code {
+  font-size: 0.9em;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  color: var(--text);
+  word-break: normal;
+  white-space: pre;
+  line-height: 1.6;
+}
+
+/* ── Tables ───────────────────────────────────────────── */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5em 0;
+  font-size: 0.95em;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  border: 1.5px solid var(--table-border);
+  border-top: 3px solid var(--table-accent);
+}
+
+thead {
+  background: var(--table-header-bg);
+}
+
+th {
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--table-header-text);
+  padding: 0.75em 1em;
+  text-align: left;
+  border-bottom: 2px solid var(--border);
+}
+
+td {
+  padding: 0.65em 1em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+tr:nth-child(even) {
+  background: var(--table-stripe);
+}
+
+tr:hover {
+  background: var(--table-hover);
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Horizontal rules ─────────────────────────────────── */
+
+hr {
+  border: none;
+  height: 1px;
+  background: var(--hr);
+  margin: 3em 0;
+}
+
+/* ── Images ───────────────────────────────────────────── */
+
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  margin: 1em 0;
+}
+
+/* ── Definition lists ─────────────────────────────────── */
+
+dt {
+  font-weight: 600;
+  color: var(--h2);
+  margin-top: 1em;
+}
+
+dd {
+  margin-left: 1.5em;
+  margin-bottom: 0.5em;
+  color: var(--text-secondary);
+}
+
+/* ── Keyboard, marks, abbreviations ───────────────────── */
+
+kbd {
+  font-family: "Outfit", system-ui, sans-serif;
+  font-size: 0.85em;
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  box-shadow: 0 1px 0 var(--border);
+  color: var(--text-secondary);
+}
+
+mark {
+  background: var(--mark-bg);
+  color: var(--mark-text);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+
+/* ── Footnotes ────────────────────────────────────────── */
+
+.footnotes {
+  margin-top: 3em;
+  padding-top: 1.5em;
+  border-top: 1px solid var(--border);
+  font-size: 0.9em;
+  color: var(--text-secondary);
+}
+
+/* ── Selection ────────────────────────────────────────── */
+
+::selection {
+  background: var(--selection);
+  color: inherit;
+}

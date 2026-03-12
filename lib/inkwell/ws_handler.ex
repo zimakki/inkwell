@@ -1,0 +1,29 @@
+defmodule Inkwell.WsHandler do
+  @behaviour WebSock
+
+  @impl true
+  def init(opts) do
+    path = opts[:path] |> Path.expand()
+    Registry.register(Inkwell.Registry, {:ws_clients, path}, [])
+    Inkwell.Watcher.ensure_file(path)
+    Inkwell.Daemon.client_connected()
+    {:ok, %{path: path}}
+  end
+
+  @impl true
+  def handle_in({text, _opts}, state) when text == "ping", do: {:push, {:text, "pong"}, state}
+  def handle_in(_message, state), do: {:ok, state}
+
+  @impl true
+  def handle_info({:reload, html}, state) do
+    {:push, {:text, html}, state}
+  end
+
+  def handle_info(_msg, state), do: {:ok, state}
+
+  @impl true
+  def terminate(_reason, _state) do
+    Inkwell.Daemon.client_disconnected()
+    :ok
+  end
+end
