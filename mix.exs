@@ -59,8 +59,7 @@ defmodule Inkwell.MixProject do
           targets: [
             darwin_arm64: [os: :darwin, cpu: :aarch64],
             darwin_amd64: [os: :darwin, cpu: :x86_64],
-            linux_amd64: [os: :linux, cpu: :x86_64],
-            linux_arm64: [os: :linux, cpu: :aarch64]
+            linux_amd64: [os: :linux, cpu: :x86_64]
           ]
         ]
       ]
