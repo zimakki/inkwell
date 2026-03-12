@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    env:
+      MIX_HOME: ${{ github.workspace }}/.mix
+      HEX_HOME: ${{ github.workspace }}/.hex
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.19"
+          otp-version: "27"
+
+      - name: Install dependencies
+        run: mix deps.get --only prod
+
+      - name: Build escript
+        run: mix escript.build
+
+      - name: Compute SHA256
+        id: sha
+        run: echo "sha256=$(sha256sum inkwell | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: inkwell
+          body: |
+            ## Install
+
+            ### Homebrew
+            ```bash
+            brew tap zimakki/tap
+            brew install inkwell
+            ```
+
+            ### Manual
+            Download the `inkwell` binary below and place it in your `$PATH`.
+            Requires Erlang/OTP runtime.
+
+            **SHA256:** `${{ steps.sha.outputs.sha256 }}`
