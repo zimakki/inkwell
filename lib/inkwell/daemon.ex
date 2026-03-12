@@ -37,8 +37,10 @@ defmodule Inkwell.Daemon do
     else
       cmd = daemon_command(theme)
 
-      {_out, 0} = System.cmd("sh", ["-c", cmd])
-      wait_until_alive()
+      case System.cmd("sh", ["-c", cmd]) do
+        {_out, 0} -> wait_until_alive()
+        {out, code} -> {:error, {:spawn_failed, code, out}}
+      end
     end
   end
 
@@ -99,6 +101,7 @@ defmodule Inkwell.Daemon do
     {:noreply, %{state | ws_count: state.ws_count + 1, idle_timer: nil}}
   end
 
+  @impl true
   def handle_cast(:client_disconnected, state) do
     ws_count = max(state.ws_count - 1, 0)
 
@@ -137,6 +140,7 @@ defmodule Inkwell.Daemon do
     end
   end
 
+  @impl true
   def handle_info(:idle_shutdown, state) do
     if state.ws_count == 0 do
       Logger.info(
@@ -149,6 +153,7 @@ defmodule Inkwell.Daemon do
     {:noreply, %{state | idle_timer: nil}}
   end
 
+  @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
   @impl true

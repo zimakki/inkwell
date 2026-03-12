@@ -103,8 +103,14 @@ defmodule Inkwell.CLI do
     http_opts = [timeout: 5_000, connect_timeout: 3_000]
 
     case :httpc.request(:get, {String.to_charlist(url), []}, http_opts, body_format: :binary) do
-      {:ok, {{_, 200, _}, _headers, body}} -> {:ok, Jason.decode!(body)}
-      other -> {:error, other}
+      {:ok, {{_, 200, _}, _headers, body}} ->
+        case Jason.decode(body) do
+          {:ok, decoded} -> {:ok, decoded}
+          {:error, _} = err -> err
+        end
+
+      other ->
+        {:error, other}
     end
   end
 

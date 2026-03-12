@@ -17,7 +17,7 @@ defmodule Inkwell.Search do
       end
     end)
   rescue
-    _ -> nil
+    _e in [File.Error, IO.StreamError] -> nil
   end
 
   def fuzzy_score("", _candidate), do: 0
