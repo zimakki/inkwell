@@ -57,7 +57,8 @@ defmodule Inkwell.Daemon do
     path = portfile()
 
     with true <- File.exists?(path),
-         {port, ""} <- Integer.parse(String.trim(File.read!(path))) do
+         {:ok, content} <- File.read(path),
+         {port, ""} <- Integer.parse(String.trim(content)) do
       {:ok, port}
     else
       _ -> {:error, :missing}
