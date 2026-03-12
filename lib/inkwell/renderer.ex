@@ -1,4 +1,6 @@
 defmodule Inkwell.Renderer do
+  @moduledoc "Converts markdown to HTML with syntax highlighting and mermaid support."
+
   @base_opts [
     extension: [
       strikethrough: true,

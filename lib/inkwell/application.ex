@@ -1,5 +1,5 @@
 defmodule Inkwell.Application do
-  @moduledoc false
+  @moduledoc "OTP application that starts the Inkwell supervision tree."
 
   use Application
 
