@@ -4,11 +4,11 @@ defmodule Inkwell.MixProject do
   def project do
     [
       app: :inkwell,
-      version: "0.1.4",
+      version: "0.2.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      escript: [main_module: Inkwell.CLI, app: nil],
+      releases: releases(),
       name: "Inkwell",
       source_url: "https://github.com/zimakki/inkwell",
       homepage_url: "https://github.com/zimakki/inkwell",
@@ -37,6 +37,7 @@ defmodule Inkwell.MixProject do
       {:websock_adapter, "~> 0.5"},
       {:file_system, "~> 1.0"},
       {:jason, "~> 1.4"},
+      {:burrito, "~> 1.0", only: [:dev, :prod]},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:usage_rules, "~> 1.1", only: :dev},
       {:tidewave, "~> 0.5", only: :dev}
@@ -47,6 +48,21 @@ defmodule Inkwell.MixProject do
     [
       tidewave:
         "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 4000) end)'"
+    ]
+  end
+
+  defp releases do
+    [
+      inkwell: [
+        steps: [:assemble, &Burrito.wrap/1],
+        burrito: [
+          targets: [
+            darwin_arm64: [os: :darwin, cpu: :aarch64],
+            darwin_amd64: [os: :darwin, cpu: :x86_64],
+            linux_amd64: [os: :linux, cpu: :x86_64]
+          ]
+        ]
+      ]
     ]
   end
 

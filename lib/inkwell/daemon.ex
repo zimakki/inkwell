@@ -186,6 +186,9 @@ defmodule Inkwell.Daemon do
 
   defp current_executable do
     cond do
+      (burrito_bin = System.get_env("BURRITO_BIN_PATH")) && File.exists?(burrito_bin) ->
+        burrito_bin
+
       (script = List.to_string(:escript.script_name())) != "" ->
         Path.expand(script, File.cwd!())
 
@@ -203,16 +206,17 @@ defmodule Inkwell.Daemon do
   defp daemon_command(theme) do
     exec = current_executable()
 
-    if escript?() do
-      "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >>#{shell_escape(logfile())} 2>&1 &"
-    else
-      case project_root(exec) do
-        {:ok, root} ->
-          "cd #{shell_escape(root)} && nohup mix run --no-halt -e 'Inkwell.CLI.run_daemon(\"#{theme}\")' >>#{shell_escape(logfile())} 2>&1 &"
+    cond do
+      burrito?() or escript?() ->
+        "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >>#{shell_escape(logfile())} 2>&1 &"
 
-        :error ->
-          "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >>#{shell_escape(logfile())} 2>&1 &"
-      end
+      match?({:ok, _}, project_root(exec)) ->
+        {:ok, root} = project_root(exec)
+
+        "cd #{shell_escape(root)} && nohup mix run --no-halt -e 'Inkwell.CLI.run_daemon(\"#{theme}\")' >>#{shell_escape(logfile())} 2>&1 &"
+
+      true ->
+        "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >>#{shell_escape(logfile())} 2>&1 &"
     end
   end
 
@@ -251,6 +255,10 @@ defmodule Inkwell.Daemon do
 
   defp escript? do
     List.to_string(:escript.script_name()) != ""
+  end
+
+  defp burrito? do
+    System.get_env("BURRITO_BIN_PATH") != nil
   end
 
   defp project_root(exec) do

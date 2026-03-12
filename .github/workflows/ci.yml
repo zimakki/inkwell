@@ -38,6 +38,3 @@ jobs:
 
       - name: Run tests
         run: mix test
-
-      - name: Build escript
-        run: mix escript.build

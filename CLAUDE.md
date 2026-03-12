@@ -6,8 +6,8 @@ Live markdown preview daemon built in Elixir. Runs a persistent background serve
 
 ```bash
 mix deps.get
-mix escript.build        # produces ./inkwell binary
-./inkwell preview file.md --theme dark
+mix release              # Burrito produces binaries in burrito_out/
+./burrito_out/inkwell_darwin_arm64 preview file.md --theme dark
 ```
 
 ## Test & Format
@@ -36,7 +36,7 @@ Key patterns:
 ## Conventions
 
 - Elixir ~> 1.19, standard `mix format` style
-- Escript distribution (`mix escript.build`, main module: `Inkwell.CLI`)
+- Burrito distribution (`mix release`, self-extracting binaries with bundled ERTS)
 - Static assets in `priv/static/`
 
 <!-- usage-rules-start -->

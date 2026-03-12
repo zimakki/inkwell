@@ -45,20 +45,27 @@ jobs:
           fi
 
   build:
-    name: Build and Release
-    runs-on: ubuntu-latest
+    name: Build (${{ matrix.target }})
     needs: [tag]
     if: |
       always() &&
       (github.ref_type == 'tag' || needs.tag.outputs.tag_created == 'true')
-    outputs:
-      sha256: ${{ steps.sha.outputs.sha256 }}
-      version: ${{ steps.version.outputs.version }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            target: darwin_arm64
+          - os: macos-13
+            target: darwin_amd64
+          - os: ubuntu-latest
+            target: linux_amd64
+    runs-on: ${{ matrix.os }}
 
     env:
       MIX_ENV: prod
       MIX_HOME: ${{ github.workspace }}/.mix
       HEX_HOME: ${{ github.workspace }}/.hex
+      BURRITO_TARGET: ${{ matrix.target }}
 
     steps:
       - uses: actions/checkout@v4
@@ -71,27 +78,66 @@ jobs:
           elixir-version: "1.19"
           otp-version: "27"
 
+      - name: Install Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.15.2
+
+      - name: Install xz (macOS)
+        if: runner.os == 'macOS'
+        run: brew install xz
+
       - name: Install dependencies
         run: mix deps.get --only prod
 
-      - name: Build escript
-        run: mix escript.build
+      - name: Build release
+        run: mix release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: inkwell_${{ matrix.target }}
+          path: burrito_out/inkwell_${{ matrix.target }}
+
+  release:
+    name: Create GitHub Release
+    needs: [tag, build]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha256_darwin_arm64: ${{ steps.sha.outputs.sha256_darwin_arm64 }}
+      sha256_darwin_amd64: ${{ steps.sha.outputs.sha256_darwin_amd64 }}
+      sha256_linux_amd64: ${{ steps.sha.outputs.sha256_linux_amd64 }}
+
+    steps:
+      - uses: actions/download-artifact@v4
 
       - name: Extract version
         id: version
         run: |
-          version=$(grep 'version:' mix.exs | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          version="${{ needs.tag.outputs.version }}"
+          if [ -z "$version" ]; then
+            version="${GITHUB_REF_NAME#v}"
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Compute SHA256
+      - name: Compute SHA256s
         id: sha
-        run: echo "sha256=$(sha256sum inkwell | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+        run: |
+          for target in darwin_arm64 darwin_amd64 linux_amd64; do
+            sha=$(sha256sum "inkwell_${target}/inkwell_${target}" | awk '{print $1}')
+            echo "sha256_${target}=$sha" >> "$GITHUB_OUTPUT"
+            echo "$target: $sha"
+          done
+
+      - name: Make binaries executable
+        run: chmod +x inkwell_*/inkwell_*
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
-          files: inkwell
+          files: inkwell_*/inkwell_*
           body: |
             ## Install
 
@@ -102,15 +148,13 @@ jobs:
             ```
 
             ### Manual
-            Download the `inkwell` binary below and place it in your `$PATH`.
-            Requires Erlang/OTP runtime.
-
-            **SHA256:** `${{ steps.sha.outputs.sha256 }}`
+            Download the binary for your platform below and place it in your `$PATH`.
+            No Erlang runtime required — it's bundled.
 
   update-tap:
     name: Update Homebrew Tap
     runs-on: ubuntu-latest
-    needs: build
+    needs: [release]
     concurrency: homebrew-tap-update
 
     steps:
@@ -127,8 +171,10 @@ jobs:
 
       - name: Update formula
         run: |
-          sed -e 's/__VERSION__/${{ needs.build.outputs.version }}/g' \
-              -e 's/__SHA256__/${{ needs.build.outputs.sha256 }}/g' \
+          sed -e 's/__VERSION__/${{ needs.release.outputs.version }}/g' \
+              -e 's/__SHA256_DARWIN_ARM64__/${{ needs.release.outputs.sha256_darwin_arm64 }}/g' \
+              -e 's/__SHA256_DARWIN_AMD64__/${{ needs.release.outputs.sha256_darwin_amd64 }}/g' \
+              -e 's/__SHA256_LINUX_AMD64__/${{ needs.release.outputs.sha256_linux_amd64 }}/g' \
               inkwell/.github/formula-template.rb \
               > homebrew-tap/Formula/inkwell.rb
 
@@ -139,5 +185,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Formula/inkwell.rb
-          git commit -m "Update inkwell to ${{ needs.build.outputs.version }}"
+          git commit -m "Update inkwell to ${{ needs.release.outputs.version }}"
           git push
