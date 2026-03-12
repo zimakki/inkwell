@@ -203,12 +203,16 @@ defmodule Inkwell.Daemon do
   defp daemon_command(theme) do
     exec = current_executable()
 
-    case project_root(exec) do
-      {:ok, root} ->
-        "cd #{shell_escape(root)} && nohup mix run --no-halt -e 'Inkwell.CLI.run_daemon(\"#{theme}\")' >>#{shell_escape(logfile())} 2>&1 &"
+    if escript?() do
+      "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >>#{shell_escape(logfile())} 2>&1 &"
+    else
+      case project_root(exec) do
+        {:ok, root} ->
+          "cd #{shell_escape(root)} && nohup mix run --no-halt -e 'Inkwell.CLI.run_daemon(\"#{theme}\")' >>#{shell_escape(logfile())} 2>&1 &"
 
-      :error ->
-        "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >>#{shell_escape(logfile())} 2>&1 &"
+        :error ->
+          "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >>#{shell_escape(logfile())} 2>&1 &"
+      end
     end
   end
 
@@ -243,6 +247,10 @@ defmodule Inkwell.Daemon do
       {Inkwell.BanditServer, pid, _type, _modules} -> pid
       _ -> nil
     end)
+  end
+
+  defp escript? do
+    List.to_string(:escript.script_name()) != ""
   end
 
   defp project_root(exec) do
