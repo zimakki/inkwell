@@ -47,7 +47,7 @@ defmodule Inkwell.Watcher do
     end)
   end
 
-  def broadcast(path, html) do
+  def broadcast(html, path) do
     Registry.dispatch(Inkwell.Registry, {:ws_clients, path}, fn entries ->
       for {pid, _} <- entries, do: send(pid, {:reload, html})
     end)
@@ -67,6 +67,7 @@ defmodule Inkwell.Watcher do
     {:reply, :ok, %{state | files: MapSet.put(state.files, path)}}
   end
 
+  @impl true
   def handle_call(:watched_files, _from, state) do
     {:reply, MapSet.to_list(state.files), state}
   end
@@ -90,5 +91,6 @@ defmodule Inkwell.Watcher do
     {:noreply, state}
   end
 
+  @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 end

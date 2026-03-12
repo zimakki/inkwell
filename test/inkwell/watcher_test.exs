@@ -36,7 +36,7 @@ defmodule Inkwell.WatcherTest do
     expanded = Path.expand(test_file)
     Registry.register(Inkwell.Registry, {:ws_clients, expanded}, [])
 
-    Inkwell.Watcher.broadcast(expanded, "<p>Updated</p>")
+    Inkwell.Watcher.broadcast("<p>Updated</p>", expanded)
 
     assert_receive {:reload, "<p>Updated</p>"}, 1000
   end
