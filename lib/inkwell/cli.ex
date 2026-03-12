@@ -4,10 +4,7 @@ defmodule Inkwell.CLI do
 
     case rest do
       ["daemon"] ->
-        theme = Keyword.get(opts, :theme, "dark")
-        :persistent_term.put(:inkwell_theme, theme)
-        Application.ensure_all_started(:inkwell)
-        Process.sleep(:infinity)
+        run_daemon(Keyword.get(opts, :theme, "dark"))
 
       ["preview", file] ->
         run_preview(file, opts)
@@ -24,6 +21,12 @@ defmodule Inkwell.CLI do
       _ ->
         usage(1)
     end
+  end
+
+  def run_daemon(theme) do
+    :persistent_term.put(:inkwell_theme, theme)
+    Application.ensure_all_started(:inkwell)
+    Process.sleep(:infinity)
   end
 
   defp run_preview(file, opts) do

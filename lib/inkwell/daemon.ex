@@ -33,11 +33,7 @@ defmodule Inkwell.Daemon do
     if alive?() do
       {:ok, read_port!()}
     else
-      exec = current_executable()
-      project_dir = Application.app_dir(:inkwell)
-
-      cmd =
-        "cd #{shell_escape(project_dir)} && nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >/dev/null 2>&1 &"
+      cmd = daemon_command(theme)
 
       {_out, 0} = System.cmd("sh", ["-c", cmd])
       wait_until_alive()
@@ -175,7 +171,7 @@ defmodule Inkwell.Daemon do
   defp current_executable do
     cond do
       (script = List.to_string(:escript.script_name())) != "" ->
-        script
+        Path.expand(script, File.cwd!())
 
       File.exists?(Path.expand("_build/dev/bin/inkwell", File.cwd!())) ->
         Path.expand("_build/dev/bin/inkwell", File.cwd!())
@@ -185,6 +181,18 @@ defmodule Inkwell.Daemon do
 
       true ->
         raise "Unable to locate inkwell executable"
+    end
+  end
+
+  defp daemon_command(theme) do
+    exec = current_executable()
+
+    case project_root(exec) do
+      {:ok, root} ->
+        "cd #{shell_escape(root)} && nohup mix run --no-halt -e 'Inkwell.CLI.run_daemon(\"#{theme}\")' >/dev/null 2>&1 &"
+
+      :error ->
+        "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >/dev/null 2>&1 &"
     end
   end
 
@@ -214,6 +222,14 @@ defmodule Inkwell.Daemon do
     |> Enum.find_value(fn
       {Inkwell.BanditServer, pid, _type, _modules} -> pid
       _ -> nil
+    end)
+  end
+
+  defp project_root(exec) do
+    candidates = [File.cwd!(), Path.dirname(exec)]
+
+    Enum.find_value(candidates, :error, fn path ->
+      if File.exists?(Path.join(path, "mix.exs")), do: {:ok, path}, else: false
     end)
   end
 end
