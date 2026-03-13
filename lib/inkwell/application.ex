@@ -7,30 +7,44 @@ defmodule Inkwell.Application do
   Parses CLI arguments into a mode (:daemon or :client) and parsed args.
   """
   def parse_mode(args) do
-    {opts, rest, _invalid} = OptionParser.parse(args, strict: [theme: :string])
+    {opts, rest, _invalid} =
+      OptionParser.parse(args,
+        strict: [theme: :string, help: :boolean, version: :boolean],
+        aliases: [h: :help, v: :version]
+      )
+
     theme = Keyword.get(opts, :theme, "dark")
 
-    case rest do
-      ["daemon"] ->
-        {:daemon, %{theme: theme}}
+    cond do
+      opts[:help] ->
+        {:client, %{command: :help}}
 
-      ["preview", file] ->
-        {:client, %{command: :preview, file: file, theme: theme}}
+      opts[:version] ->
+        {:client, %{command: :version}}
 
-      ["stop"] ->
-        {:client, %{command: :stop}}
+      true ->
+        case rest do
+          ["daemon"] ->
+            {:daemon, %{theme: theme}}
 
-      ["status"] ->
-        {:client, %{command: :status}}
+          ["preview", file] ->
+            {:client, %{command: :preview, file: file, theme: theme}}
 
-      [dir] ->
-        {:client, %{command: :browse, dir: dir, theme: theme}}
+          ["stop"] ->
+            {:client, %{command: :stop}}
 
-      [] ->
-        {:client, %{command: :usage}}
+          ["status"] ->
+            {:client, %{command: :status}}
 
-      _ ->
-        {:client, %{command: :usage}}
+          [dir] ->
+            {:client, %{command: :browse, dir: dir, theme: theme}}
+
+          [] ->
+            {:client, %{command: :usage}}
+
+          _ ->
+            {:client, %{command: :usage}}
+        end
     end
   end
 

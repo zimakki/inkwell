@@ -68,6 +68,62 @@ defmodule Inkwell.CLITest do
     assert url =~ "dir=#{URI.encode_www_form(abs_dir)}"
   end
 
+  # Tests for parse_mode — verifying --help and --version flag handling
+
+  test "parse_mode returns help command for --help flag" do
+    assert {:client, %{command: :help}} = Inkwell.Application.parse_mode(["--help"])
+  end
+
+  test "parse_mode returns help command for -h flag" do
+    assert {:client, %{command: :help}} = Inkwell.Application.parse_mode(["-h"])
+  end
+
+  test "parse_mode returns version command for --version flag" do
+    assert {:client, %{command: :version}} = Inkwell.Application.parse_mode(["--version"])
+  end
+
+  test "parse_mode returns version command for -v flag" do
+    assert {:client, %{command: :version}} = Inkwell.Application.parse_mode(["-v"])
+  end
+
+  test "parse_mode returns usage command for no args" do
+    assert {:client, %{command: :usage}} = Inkwell.Application.parse_mode([])
+  end
+
+  # Tests for help_text and version_string — pure functions that don't call System.halt
+
+  test "help_text returns usage documentation" do
+    text = Inkwell.CLI.help_text()
+    assert text =~ "inkwell"
+    assert text =~ "preview"
+    assert text =~ "--help"
+    assert text =~ "--version"
+    assert text =~ "--theme"
+  end
+
+  test "version_string returns app name and version" do
+    version = Inkwell.CLI.version_string()
+    assert version =~ "inkwell"
+    assert version =~ ~r/\d+\.\d+\.\d+/
+  end
+
+  # Tests for wait_for_server — ensures HTTP server is accepting connections
+
+  test "wait_for_server succeeds when server is listening" do
+    # Start a TCP listener on an ephemeral port
+    {:ok, listener} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listener)
+    on_exit(fn -> :gen_tcp.close(listener) end)
+
+    assert :ok = Inkwell.CLI.wait_for_server("http://localhost:#{port}/some/path")
+  end
+
+  test "wait_for_server returns error when no server is listening" do
+    # Use a port that's definitely not listening
+    assert {:error, :timeout} =
+             Inkwell.CLI.wait_for_server("http://localhost:1/nope", retries: 2, delay: 10)
+  end
+
   test "preview returns error with message when daemon fails to start" do
     # Use a real temp file so the file-exists check passes.
     tmp = Path.join(System.tmp_dir!(), "test-#{System.unique_integer([:positive])}.md")

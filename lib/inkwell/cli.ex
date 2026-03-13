@@ -3,26 +3,42 @@ defmodule Inkwell.CLI do
   require Logger
 
   def main(args) do
-    {opts, rest, _invalid} = OptionParser.parse(args, strict: [theme: :string])
+    {opts, rest, _invalid} =
+      OptionParser.parse(args,
+        strict: [theme: :string, help: :boolean, version: :boolean],
+        aliases: [h: :help, v: :version]
+      )
 
-    case rest do
-      ["daemon"] ->
-        run_daemon(Keyword.get(opts, :theme, "dark"))
+    cond do
+      opts[:help] ->
+        IO.puts(help_text())
 
-      ["preview", file] ->
-        run_preview(file, opts)
+      opts[:version] ->
+        IO.puts(version_string())
 
-      ["stop"] ->
-        case Inkwell.Daemon.stop() do
-          :ok -> IO.puts("inkwell daemon stopped")
-          {:error, :not_running} -> IO.puts("inkwell daemon is not running")
+      true ->
+        case rest do
+          ["daemon"] ->
+            run_daemon(Keyword.get(opts, :theme, "dark"))
+
+          ["preview", file] ->
+            run_preview(file, opts)
+
+          ["stop"] ->
+            case Inkwell.Daemon.stop() do
+              :ok -> IO.puts("inkwell daemon stopped")
+              {:error, :not_running} -> IO.puts("inkwell daemon is not running")
+            end
+
+          ["status"] ->
+            run_status()
+
+          [] ->
+            IO.puts(help_text())
+
+          _ ->
+            usage(1)
         end
-
-      ["status"] ->
-        run_status()
-
-      _ ->
-        usage(1)
     end
   end
 
@@ -79,8 +95,19 @@ defmodule Inkwell.CLI do
     end
   end
 
+  def run_client_command(%{command: :help}) do
+    IO.puts(help_text())
+    System.halt(0)
+  end
+
+  def run_client_command(%{command: :version}) do
+    IO.puts(version_string())
+    System.halt(0)
+  end
+
   def run_client_command(%{command: :usage}) do
-    usage(1)
+    IO.puts(help_text())
+    System.halt(0)
   end
 
   def run_client_command(_) do
@@ -178,8 +205,9 @@ defmodule Inkwell.CLI do
     end
   end
 
-  defp usage(exit_code) do
-    IO.puts("""
+  @doc "Returns the help text for the CLI."
+  def help_text do
+    """
     Usage:
       inkwell <directory>            Open file picker for a directory
       inkwell preview <file.md>      Preview a specific markdown file
@@ -188,13 +216,24 @@ defmodule Inkwell.CLI do
 
     Options:
       --theme dark|light             Set the theme (default: dark)
+      --help, -h                     Show this help message
+      --version, -v                  Show the version
 
     Examples:
       inkwell .                      Browse current directory
       inkwell ~/Documents            Browse a specific directory
-      inkwell preview README.md      Preview README.md
-    """)
+      inkwell preview README.md      Preview README.md\
+    """
+  end
 
+  @doc "Returns the version string in the format 'inkwell X.Y.Z'."
+  def version_string do
+    version = Application.spec(:inkwell, :vsn) |> to_string()
+    "inkwell #{version}"
+  end
+
+  defp usage(exit_code) do
+    IO.puts(help_text())
     System.halt(exit_code)
   end
 
@@ -216,7 +255,36 @@ defmodule Inkwell.CLI do
     end
   end
 
+  @doc """
+  Waits for the HTTP server at the given URL to accept TCP connections.
+  Returns :ok on success or {:error, :timeout} if the server isn't ready.
+  """
+  def wait_for_server(url, opts \\ []) do
+    uri = URI.parse(url)
+    port = uri.port || 80
+    retries = Keyword.get(opts, :retries, 50)
+    delay = Keyword.get(opts, :delay, 100)
+
+    do_wait_for_server(port, retries, delay)
+  end
+
+  defp do_wait_for_server(_port, 0, _delay), do: {:error, :timeout}
+
+  defp do_wait_for_server(port, retries, delay) do
+    case :gen_tcp.connect(~c"localhost", port, [], 200) do
+      {:ok, socket} ->
+        :gen_tcp.close(socket)
+        :ok
+
+      {:error, _} ->
+        Process.sleep(delay)
+        do_wait_for_server(port, retries - 1, delay)
+    end
+  end
+
   defp open_browser(url) do
+    wait_for_server(url)
+
     cond do
       exec = System.find_executable("open") ->
         Logger.debug("Opening browser: #{url}")
