@@ -44,8 +44,8 @@ jobs:
             echo "created=true" >> "$GITHUB_OUTPUT"
           fi
 
-  build:
-    name: Build (${{ matrix.target }})
+  build-cli:
+    name: Build CLI (${{ matrix.target }})
     needs: [tag]
     if: |
       always() &&
@@ -99,15 +99,81 @@ jobs:
           name: inkwell_${{ matrix.target }}
           path: burrito_out/inkwell_${{ matrix.target }}
 
+  build-desktop:
+    name: Build Desktop (${{ matrix.target }})
+    needs: [tag]
+    if: |
+      always() &&
+      (github.ref_type == 'tag' || needs.tag.outputs.tag_created == 'true')
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            target: darwin_arm64
+          - os: macos-15
+            target: darwin_amd64
+    runs-on: ${{ matrix.os }}
+
+    env:
+      MIX_ENV: prod
+      MIX_HOME: ${{ github.workspace }}/.mix
+      HEX_HOME: ${{ github.workspace }}/.hex
+      BURRITO_TARGET: ${{ matrix.target }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_type == 'tag' && github.ref || format('v{0}', needs.tag.outputs.version) }}
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.19"
+          otp-version: "27.3.4.8"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.15.2
+
+      - name: Install xz
+        run: brew install xz
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0"
+
+      - name: Install dependencies
+        run: mix deps.get --only prod
+
+      - name: Build desktop app
+        run: ./scripts/build-desktop.sh --release
+
+      - name: Collect desktop artifact
+        run: |
+          mkdir -p desktop_out
+          dmg=$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' | head -n 1)
+          cp "$dmg" "desktop_out/Inkwell_${{ matrix.target }}.dmg"
+
+      - name: Upload desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: inkwell_desktop_${{ matrix.target }}
+          path: desktop_out/Inkwell_${{ matrix.target }}.dmg
+
   release:
     name: Create GitHub Release
-    needs: [tag, build]
+    needs: [tag, build-cli, build-desktop]
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
       sha256_darwin_arm64: ${{ steps.sha.outputs.sha256_darwin_arm64 }}
       sha256_darwin_amd64: ${{ steps.sha.outputs.sha256_darwin_amd64 }}
       sha256_linux_amd64: ${{ steps.sha.outputs.sha256_linux_amd64 }}
+      sha256_darwin_arm64_dmg: ${{ steps.sha.outputs.sha256_darwin_arm64_dmg }}
+      sha256_darwin_amd64_dmg: ${{ steps.sha.outputs.sha256_darwin_amd64_dmg }}
 
     steps:
       - uses: actions/download-artifact@v4
@@ -130,6 +196,12 @@ jobs:
             echo "$target: $sha"
           done
 
+          for target in darwin_arm64 darwin_amd64; do
+            sha=$(sha256sum "inkwell_desktop_${target}/Inkwell_${target}.dmg" | awk '{print $1}')
+            echo "sha256_${target}_dmg=$sha" >> "$GITHUB_OUTPUT"
+            echo "${target}_dmg: $sha"
+          done
+
       - name: Make binaries executable
         run: chmod +x inkwell_*/inkwell_*
 
@@ -137,19 +209,28 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
-          files: inkwell_*/inkwell_*
+          files: |
+            inkwell_*/inkwell_*
+            inkwell_desktop_*/*.dmg
           body: |
             ## Install
 
-            ### Homebrew
+            ### Desktop App (macOS)
+            ```bash
+            brew tap zimakki/tap
+            brew install --cask inkwell
+            ```
+
+            ### CLI
             ```bash
             brew tap zimakki/tap
             brew install inkwell
             ```
 
             ### Manual
-            Download the binary for your platform below and place it in your `$PATH`.
-            No Erlang runtime required — it's bundled.
+            - Desktop app: download the macOS `.dmg` below.
+            - CLI: download the binary for your platform below and place it in your `$PATH`.
+            - No Erlang runtime required — it's bundled.
 
   update-tap:
     name: Update Homebrew Tap
@@ -178,12 +259,21 @@ jobs:
               inkwell/.github/formula-template.rb \
               > homebrew-tap/Formula/inkwell.rb
 
+      - name: Update cask
+        run: |
+          mkdir -p homebrew-tap/Casks
+          sed -e 's/__VERSION__/${{ needs.release.outputs.version }}/g' \
+              -e 's/__SHA256_DARWIN_ARM64_DMG__/${{ needs.release.outputs.sha256_darwin_arm64_dmg }}/g' \
+              -e 's/__SHA256_DARWIN_AMD64_DMG__/${{ needs.release.outputs.sha256_darwin_amd64_dmg }}/g' \
+              inkwell/.github/cask-template.rb \
+              > homebrew-tap/Casks/inkwell.rb
+
       - name: Commit and push
         working-directory: homebrew-tap
         run: |
           git diff --exit-code && exit 0
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Formula/inkwell.rb
+          git add Formula/inkwell.rb Casks/inkwell.rb
           git commit -m "Update inkwell to ${{ needs.release.outputs.version }}"
           git push
