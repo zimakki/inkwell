@@ -1,6 +1,6 @@
 [package]
 name = "inkwell-desktop"
-version = "0.2.9"
+version = "0.2.11"
 edition = "2021"
 
 [build-dependencies]
