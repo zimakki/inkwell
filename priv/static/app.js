@@ -114,7 +114,7 @@
       var itemCls = i === selectedIndex ? 'picker-item selected' : 'picker-item';
       var title = f.title || f.filename;
 
-      if (f.section === 'repository' && f.rel_path) {
+      if (f.rel_path) {
         var relDir = f.rel_path.split('/').slice(0, -1).join('/');
         html += '<div class="' + itemCls + '" data-index="' + i + '">'
           + '<div class="picker-item-title-row">'

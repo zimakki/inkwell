@@ -145,25 +145,42 @@ defmodule Inkwell.Search do
   end
 
   def list_directory_files(dir_path) do
-    case File.ls(dir_path) do
-      {:ok, entries} ->
-        entries
-        |> Enum.filter(&String.ends_with?(&1, ".md"))
-        |> Enum.sort()
-        |> Enum.map(fn filename ->
-          path = Path.join(dir_path, filename)
+    if File.exists?(Path.join(dir_path, ".git")) do
+      # Git repo root — discover all markdown files recursively
+      Inkwell.GitRepo.find_markdown_files(dir_path)
+      |> Enum.map(fn path ->
+        rel = Path.relative_to(path, dir_path)
 
-          %{
-            path: path,
-            filename: filename,
-            title: extract_title(path),
-            section: :browse,
-            active: false
-          }
-        end)
+        %{
+          path: path,
+          filename: Path.basename(path),
+          rel_path: rel,
+          title: extract_title(path),
+          section: :browse,
+          active: false
+        }
+      end)
+    else
+      case File.ls(dir_path) do
+        {:ok, entries} ->
+          entries
+          |> Enum.filter(&String.ends_with?(&1, ".md"))
+          |> Enum.sort()
+          |> Enum.map(fn filename ->
+            path = Path.join(dir_path, filename)
 
-      {:error, _} ->
-        []
+            %{
+              path: path,
+              filename: filename,
+              title: extract_title(path),
+              section: :browse,
+              active: false
+            }
+          end)
+
+        {:error, _} ->
+          []
+      end
     end
   end
 
