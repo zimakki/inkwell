@@ -23,6 +23,12 @@ defmodule Inkwell.Application do
       ["status"] ->
         {:client, %{command: :status}}
 
+      [dir] ->
+        {:client, %{command: :browse, dir: dir, theme: theme}}
+
+      [] ->
+        {:client, %{command: :usage}}
+
       _ ->
         {:client, %{command: :usage}}
     end
