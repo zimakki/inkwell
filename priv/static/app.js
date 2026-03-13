@@ -8,6 +8,7 @@
   var pickerPreview = document.getElementById('picker-preview');
   var btnOpenFile = document.getElementById('btn-open-file');
   var btnOpenFolder = document.getElementById('btn-open-folder');
+  var pickerPathBar = document.getElementById('picker-path');
   var ws, pingInterval, reconnectTimer;
   var currentPath = document.body.dataset.currentPath;
   var currentTheme = document.querySelector('[data-theme]').dataset.theme;
@@ -37,6 +38,7 @@
     pickerInput.value = '';
     pickerInput.focus();
     selectedIndex = 0;
+    renderPathBar();
     loadSearch('');
   }
 
@@ -62,6 +64,7 @@
       .then(function(files) {
         currentFiles = files;
         selectedIndex = 0;
+        renderPathBar();
         renderFileList();
         loadPreview();
       })
@@ -156,6 +159,40 @@
       });
   }
 
+  function renderPathBar() {
+    var dirPath = browseDir || currentPath.split('/').slice(0, -1).join('/');
+    var segments = dirPath.split('/').filter(Boolean);
+    var html = '';
+
+    if (browseDir) {
+      html += '<span class="path-back" id="path-back-btn" title="Back to recent files">&#8592;</span>';
+      html += '<span class="path-label">browsing</span>';
+    } else {
+      html += '<span class="path-label">in</span>';
+    }
+
+    html += '<span class="path-sep">/</span>';
+    for (var i = 0; i < segments.length; i++) {
+      html += '<span class="path-seg">' + escapeHtml(segments[i]) + '</span>';
+      if (i < segments.length - 1) {
+        html += '<span class="path-sep">/</span>';
+      }
+    }
+    pickerPathBar.innerHTML = html;
+    // Scroll to the end so the deepest segment is visible
+    pickerPathBar.scrollLeft = pickerPathBar.scrollWidth;
+
+    // Bind back button if in browse mode
+    var backBtn = document.getElementById('path-back-btn');
+    if (backBtn) {
+      backBtn.addEventListener('click', function() {
+        browseDir = null;
+        pickerInput.value = '';
+        loadSearch('');
+      });
+    }
+  }
+
   function escapeHtml(str) {
     escapeDiv.textContent = str;
     return escapeDiv.innerHTML;
@@ -205,6 +242,7 @@
         currentFiles = data.files;
         selectedIndex = 0;
         pickerInput.value = '';
+        renderPathBar();
         renderFileList();
         loadPreview();
       })

@@ -271,6 +271,7 @@ defmodule Inkwell.Router do
             <button id="btn-open-folder" class="picker-btn" title="Browse a folder">Open Folder</button>
             <span class="hint">ESC to close</span>
           </div>
+          <div id="picker-path"></div>
           <div id="picker-body">
             <div id="picker-list">
               <div id="picker-list-items"></div>
