@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
@@ -21,7 +21,7 @@ jobs:
           otp-version: "27"
 
       - name: Restore dependencies cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: deps
           key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
