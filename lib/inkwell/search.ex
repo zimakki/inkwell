@@ -44,7 +44,13 @@ defmodule Inkwell.Search do
       Inkwell.History.list()
       |> Enum.filter(&File.exists?/1)
       |> Enum.map(fn path ->
-        %{path: path, filename: Path.basename(path), title: extract_title(path), section: :recent}
+        %{
+          path: path,
+          filename: Path.basename(path),
+          title: extract_title(path),
+          section: :recent,
+          active: false
+        }
       end)
 
     %{recent: recent, siblings: [], repository: nil}
@@ -194,9 +200,10 @@ defmodule Inkwell.Search do
         all_files = Inkwell.GitRepo.find_markdown_files(root)
         repo_name = Path.basename(root)
 
+        repo_only = Enum.reject(all_files, &MapSet.member?(known_paths, &1))
+
         repo_files =
-          all_files
-          |> Enum.reject(&MapSet.member?(known_paths, &1))
+          repo_only
           |> Enum.take(@max_repo_initial)
           |> Enum.map(fn path ->
             rel = Path.relative_to(path, root)
@@ -210,7 +217,7 @@ defmodule Inkwell.Search do
             }
           end)
 
-        %{name: repo_name, files: repo_files, total: length(all_files) - MapSet.size(known_paths)}
+        %{name: repo_name, files: repo_files, total: length(repo_only)}
 
       :error ->
         nil
