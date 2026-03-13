@@ -2,6 +2,7 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -56,18 +57,59 @@ fn wait_for_daemon(timeout: Duration) -> Result<u16, String> {
     }
 }
 
-fn navigate_to_file(app: &tauri::AppHandle, path: &str) {
-    if let Some(window) = app.get_webview_window("main") {
-        if let Some(port) = read_port() {
-            let nav_url = format!(
-                "http://localhost:{}/?path={}",
-                port,
-                urlencoding::encode(path)
-            );
-            let _ = window.navigate(nav_url.parse().unwrap());
-            let _ = window.set_focus();
+fn markdown_path_from_url(url: &tauri::Url) -> Option<String> {
+    if url.scheme() == "inkwell" {
+        return url
+            .query_pairs()
+            .find(|(key, _)| key == "path")
+            .map(|pair| pair.1.to_string());
+    }
+
+    if url.scheme() == "file" {
+        let path = url.to_file_path().ok()?;
+        let path = path.to_string_lossy().to_string();
+
+        if path.ends_with(".md") || path.ends_with(".markdown") {
+            return Some(path);
         }
     }
+
+    None
+}
+
+fn navigate_to_url(app: &tauri::AppHandle, url: String) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window
+            .navigate(url.parse::<tauri::Url>().map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+        let _ = window.set_focus();
+        return Ok(());
+    }
+
+    Err("Main window not found".into())
+}
+
+fn navigate_current(app: &tauri::AppHandle, current_path: Option<&str>) -> Result<(), String> {
+    let port = read_port().ok_or_else(|| "Daemon port not available".to_string())?;
+    let url = match current_path {
+        Some(path) => format!(
+            "http://localhost:{}/?path={}",
+            port,
+            urlencoding::encode(path)
+        ),
+        None => format!("http://localhost:{}", port),
+    };
+
+    navigate_to_url(app, url)
+}
+
+fn navigate_to_file(
+    app: &tauri::AppHandle,
+    current_path: &Mutex<Option<String>>,
+    path: &str,
+) -> Result<(), String> {
+    *current_path.lock().unwrap() = Some(path.to_string());
+    navigate_current(app, Some(path))
 }
 
 fn show_error(_app: &tauri::AppHandle, title: &str, message: &str) {
@@ -95,6 +137,9 @@ fn main() {
     let owns_sidecar = Arc::new(AtomicBool::new(false));
     let owns_sidecar_clone = owns_sidecar.clone();
     let owns_sidecar_run = owns_sidecar.clone();
+    let current_path = Arc::new(Mutex::new(None::<String>));
+    let current_path_setup = current_path.clone();
+    let current_path_run = current_path.clone();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -112,15 +157,16 @@ fn main() {
                 {
                     Ok(result) => result,
                     Err(e) => {
+                        let msg = format!(
+                            "Failed to start Inkwell daemon: {}\n\nCheck ~/.inkwell/daemon.log",
+                            e
+                        );
                         show_error(
                             &app_handle,
                             "Sidecar Error",
-                            &format!(
-                                "Failed to start Inkwell daemon: {}\n\nCheck ~/.inkwell/daemon.log",
-                                e
-                            ),
+                            &msg,
                         );
-                        return Ok(());
+                        return Err(msg.into());
                     }
                 };
 
@@ -128,33 +174,65 @@ fn main() {
 
                 let crash_handle = app_handle.clone();
                 let crash_owns = owns_sidecar.clone();
+                let crash_current_path = current_path_setup.clone();
 
                 tauri::async_runtime::spawn(async move {
-                    let mut rx = rx;
+                    let mut process_rx = rx;
 
-                    while let Some(event) = rx.recv().await {
-                        if let CommandEvent::Terminated(payload) = event {
-                            if crash_owns.load(Ordering::SeqCst) {
+                    loop {
+                        while let Some(event) = process_rx.recv().await {
+                            if let CommandEvent::Terminated(payload) = event {
+                                if !crash_owns.load(Ordering::SeqCst) {
+                                    return;
+                                }
+
                                 eprintln!("Sidecar terminated: {:?}", payload);
 
                                 let shell = crash_handle.shell();
 
-                                if let Ok((new_rx, _)) = shell
+                                match shell
                                     .sidecar("inkwell")
                                     .and_then(|cmd| cmd.args(["daemon", "--theme", "dark"]).spawn())
                                 {
-                                    eprintln!("Sidecar restarted successfully");
-                                    let mut new_rx = new_rx;
+                                    Ok((new_rx, _)) => {
+                                        eprintln!("Sidecar restarted successfully");
 
-                                    while let Some(evt) = new_rx.recv().await {
-                                        if matches!(evt, CommandEvent::Terminated(_)) {
-                                            break;
+                                        match wait_for_daemon(Duration::from_secs(10)).and_then(
+                                            |_| {
+                                                let path = crash_current_path.lock().unwrap().clone();
+                                                navigate_current(&crash_handle, path.as_deref())
+                                            },
+                                        ) {
+                                            Ok(()) => {
+                                                process_rx = new_rx;
+                                                break;
+                                            }
+                                            Err(err) => {
+                                                show_error(
+                                                    &crash_handle,
+                                                    "Recovery Error",
+                                                    &format!(
+                                                        "Sidecar restarted but failed to restore the UI: {}",
+                                                        err
+                                                    ),
+                                                );
+                                                return;
+                                            }
                                         }
+                                    }
+                                    Err(err) => {
+                                        show_error(
+                                            &crash_handle,
+                                            "Recovery Error",
+                                            &format!(
+                                                "Failed to restart Inkwell daemon: {}\n\nCheck ~/.inkwell/daemon.log",
+                                                err
+                                            ),
+                                        );
+                                        return;
                                     }
                                 }
                             }
-
-                            break;
                         }
                     }
                 });
@@ -163,29 +241,31 @@ fn main() {
                     Ok(port) => port,
                     Err(msg) => {
                         show_error(&app_handle, "Startup Timeout", &msg);
-                        return Ok(());
+                        return Err(msg.into());
                     }
                 }
             };
 
-            let window = app.get_webview_window("main").unwrap();
-            let url = format!("http://localhost:{}", port);
-            window
-                .navigate(url.parse().unwrap())
+            navigate_to_url(&app_handle, format!("http://localhost:{}", port))
                 .expect("failed to navigate to inkwell");
 
             let deep_link_handle = app_handle.clone();
+            let deep_link_path = current_path_setup.clone();
             app.deep_link().on_open_url(move |event| {
-                if let Some(url) = event.urls().first() {
-                    if let Some(path) = url
-                        .query_pairs()
-                        .find(|(k, _)| k == "path")
-                        .map(|(_, v)| v.to_string())
-                    {
-                        navigate_to_file(&deep_link_handle, &path);
+                for url in event.urls() {
+                    if let Some(path) = markdown_path_from_url(&url) {
+                        let _ = navigate_to_file(&deep_link_handle, &deep_link_path, &path);
                     }
                 }
             });
+
+            if let Ok(Some(urls)) = app.deep_link().get_current() {
+                for url in urls {
+                    if let Some(path) = markdown_path_from_url(&url) {
+                        let _ = navigate_to_file(&app_handle, &current_path_setup, &path);
+                    }
+                }
+            }
 
             Ok(())
         })
@@ -199,9 +279,8 @@ fn main() {
         .run(move |app_handle, event| match event {
             tauri::RunEvent::Opened { urls } => {
                 for url in urls {
-                    let path = url.path();
-                    if path.ends_with(".md") || path.ends_with(".markdown") {
-                        navigate_to_file(app_handle, path);
+                    if let Some(path) = markdown_path_from_url(&url) {
+                        let _ = navigate_to_file(app_handle, &current_path_run, &path);
                     }
                 }
             }
