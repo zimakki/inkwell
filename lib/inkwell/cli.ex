@@ -52,8 +52,8 @@ defmodule Inkwell.CLI do
   @doc "Called by Application.start/2 in client mode. Runs command and halts."
   def run_client_command(%{command: :preview, file: file, theme: theme}) do
     case preview(file, theme: theme) do
-      {:ok, url} ->
-        open_browser(url)
+      {:ok, url, path} ->
+        open_file(url, path)
         IO.puts(url)
         System.halt(0)
 
@@ -85,7 +85,7 @@ defmodule Inkwell.CLI do
   def run_client_command(%{command: :browse, dir: dir, theme: theme}) do
     case browse(dir, theme: theme) do
       {:ok, url} ->
-        open_browser(url)
+        system_open(url)
         IO.puts(url)
         System.halt(0)
 
@@ -116,8 +116,8 @@ defmodule Inkwell.CLI do
 
   defp run_preview(file, opts) do
     case preview(file, opts) do
-      {:ok, url} ->
-        open_browser(url)
+      {:ok, url, path} ->
+        open_file(url, path)
         IO.puts(url)
 
       {:error, msg} ->
@@ -170,10 +170,37 @@ defmodule Inkwell.CLI do
           case http_get_json(
                  "http://localhost:#{port}/open?path=#{URI.encode_www_form(file)}&theme=#{URI.encode_www_form(theme)}"
                ) do
-            {:ok, payload} -> {:ok, payload["url"]}
+            {:ok, payload} -> {:ok, payload["url"], file}
             {:error, reason} -> {:error, "failed to open preview: #{inspect(reason)}"}
           end
       end
+    end
+  end
+
+  @doc """
+  Determines whether to open in desktop app or browser.
+  Accepts an optional check function for testing.
+  """
+  def open_target(check_fn \\ &desktop_app_installed?/0) do
+    if check_fn.(), do: :desktop, else: :browser
+  end
+
+  @doc "Builds an inkwell:// deep link URL for the given file path."
+  def deep_link_url(path) do
+    "inkwell://open?path=#{URI.encode_www_form(path)}"
+  end
+
+  @doc """
+  Opens a file in the desktop app (deep link) or falls back to browser.
+  Accepts keyword options for dependency injection in tests.
+  """
+  def open_file(browser_url, file_path, opts \\ []) do
+    check_fn = Keyword.get(opts, :check_fn, &desktop_app_installed?/0)
+    open_fn = Keyword.get(opts, :open_fn, &system_open/1)
+
+    case open_target(check_fn) do
+      :desktop -> open_fn.(deep_link_url(file_path))
+      :browser -> open_fn.(browser_url)
     end
   end
 
@@ -282,20 +309,43 @@ defmodule Inkwell.CLI do
     end
   end
 
-  defp open_browser(url) do
-    wait_for_server(url)
+  defp desktop_app_installed? do
+    case :os.type() do
+      {:unix, :darwin} ->
+        match?({_, 0}, System.cmd("open", ["-Ra", "Inkwell"], stderr_to_stdout: true))
 
+      {:unix, _} ->
+        case System.cmd("xdg-mime", ["query", "default", "x-scheme-handler/inkwell"],
+               stderr_to_stdout: true
+             ) do
+          {output, 0} -> String.trim(output) != ""
+          _ -> false
+        end
+
+      {:win32, _} ->
+        case System.cmd("reg", ["query", "HKEY_CLASSES_ROOT\\inkwell"], stderr_to_stdout: true) do
+          {_, 0} -> true
+          _ -> false
+        end
+    end
+  end
+
+  defp system_open(url) do
     cond do
       exec = System.find_executable("open") ->
-        Logger.debug("Opening browser: #{url}")
+        Logger.debug("Opening: #{url}")
         System.cmd(exec, [url])
 
       exec = System.find_executable("xdg-open") ->
-        Logger.debug("Opening browser: #{url}")
+        Logger.debug("Opening: #{url}")
         System.cmd(exec, [url])
 
+      exec = System.find_executable("cmd") ->
+        Logger.debug("Opening: #{url}")
+        System.cmd(exec, ["/c", "start", "", url])
+
       true ->
-        Logger.warning("No browser command found (open/xdg-open)")
+        Logger.warning("No open command found (open/xdg-open/cmd)")
         :ok
     end
   end

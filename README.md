@@ -16,7 +16,14 @@ A live markdown preview daemon for your terminal. Inkwell runs a lightweight bac
 
 ## Installation
 
-### Homebrew (macOS/Linux)
+### Homebrew Desktop App (macOS)
+
+```bash
+brew tap zimakki/tap
+brew install --cask inkwell
+```
+
+### Homebrew CLI (macOS/Linux)
 
 ```bash
 brew tap zimakki/tap
@@ -46,7 +53,7 @@ cp inkwell ~/.local/bin/
 inkwell preview README.md
 ```
 
-This starts the daemon (if not already running), opens the preview in your browser, and watches the file for changes.
+This starts the daemon (if not already running), opens the preview in the desktop app when installed or your browser otherwise, and watches the file for changes.
 
 ## Usage
 

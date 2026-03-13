@@ -139,4 +139,61 @@ defmodule Inkwell.CLITest do
     assert msg =~ "failed to start inkwell daemon"
     assert msg =~ "timeout"
   end
+
+  describe "open_target/1" do
+    test "returns :browser when desktop app check returns false" do
+      assert Inkwell.CLI.open_target(fn -> false end) == :browser
+    end
+
+    test "returns :desktop when desktop app check returns true" do
+      assert Inkwell.CLI.open_target(fn -> true end) == :desktop
+    end
+  end
+
+  describe "deep_link_url/1" do
+    test "builds inkwell:// URL from absolute path" do
+      url = Inkwell.CLI.deep_link_url("/Users/test/notes.md")
+      assert url == "inkwell://open?path=%2FUsers%2Ftest%2Fnotes.md"
+    end
+
+    test "encodes special characters in path" do
+      url = Inkwell.CLI.deep_link_url("/Users/test/my notes/file.md")
+      assert url =~ "inkwell://open?path="
+      assert url =~ "my+notes"
+    end
+  end
+
+  describe "open_file/3" do
+    test "calls deep link opener when desktop app detected" do
+      test_pid = self()
+
+      opener = fn url ->
+        send(test_pid, {:opened, url})
+        {"", 0}
+      end
+
+      Inkwell.CLI.open_file("http://localhost:4000/?path=/test.md", "/test.md",
+        check_fn: fn -> true end,
+        open_fn: opener
+      )
+
+      assert_received {:opened, "inkwell://open?path=%2Ftest.md"}
+    end
+
+    test "falls back to browser URL when no desktop app" do
+      test_pid = self()
+
+      opener = fn url ->
+        send(test_pid, {:opened, url})
+        {"", 0}
+      end
+
+      Inkwell.CLI.open_file("http://localhost:4000/?path=/test.md", "/test.md",
+        check_fn: fn -> false end,
+        open_fn: opener
+      )
+
+      assert_received {:opened, "http://localhost:4000/?path=/test.md"}
+    end
+  end
 end

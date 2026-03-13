@@ -75,6 +75,19 @@ defmodule Inkwell.RouterTest do
     assert is_binary(body["url"])
   end
 
+  test "GET /open with .markdown file returns 200", %{base: base} do
+    md_file = Path.join(base, "readme.markdown")
+    File.write!(md_file, "# Markdown Extension Test")
+
+    conn =
+      conn(:get, "/open?path=#{URI.encode_www_form(md_file)}&theme=dark")
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 200
+    body = Jason.decode!(conn.resp_body)
+    assert is_binary(body["url"])
+  end
+
   test "GET /open without path returns 400" do
     conn =
       conn(:get, "/open?theme=dark")
