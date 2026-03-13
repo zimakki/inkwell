@@ -139,4 +139,27 @@ defmodule Inkwell.CLITest do
     assert msg =~ "failed to start inkwell daemon"
     assert msg =~ "timeout"
   end
+
+  describe "open_target/1" do
+    test "returns :browser when desktop app check returns false" do
+      assert Inkwell.CLI.open_target(fn -> false end) == :browser
+    end
+
+    test "returns :desktop when desktop app check returns true" do
+      assert Inkwell.CLI.open_target(fn -> true end) == :desktop
+    end
+  end
+
+  describe "deep_link_url/1" do
+    test "builds inkwell:// URL from absolute path" do
+      url = Inkwell.CLI.deep_link_url("/Users/test/notes.md")
+      assert url == "inkwell://open?path=%2FUsers%2Ftest%2Fnotes.md"
+    end
+
+    test "encodes special characters in path" do
+      url = Inkwell.CLI.deep_link_url("/Users/test/my notes/file.md")
+      assert url =~ "inkwell://open?path="
+      assert url =~ "my+notes"
+    end
+  end
 end

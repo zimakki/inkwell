@@ -177,6 +177,19 @@ defmodule Inkwell.CLI do
     end
   end
 
+  @doc """
+  Determines whether to open in desktop app or browser.
+  Accepts an optional check function for testing.
+  """
+  def open_target(check_fn \\ &desktop_app_installed?/0) do
+    if check_fn.(), do: :desktop, else: :browser
+  end
+
+  @doc "Builds an inkwell:// deep link URL for the given file path."
+  def deep_link_url(path) do
+    "inkwell://open?path=#{URI.encode_www_form(path)}"
+  end
+
   defp run_status do
     if Inkwell.Daemon.alive?() do
       port = Inkwell.Daemon.read_port!()
@@ -255,6 +268,7 @@ defmodule Inkwell.CLI do
     end
   end
 
+<<<<<<< HEAD
   @doc """
   Waits for the HTTP server at the given URL to accept TCP connections.
   Returns :ok on success or {:error, :timeout} if the server isn't ready.
@@ -281,6 +295,8 @@ defmodule Inkwell.CLI do
         do_wait_for_server(port, retries - 1, delay)
     end
   end
+
+  defp desktop_app_installed?, do: false
 
   defp open_browser(url) do
     wait_for_server(url)
