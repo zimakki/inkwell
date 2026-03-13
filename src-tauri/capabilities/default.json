@@ -1,0 +1,14 @@
+{
+  "identifier": "default",
+  "description": "Default capabilities for Inkwell",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["http://localhost:*"]
+  },
+  "permissions": [
+    "core:default",
+    "shell:allow-execute",
+    "shell:allow-spawn",
+    "deep-link:default"
+  ]
+}
