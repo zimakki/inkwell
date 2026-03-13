@@ -10,7 +10,8 @@ defmodule Inkwell.WsHandler do
     Inkwell.Watcher.ensure_file(path)
     Inkwell.Daemon.client_connected()
     Logger.debug("WebSocket connected for #{path}")
-    {:ok, %{path: path}}
+    html = path |> File.read!() |> Inkwell.Renderer.render()
+    {:push, {:text, html}, %{path: path}}
   end
 
   @impl true
