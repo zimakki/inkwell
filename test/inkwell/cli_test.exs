@@ -162,4 +162,38 @@ defmodule Inkwell.CLITest do
       assert url =~ "my+notes"
     end
   end
+
+  describe "open_file/3" do
+    test "calls deep link opener when desktop app detected" do
+      test_pid = self()
+
+      opener = fn url ->
+        send(test_pid, {:opened, url})
+        {"", 0}
+      end
+
+      Inkwell.CLI.open_file("http://localhost:4000/?path=/test.md", "/test.md",
+        check_fn: fn -> true end,
+        open_fn: opener
+      )
+
+      assert_received {:opened, "inkwell://open?path=%2Ftest.md"}
+    end
+
+    test "falls back to browser URL when no desktop app" do
+      test_pid = self()
+
+      opener = fn url ->
+        send(test_pid, {:opened, url})
+        {"", 0}
+      end
+
+      Inkwell.CLI.open_file("http://localhost:4000/?path=/test.md", "/test.md",
+        check_fn: fn -> false end,
+        open_fn: opener
+      )
+
+      assert_received {:opened, "http://localhost:4000/?path=/test.md"}
+    end
+  end
 end
