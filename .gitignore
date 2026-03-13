@@ -25,6 +25,9 @@ inkwell-*.tar
 # Local escript build output.
 /inkwell
 
+# Burrito build output.
+/burrito_out/
+
 # Superpowers plugin state.
 /.superpowers/
 
