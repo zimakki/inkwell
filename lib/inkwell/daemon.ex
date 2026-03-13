@@ -35,6 +35,7 @@ defmodule Inkwell.Daemon do
     if alive?() do
       {:ok, read_port!()}
     else
+      File.mkdir_p!(state_dir())
       cmd = daemon_command(theme)
 
       case System.cmd("sh", ["-c", cmd]) do
