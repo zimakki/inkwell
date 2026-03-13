@@ -49,5 +49,4 @@ defmodule Inkwell.FileDialog do
         end
     end
   end
-
 end
