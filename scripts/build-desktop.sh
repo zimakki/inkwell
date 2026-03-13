@@ -73,4 +73,17 @@ else
   RUSTUP_TOOLCHAIN=stable cargo tauri build --debug
 fi
 
+# Ad-hoc sign the .app bundle on macOS.
+# Tauri's build only linker-signs individual binaries but doesn't sign the
+# bundle itself, leaving it without a _CodeSignature directory.  macOS
+# Gatekeeper then reports the app as "damaged and can't be opened."
+if [ "$(uname -s)" = "Darwin" ]; then
+  echo "==> Signing .app bundle..."
+  app=$(find "$TAURI_DIR/target" -maxdepth 5 -name '*.app' -type d | head -n 1)
+  if [ -n "$app" ]; then
+    codesign --force --deep -s - "$app"
+    echo "  Signed $app"
+  fi
+fi
+
 echo "==> Done!"

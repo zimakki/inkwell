@@ -19,4 +19,11 @@ cask "inkwell" do
   depends_on formula: "zimakki/tap/inkwell-cli"
 
   app "Inkwell.app"
+
+  postflight do
+    # The app is ad-hoc signed but not notarized, so macOS quarantine
+    # causes a "damaged and can't be opened" error.  Strip the flag.
+    system_command "/usr/bin/xattr",
+                   args: ["-cr", "#{appdir}/Inkwell.app"]
+  end
 end
