@@ -55,7 +55,7 @@ jobs:
         include:
           - os: macos-14
             target: darwin_arm64
-          - os: macos-15
+          - os: macos-15-intel
             target: darwin_amd64
           - os: ubuntu-latest
             target: linux_amd64
@@ -110,7 +110,7 @@ jobs:
         include:
           - os: macos-14
             target: darwin_arm64
-          - os: macos-15
+          - os: macos-15-intel
             target: darwin_amd64
     runs-on: ${{ matrix.os }}
 
