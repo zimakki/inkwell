@@ -49,10 +49,12 @@ defmodule Inkwell.RouterTest do
     assert conn.status == 404
   end
 
-  test "GET / without path or dir param returns 400" do
+  test "GET / without path or dir returns 200 with picker page" do
     conn = conn(:get, "/") |> Inkwell.Router.call(Inkwell.Router.init([]))
 
-    assert conn.status == 400
+    assert conn.status == 200
+    assert conn.resp_body =~ "data-no-file"
+    assert conn.resp_body =~ "app.js"
   end
 
   test "GET / with dir param returns browse page HTML", %{base: base} do
@@ -118,12 +120,33 @@ defmodule Inkwell.RouterTest do
     assert is_list(results["siblings"])
   end
 
-  test "GET /search without current returns 400" do
+  test "GET /search without current returns recent files only", %{test_file: test_file} do
+    Inkwell.History.push(test_file)
+
     conn =
-      conn(:get, "/search?q=test")
+      conn(:get, "/search?q=")
       |> Inkwell.Router.call(Inkwell.Router.init([]))
 
-    assert conn.status == 400
+    assert conn.status == 200
+    body = Jason.decode!(conn.resp_body)
+    assert is_map(body)
+    assert is_list(body["recent"])
+    assert body["siblings"] == []
+    assert body["repository"] == nil
+  end
+
+  test "GET /search with current returns structured response", %{test_file: test_file} do
+    Inkwell.History.push(test_file)
+
+    conn =
+      conn(:get, "/search?current=#{URI.encode_www_form(test_file)}&q=")
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 200
+    body = Jason.decode!(conn.resp_body)
+    assert is_map(body)
+    assert is_list(body["recent"])
+    assert is_list(body["siblings"])
   end
 
   test "GET /toggle-theme toggles between dark and light" do
@@ -230,6 +253,26 @@ defmodule Inkwell.RouterTest do
       |> Inkwell.Router.call(Inkwell.Router.init([]))
 
     assert conn.status == 403
+  end
+
+  test "GET /switch with source=repository allows files under git root", %{base: base} do
+    sub_dir = Path.join(base, "sub")
+    File.mkdir_p!(sub_dir)
+    File.mkdir_p!(Path.join(base, ".git"))
+    sub_file = Path.join(sub_dir, "deep.md")
+    File.write!(sub_file, "# Deep File")
+    current = Path.join(base, "test.md")
+
+    conn =
+      conn(
+        :get,
+        "/switch?current=#{URI.encode_www_form(current)}&path=#{URI.encode_www_form(sub_file)}&source=repository"
+      )
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 200
+    body = Jason.decode!(conn.resp_body)
+    assert body["path"] == sub_file
   end
 
   test "GET /preview with source=browse bypasses allowed_path?", %{base: base} do

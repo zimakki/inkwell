@@ -40,7 +40,12 @@ defmodule Inkwell.Router do
         |> send_resp(200, page)
 
       true ->
-        send_resp(conn, 400, "Missing path or dir parameter")
+        theme = :persistent_term.get(:inkwell_theme, "dark")
+        page = empty_page(theme)
+
+        conn
+        |> put_resp_content_type("text/html")
+        |> send_resp(200, page)
     end
   end
 
@@ -132,17 +137,18 @@ defmodule Inkwell.Router do
 
   get "/search" do
     conn = Plug.Conn.fetch_query_params(conn)
+    query = conn.query_params["q"] || ""
 
-    with {:ok, current_path} <- fetch_query_path(conn, "current") do
-      query = conn.query_params["q"] || ""
-      results = Inkwell.Search.search(current_path, query)
+    results =
+      case conn.query_params["current"] do
+        nil -> Inkwell.Search.list_recent()
+        "" -> Inkwell.Search.list_recent()
+        current -> Inkwell.Search.search(Path.expand(current), query)
+      end
 
-      conn
-      |> put_resp_content_type("application/json")
-      |> send_resp(200, Jason.encode!(results))
-    else
-      {:error, reason} -> send_resp(conn, 400, reason)
-    end
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, Jason.encode!(results))
   end
 
   get "/preview" do
@@ -236,6 +242,14 @@ defmodule Inkwell.Router do
     File.exists?(new_path) and markdown_file?(new_path)
   end
 
+  defp authorized?(current_path, new_path, "repository") do
+    File.exists?(new_path) and markdown_file?(new_path) and
+      case Inkwell.GitRepo.find_root(current_path) do
+        {:ok, root} -> String.starts_with?(new_path, root <> "/") or new_path == root
+        :error -> false
+      end
+  end
+
   defp authorized?(current_path, new_path, _source) do
     File.exists?(new_path) and
       markdown_file?(new_path) and
@@ -273,6 +287,58 @@ defmodule Inkwell.Router do
           <h3 id="header-title">Inkwell</h3>
         </div>
         <div id="page-ctn"></div>
+      </div>
+
+      <div id="picker-overlay">
+        <div id="picker">
+          <div id="picker-search">
+            <span id="picker-search-icon">&#9906;</span>
+            <input type="text" id="picker-input" placeholder="Search files and titles..." autocomplete="off" />
+            <button id="btn-open-file" class="picker-btn" title="Open a markdown file">Open File</button>
+            <button id="btn-open-folder" class="picker-btn" title="Browse a folder">Open Folder</button>
+            <span class="hint">ESC to close</span>
+          </div>
+          <div id="picker-path"></div>
+          <div id="picker-body">
+            <div id="picker-list">
+              <div id="picker-list-items"></div>
+              <div id="picker-status"></div>
+            </div>
+            <div id="picker-preview">
+              <div class="preview-unavailable">Select a file to preview</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script src="/static/app.js"></script>
+    </body>
+    </html>
+    """
+  end
+
+  defp empty_page(theme) do
+    """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Inkwell</title>
+      <link rel="stylesheet" href="/static/markdown-wide.css">
+      <link rel="stylesheet" href="/static/app.css">
+      <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    </head>
+    <body data-no-file="true">
+      <div data-theme="#{theme}">
+        <div id="page-header">
+          <h3 id="header-title">Inkwell</h3>
+        </div>
+        <div id="page-ctn">
+          <div style="display:flex;align-items:center;justify-content:center;height:60vh;color:var(--text-muted);font-family:system-ui;font-size:15px;">
+            Open a file to get started
+          </div>
+        </div>
       </div>
 
       <div id="picker-overlay">
