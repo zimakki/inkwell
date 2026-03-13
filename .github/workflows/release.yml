@@ -87,6 +87,17 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install xz
 
+      - name: Cache Mix deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.mix
+            ${{ github.workspace }}/.hex
+            deps
+            _build
+          key: cli-mix-${{ matrix.target }}-${{ hashFiles('mix.lock') }}
+          restore-keys: cli-mix-${{ matrix.target }}-
+
       - name: Install dependencies
         run: mix deps.get --only prod
 
@@ -142,8 +153,33 @@ jobs:
       - name: Install xz
         run: brew install xz
 
+      - name: Cache Cargo registry and Rust target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/cargo-tauri
+            src-tauri/target
+          key: desktop-cargo-${{ matrix.target }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: desktop-cargo-${{ matrix.target }}-
+
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2.0"
+        run: |
+          if ! command -v cargo-tauri &>/dev/null; then
+            cargo install tauri-cli --version "^2.0"
+          fi
+
+      - name: Cache Mix deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.mix
+            ${{ github.workspace }}/.hex
+            deps
+            _build
+          key: desktop-mix-${{ matrix.target }}-${{ hashFiles('mix.lock') }}
+          restore-keys: desktop-mix-${{ matrix.target }}-
 
       - name: Install dependencies
         run: mix deps.get --only prod
