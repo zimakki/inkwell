@@ -221,8 +221,8 @@ defmodule Inkwell.Router do
       is_nil(path) ->
         {:error, {400, "Missing path parameter"}}
 
-      not String.ends_with?(path, ".md") ->
-        {:error, {400, "Path must end with .md"}}
+      not markdown_file?(path) ->
+        {:error, {400, "Path must be a markdown file (.md or .markdown)"}}
 
       not File.exists?(path) ->
         {:error, {404, "File not found"}}
@@ -233,13 +233,17 @@ defmodule Inkwell.Router do
   end
 
   defp authorized?(_current_path, new_path, "browse") do
-    File.exists?(new_path) and String.ends_with?(new_path, ".md")
+    File.exists?(new_path) and markdown_file?(new_path)
   end
 
   defp authorized?(current_path, new_path, _source) do
     File.exists?(new_path) and
-      String.ends_with?(new_path, ".md") and
+      markdown_file?(new_path) and
       Inkwell.Search.allowed_path?(current_path, new_path)
+  end
+
+  defp markdown_file?(path) do
+    String.ends_with?(path, ".md") or String.ends_with?(path, ".markdown")
   end
 
   defp fetch_query_path(conn, name) do
