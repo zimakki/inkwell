@@ -37,16 +37,17 @@ defmodule Inkwell.SearchTest do
   end
 
   test "search returns recent and sibling markdown files", %{current: current, sibling: sibling} do
-    results = Inkwell.Search.search(current, "")
+    result = Inkwell.Search.search(current, "")
 
-    assert Enum.any?(results, &(&1.path == current and &1.section == :recent))
-    assert Enum.any?(results, &(&1.path == sibling and &1.section == :sibling))
+    assert Enum.any?(result.recent, &(&1.path == current and &1.section == :recent))
+    assert Enum.any?(result.siblings, &(&1.path == sibling and &1.section == :sibling))
   end
 
   test "search excludes non-markdown files", %{current: current, base: base} do
-    results = Inkwell.Search.search(current, "")
+    result = Inkwell.Search.search(current, "")
     gamma_txt = Path.join(base, "gamma.txt")
-    refute Enum.any?(results, &(&1.path == gamma_txt))
+    all_paths = Enum.map(result.recent ++ result.siblings, & &1.path)
+    refute gamma_txt in all_paths
   end
 
   test "fuzzy score prefers early consecutive matches" do
@@ -71,8 +72,13 @@ defmodule Inkwell.SearchTest do
   end
 
   test "search with query filters results", %{current: current} do
-    results = Inkwell.Search.search(current, "beta")
-    assert Enum.any?(results, &(&1.filename == "beta.md"))
+    result = Inkwell.Search.search(current, "beta")
+
+    all_files =
+      result.recent ++
+        result.siblings ++ if(result.repository, do: result.repository.files, else: [])
+
+    assert Enum.any?(all_files, &(&1.filename == "beta.md"))
   end
 
   test "allowed_path? accepts sibling files", %{current: current, sibling: sibling} do
@@ -81,6 +87,40 @@ defmodule Inkwell.SearchTest do
 
   test "allowed_path? rejects files outside allowed set", %{current: current} do
     assert Inkwell.Search.allowed_path?(current, "/etc/passwd") == false
+  end
+
+  describe "list_recent/0" do
+    test "returns structured response with only recent files", %{current: current} do
+      result = Inkwell.Search.list_recent()
+      assert is_map(result)
+      assert is_list(result.recent)
+      assert result.siblings == []
+      assert result.repository == nil
+      assert Enum.any?(result.recent, &(&1.path == current))
+    end
+  end
+
+  describe "structured list_files/1" do
+    test "returns map with recent and siblings keys", %{current: current, sibling: sibling} do
+      result = Inkwell.Search.list_files(current)
+      assert is_map(result)
+      assert Enum.any?(result.recent, &(&1.path == current))
+      assert Enum.any?(result.siblings, &(&1.path == sibling))
+    end
+  end
+
+  describe "structured search/2" do
+    test "search with query returns structured result", %{current: current} do
+      result = Inkwell.Search.search(current, "beta")
+      assert is_map(result)
+
+      all_files =
+        result.recent ++
+          result.siblings ++
+          ((result.repository && result.repository.files) || [])
+
+      assert Enum.any?(all_files, &(&1.filename == "beta.md"))
+    end
   end
 
   describe "list_directory_files/1" do

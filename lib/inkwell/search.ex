@@ -5,6 +5,7 @@ defmodule Inkwell.Search do
   """
 
   @max_results 50
+  @max_repo_initial 20
 
   def extract_title(path) do
     path
@@ -38,10 +39,20 @@ defmodule Inkwell.Search do
     end
   end
 
+  def list_recent do
+    recent =
+      Inkwell.History.list()
+      |> Enum.filter(&File.exists?/1)
+      |> Enum.map(fn path ->
+        %{path: path, filename: Path.basename(path), title: extract_title(path), section: :recent}
+      end)
+
+    %{recent: recent, siblings: [], repository: nil}
+  end
+
   def list_files(current_path) do
     dir = Path.dirname(current_path)
     recent = Inkwell.History.list()
-
     existing_recent = Enum.filter(recent, &File.exists?/1)
 
     recent_entries =
@@ -74,24 +85,48 @@ defmodule Inkwell.Search do
         }
       end)
 
-    recent_entries ++ sibling_entries
+    known_paths = MapSet.union(recent_paths, MapSet.new(sibling_entries, & &1.path))
+    repository = build_repository(current_path, known_paths)
+
+    %{recent: recent_entries, siblings: sibling_entries, repository: repository}
   end
 
-  def search(current_path, ""), do: list_files(current_path)
-  def search(current_path, nil), do: list_files(current_path)
+  def search(current_path, query) when query in ["", nil], do: list_files(current_path)
 
   def search(current_path, query) do
-    list_files(current_path)
-    |> Enum.map(fn entry ->
-      filename_score = fuzzy_score(query, entry.filename)
-      title_score = fuzzy_score(query, entry.title) * 1.2
-      score = max(filename_score, title_score)
-      {entry, score}
-    end)
-    |> Enum.reject(fn {_entry, score} -> score == 0 end)
-    |> Enum.sort_by(fn {_entry, score} -> score end, :desc)
-    |> Enum.take(@max_results)
-    |> Enum.map(fn {entry, _score} -> entry end)
+    %{recent: recent, siblings: siblings, repository: repo} = list_files(current_path)
+
+    all_entries = recent ++ siblings ++ if(repo, do: repo.files, else: [])
+
+    scored =
+      all_entries
+      |> Enum.map(fn entry ->
+        filename_score = fuzzy_score(query, entry.filename)
+        title_score = fuzzy_score(query, entry.title) * 1.2
+        rel_path_score = fuzzy_score(query, Map.get(entry, :rel_path)) * 0.8
+        score = Enum.max([filename_score, title_score, rel_path_score])
+        {entry, score}
+      end)
+      |> Enum.reject(fn {_entry, score} -> score == 0 end)
+      |> Enum.sort_by(fn {_entry, score} -> score end, :desc)
+      |> Enum.take(@max_results)
+
+    # Re-group into sections
+    {recent_results, rest} = Enum.split_with(scored, fn {e, _} -> e.section == :recent end)
+
+    {sibling_results, repo_results} =
+      Enum.split_with(rest, fn {e, _} -> e.section == :sibling end)
+
+    strip = fn list -> Enum.map(list, fn {entry, _score} -> entry end) end
+
+    repo_section =
+      if repo do
+        %{repo | files: strip.(repo_results)}
+      else
+        nil
+      end
+
+    %{recent: strip.(recent_results), siblings: strip.(sibling_results), repository: repo_section}
   end
 
   def list_directory_files(dir_path) do
@@ -136,9 +171,50 @@ defmodule Inkwell.Search do
   end
 
   def allowed_path?(current_path, candidate_path) do
-    current_path
-    |> list_files()
-    |> Enum.any?(&(&1.path == candidate_path))
+    dir = Path.dirname(current_path)
+    recent_paths = Inkwell.History.list() |> Enum.filter(&File.exists?/1)
+
+    sibling_paths =
+      case File.ls(dir) do
+        {:ok, entries} ->
+          entries
+          |> Enum.filter(&String.ends_with?(&1, ".md"))
+          |> Enum.map(&Path.join(dir, &1))
+
+        {:error, _} ->
+          []
+      end
+
+    candidate_path in recent_paths or candidate_path in sibling_paths
+  end
+
+  defp build_repository(current_path, known_paths) do
+    case Inkwell.GitRepo.find_root(current_path) do
+      {:ok, root} ->
+        all_files = Inkwell.GitRepo.find_markdown_files(root)
+        repo_name = Path.basename(root)
+
+        repo_files =
+          all_files
+          |> Enum.reject(&MapSet.member?(known_paths, &1))
+          |> Enum.take(@max_repo_initial)
+          |> Enum.map(fn path ->
+            rel = Path.relative_to(path, root)
+
+            %{
+              path: path,
+              filename: Path.basename(path),
+              rel_path: rel,
+              title: extract_title(path),
+              section: :repository
+            }
+          end)
+
+        %{name: repo_name, files: repo_files, total: length(all_files) - MapSet.size(known_paths)}
+
+      :error ->
+        nil
+    end
   end
 
   defp do_match([], _c, matched, cb, _idx, fp, _prev), do: {matched, cb, fp || 0}

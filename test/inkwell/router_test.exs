@@ -113,7 +113,9 @@ defmodule Inkwell.RouterTest do
 
     assert conn.status == 200
     results = Jason.decode!(conn.resp_body)
-    assert is_list(results)
+    assert is_map(results)
+    assert is_list(results["recent"])
+    assert is_list(results["siblings"])
   end
 
   test "GET /search without current returns 400" do
