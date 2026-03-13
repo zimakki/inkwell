@@ -8,22 +8,39 @@ defmodule Inkwell.Router do
   plug(:dispatch)
 
   get "/" do
-    with {:ok, file_path} <- fetch_path_param(conn, "path"),
-         true <- File.exists?(file_path) do
-      Inkwell.Watcher.ensure_file(file_path)
-      Inkwell.History.push(file_path)
+    conn = Plug.Conn.fetch_query_params(conn)
 
-      theme = :persistent_term.get(:inkwell_theme, "dark")
-      html = file_path |> File.read!() |> Inkwell.Renderer.render()
-      filename = Path.basename(file_path)
-      page = html_page(html, filename, theme, file_path)
+    cond do
+      conn.query_params["path"] ->
+        file_path = Path.expand(conn.query_params["path"])
 
-      conn
-      |> put_resp_content_type("text/html")
-      |> send_resp(200, page)
-    else
-      {:error, reason} -> send_resp(conn, 400, reason)
-      false -> send_resp(conn, 404, "File not found")
+        if File.exists?(file_path) do
+          Inkwell.Watcher.ensure_file(file_path)
+          Inkwell.History.push(file_path)
+
+          theme = :persistent_term.get(:inkwell_theme, "dark")
+          html = file_path |> File.read!() |> Inkwell.Renderer.render()
+          filename = Path.basename(file_path)
+          page = html_page(html, filename, theme, file_path)
+
+          conn
+          |> put_resp_content_type("text/html")
+          |> send_resp(200, page)
+        else
+          send_resp(conn, 404, "File not found")
+        end
+
+      conn.query_params["dir"] ->
+        dir = Path.expand(conn.query_params["dir"])
+        theme = :persistent_term.get(:inkwell_theme, "dark")
+        page = browse_page(theme, dir)
+
+        conn
+        |> put_resp_content_type("text/html")
+        |> send_resp(200, page)
+
+      true ->
+        send_resp(conn, 400, "Missing path or dir parameter")
     end
   end
 
@@ -225,16 +242,61 @@ defmodule Inkwell.Router do
       Inkwell.Search.allowed_path?(current_path, new_path)
   end
 
-  defp fetch_path_param(conn, name) do
-    conn = Plug.Conn.fetch_query_params(conn)
-    fetch_query_path(conn, name)
-  end
-
   defp fetch_query_path(conn, name) do
     case conn.query_params[name] do
       nil -> {:error, "Missing #{name} parameter"}
       path -> {:ok, Path.expand(path)}
     end
+  end
+
+  defp browse_page(theme, browse_dir) do
+    safe_dir = Plug.HTML.html_escape(browse_dir)
+
+    """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Inkwell</title>
+      <link rel="stylesheet" href="/static/markdown-wide.css">
+      <link rel="stylesheet" href="/static/app.css">
+      <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    </head>
+    <body data-browse-dir="#{safe_dir}">
+      <div data-theme="#{theme}">
+        <div id="page-header">
+          <h3 id="header-title">Inkwell</h3>
+        </div>
+        <div id="page-ctn"></div>
+      </div>
+
+      <div id="picker-overlay">
+        <div id="picker">
+          <div id="picker-search">
+            <span id="picker-search-icon">&#9906;</span>
+            <input type="text" id="picker-input" placeholder="Search files and titles..." autocomplete="off" />
+            <button id="btn-open-file" class="picker-btn" title="Open a markdown file">Open File</button>
+            <button id="btn-open-folder" class="picker-btn" title="Browse a folder">Open Folder</button>
+            <span class="hint">ESC to close</span>
+          </div>
+          <div id="picker-path"></div>
+          <div id="picker-body">
+            <div id="picker-list">
+              <div id="picker-list-items"></div>
+              <div id="picker-status"></div>
+            </div>
+            <div id="picker-preview">
+              <div class="preview-unavailable">Select a file to preview</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script src="/static/app.js"></script>
+    </body>
+    </html>
+    """
   end
 
   defp html_page(content, filename, theme, current_path) do

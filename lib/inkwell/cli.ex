@@ -66,6 +66,19 @@ defmodule Inkwell.CLI do
     System.halt(0)
   end
 
+  def run_client_command(%{command: :browse, dir: dir, theme: theme}) do
+    case browse(dir, theme: theme) do
+      {:ok, url} ->
+        open_browser(url)
+        IO.puts(url)
+        System.halt(0)
+
+      {:error, msg} ->
+        IO.puts("Error: #{msg}")
+        System.halt(1)
+    end
+  end
+
   def run_client_command(%{command: :usage}) do
     usage(1)
   end
@@ -83,6 +96,33 @@ defmodule Inkwell.CLI do
       {:error, msg} ->
         IO.puts("Error: #{msg}")
         System.halt(1)
+    end
+  end
+
+  @doc false
+  def browse(dir, opts, start_daemon \\ &Inkwell.Daemon.ensure_started/1) do
+    dir = Path.expand(dir)
+
+    cond do
+      not File.exists?(dir) ->
+        {:error, "directory not found: #{dir}"}
+
+      not File.dir?(dir) ->
+        {:error, "not a directory: #{dir}"}
+
+      true ->
+        theme = Keyword.get(opts, :theme, "dark")
+
+        case start_daemon.(theme: theme) do
+          {:error, reason} ->
+            {:error, "failed to start inkwell daemon (#{inspect(reason)})"}
+
+          {:ok, port} ->
+            url =
+              "http://localhost:#{port}/?dir=#{URI.encode_www_form(dir)}&theme=#{URI.encode_www_form(theme)}"
+
+            {:ok, url}
+        end
     end
   end
 
@@ -141,9 +181,18 @@ defmodule Inkwell.CLI do
   defp usage(exit_code) do
     IO.puts("""
     Usage:
-      inkwell preview <file.md> [--theme dark]
-      inkwell stop
-      inkwell status
+      inkwell <directory>            Open file picker for a directory
+      inkwell preview <file.md>      Preview a specific markdown file
+      inkwell stop                   Stop the daemon
+      inkwell status                 Show daemon status
+
+    Options:
+      --theme dark|light             Set the theme (default: dark)
+
+    Examples:
+      inkwell .                      Browse current directory
+      inkwell ~/Documents            Browse a specific directory
+      inkwell preview README.md      Preview README.md
     """)
 
     System.halt(exit_code)

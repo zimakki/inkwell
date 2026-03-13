@@ -49,10 +49,20 @@ defmodule Inkwell.RouterTest do
     assert conn.status == 404
   end
 
-  test "GET / without path param returns 400" do
+  test "GET / without path or dir param returns 400" do
     conn = conn(:get, "/") |> Inkwell.Router.call(Inkwell.Router.init([]))
 
     assert conn.status == 400
+  end
+
+  test "GET / with dir param returns browse page HTML", %{base: base} do
+    conn =
+      conn(:get, "/?dir=#{URI.encode_www_form(base)}")
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 200
+    assert conn.resp_body =~ "data-browse-dir=\"#{base}\""
+    assert conn.resp_body =~ "app.js"
   end
 
   test "GET /open with valid file returns JSON with url", %{test_file: test_file} do

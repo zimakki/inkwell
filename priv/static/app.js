@@ -10,7 +10,8 @@
   var btnOpenFolder = document.getElementById('btn-open-folder');
   var pickerPathBar = document.getElementById('picker-path');
   var ws, pingInterval, reconnectTimer;
-  var currentPath = document.body.dataset.currentPath;
+  var currentPath = document.body.dataset.currentPath || null;
+  var initialBrowseDir = document.body.dataset.browseDir || null;
   var currentTheme = document.querySelector('[data-theme]').dataset.theme;
   var currentFiles = [];
   var selectedIndex = 0;
@@ -33,7 +34,8 @@
   // ── Picker ────────────────────────────────────
 
   function openPicker() {
-    browseDir = null;
+    // If no file is loaded yet (browse-from-CLI), reopen in browse mode
+    browseDir = currentPath ? null : initialBrowseDir;
     pickerOverlay.classList.add('open');
     pickerInput.value = '';
     pickerInput.focus();
@@ -56,8 +58,10 @@
     var url;
     if (browseDir) {
       url = '/browse?dir=' + encodeURIComponent(browseDir) + '&q=' + encodeURIComponent(query);
-    } else {
+    } else if (currentPath) {
       url = '/search?current=' + encodeURIComponent(currentPath) + '&q=' + encodeURIComponent(query);
+    } else {
+      return;
     }
     fetch(url)
       .then(function(r) { return r.json(); })
@@ -112,7 +116,8 @@
       if (!file) return;
       if (previewController) previewController.abort();
       previewController = new AbortController();
-      var url = '/preview?current=' + encodeURIComponent(currentPath) + '&path=' + encodeURIComponent(file.path);
+      var previewCurrent = currentPath || file.path;
+      var url = '/preview?current=' + encodeURIComponent(previewCurrent) + '&path=' + encodeURIComponent(file.path);
       if (browseDir) url += '&source=browse';
       fetch(url, { signal: previewController.signal })
         .then(function(r) {
@@ -142,7 +147,8 @@
   function selectFile() {
     var file = currentFiles[selectedIndex];
     if (!file) return;
-    var url = '/switch?current=' + encodeURIComponent(currentPath) + '&path=' + encodeURIComponent(file.path);
+    var switchCurrent = currentPath || file.path;
+    var url = '/switch?current=' + encodeURIComponent(switchCurrent) + '&path=' + encodeURIComponent(file.path);
     if (browseDir) url += '&source=browse';
     fetch(url)
       .then(function(r) {
@@ -160,7 +166,7 @@
   }
 
   function renderPathBar() {
-    var dirPath = browseDir || currentPath.split('/').slice(0, -1).join('/');
+    var dirPath = browseDir || (currentPath ? currentPath.split('/').slice(0, -1).join('/') : '');
     var segments = dirPath.split('/').filter(Boolean);
     var html = '';
 
@@ -364,6 +370,16 @@
       }, 30000);
     };
   }
-  connect();
+  if (initialBrowseDir) {
+    // Opened via `inkwell <directory>` — auto-open picker in browse mode
+    browseDir = initialBrowseDir;
+    pickerOverlay.classList.add('open');
+    pickerInput.focus();
+    selectedIndex = 0;
+    renderPathBar();
+    loadSearch('');
+  } else if (currentPath) {
+    connect();
+  }
   renderMermaid();
 })();
