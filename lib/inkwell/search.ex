@@ -53,7 +53,16 @@ defmodule Inkwell.Search do
         }
       end)
 
-    %{recent: recent, siblings: [], repository: nil}
+    # Try to derive repository from most recent file
+    recent_paths = MapSet.new(recent, & &1.path)
+
+    repository =
+      case List.first(recent) do
+        %{path: path} -> build_repository(path, recent_paths)
+        nil -> nil
+      end
+
+    %{recent: recent, siblings: [], repository: repository}
   end
 
   def list_files(current_path) do
