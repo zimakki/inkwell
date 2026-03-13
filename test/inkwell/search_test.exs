@@ -82,4 +82,53 @@ defmodule Inkwell.SearchTest do
   test "allowed_path? rejects files outside allowed set", %{current: current} do
     assert Inkwell.Search.allowed_path?(current, "/etc/passwd") == false
   end
+
+  describe "list_directory_files/1" do
+    test "lists markdown files in a directory", %{base: base, current: current, sibling: sibling} do
+      results = Inkwell.Search.list_directory_files(base)
+
+      paths = Enum.map(results, & &1.path)
+      assert current in paths
+      assert sibling in paths
+      assert Enum.all?(results, &(&1.section == :browse))
+    end
+
+    test "excludes non-markdown files", %{base: base} do
+      results = Inkwell.Search.list_directory_files(base)
+      filenames = Enum.map(results, & &1.filename)
+      refute "gamma.txt" in filenames
+    end
+
+    test "extracts titles", %{base: base} do
+      results = Inkwell.Search.list_directory_files(base)
+      alpha = Enum.find(results, &(&1.filename == "alpha.md"))
+      assert alpha.title == "Alpha Title"
+    end
+
+    test "returns empty list for nonexistent directory" do
+      assert Inkwell.Search.list_directory_files("/nonexistent/dir") == []
+    end
+
+    test "returns empty list for inaccessible directory" do
+      assert Inkwell.Search.list_directory_files("/root/nope") == []
+    end
+  end
+
+  describe "search_directory/2" do
+    test "returns all files with empty query", %{base: base} do
+      results = Inkwell.Search.search_directory(base, "")
+      assert length(results) == 2
+    end
+
+    test "filters by query", %{base: base} do
+      results = Inkwell.Search.search_directory(base, "alpha")
+      assert length(results) == 1
+      assert hd(results).filename == "alpha.md"
+    end
+
+    test "returns empty for no matches", %{base: base} do
+      results = Inkwell.Search.search_directory(base, "zzzzz")
+      assert results == []
+    end
+  end
 end

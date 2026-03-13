@@ -117,4 +117,115 @@ defmodule Inkwell.RouterTest do
 
     assert conn.status == 404
   end
+
+  # ── Browse routes ──
+
+  test "GET /browse returns markdown files in directory", %{base: base, test_file: test_file} do
+    conn =
+      conn(:get, "/browse?dir=#{URI.encode_www_form(base)}")
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 200
+    results = Jason.decode!(conn.resp_body)
+    assert is_list(results)
+    paths = Enum.map(results, & &1["path"])
+    assert test_file in paths
+  end
+
+  test "GET /browse with query filters results", %{base: base} do
+    other = Path.join(base, "other.md")
+    File.write!(other, "# Other\n\nbody")
+
+    conn =
+      conn(:get, "/browse?dir=#{URI.encode_www_form(base)}&q=other")
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 200
+    results = Jason.decode!(conn.resp_body)
+    assert length(results) == 1
+    assert hd(results)["filename"] == "other.md"
+  end
+
+  test "GET /browse without dir returns 400" do
+    conn =
+      conn(:get, "/browse")
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 400
+  end
+
+  test "GET /switch with source=browse bypasses allowed_path?", %{base: base} do
+    # Create a file in a different directory (not sibling, not in history)
+    other_dir =
+      Path.join(System.tmp_dir!(), "inkwell-browse-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(other_dir)
+    other_file = Path.join(other_dir, "browsed.md")
+    File.write!(other_file, "# Browsed\n\nbody")
+    on_exit(fn -> File.rm_rf!(other_dir) end)
+
+    current = Path.join(base, "test.md")
+
+    conn =
+      conn(
+        :get,
+        "/switch?current=#{URI.encode_www_form(current)}&path=#{URI.encode_www_form(other_file)}&source=browse"
+      )
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 200
+    body = Jason.decode!(conn.resp_body)
+    assert body["path"] == other_file
+    assert body["filename"] == "browsed.md"
+  end
+
+  test "GET /switch with source=browse still validates .md extension", %{base: base} do
+    txt_file = Path.join(base, "gamma.txt")
+    File.write!(txt_file, "text")
+    current = Path.join(base, "test.md")
+
+    conn =
+      conn(
+        :get,
+        "/switch?current=#{URI.encode_www_form(current)}&path=#{URI.encode_www_form(txt_file)}&source=browse"
+      )
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 403
+  end
+
+  test "GET /switch with source=browse validates file exists", %{base: base} do
+    current = Path.join(base, "test.md")
+
+    conn =
+      conn(
+        :get,
+        "/switch?current=#{URI.encode_www_form(current)}&path=#{URI.encode_www_form("/nonexistent/file.md")}&source=browse"
+      )
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 403
+  end
+
+  test "GET /preview with source=browse bypasses allowed_path?", %{base: base} do
+    other_dir =
+      Path.join(System.tmp_dir!(), "inkwell-browse-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(other_dir)
+    other_file = Path.join(other_dir, "preview-test.md")
+    File.write!(other_file, "# Preview Test\n\ncontent here")
+    on_exit(fn -> File.rm_rf!(other_dir) end)
+
+    current = Path.join(base, "test.md")
+
+    conn =
+      conn(
+        :get,
+        "/preview?current=#{URI.encode_www_form(current)}&path=#{URI.encode_www_form(other_file)}&source=browse"
+      )
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 200
+    assert conn.resp_body =~ "Preview Test"
+  end
 end

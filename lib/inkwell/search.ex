@@ -94,6 +94,47 @@ defmodule Inkwell.Search do
     |> Enum.map(fn {entry, _score} -> entry end)
   end
 
+  def list_directory_files(dir_path) do
+    case File.ls(dir_path) do
+      {:ok, entries} ->
+        entries
+        |> Enum.filter(&String.ends_with?(&1, ".md"))
+        |> Enum.sort()
+        |> Enum.map(fn filename ->
+          path = Path.join(dir_path, filename)
+
+          %{
+            path: path,
+            filename: filename,
+            title: extract_title(path),
+            section: :browse,
+            active: false
+          }
+        end)
+
+      {:error, _} ->
+        []
+    end
+  end
+
+  def search_directory(dir_path, query) when query in ["", nil] do
+    list_directory_files(dir_path)
+  end
+
+  def search_directory(dir_path, query) do
+    list_directory_files(dir_path)
+    |> Enum.map(fn entry ->
+      filename_score = fuzzy_score(query, entry.filename)
+      title_score = fuzzy_score(query, entry.title) * 1.2
+      score = max(filename_score, title_score)
+      {entry, score}
+    end)
+    |> Enum.reject(fn {_entry, score} -> score == 0 end)
+    |> Enum.sort_by(fn {_entry, score} -> score end, :desc)
+    |> Enum.take(@max_results)
+    |> Enum.map(fn {entry, _score} -> entry end)
+  end
+
   def allowed_path?(current_path, candidate_path) do
     current_path
     |> list_files()
