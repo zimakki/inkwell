@@ -16,6 +16,7 @@ cask "inkwell" do
   homepage "https://github.com/zimakki/inkwell"
 
   depends_on macos: ">= :catalina"
+  depends_on formula: "zimakki/tap/inkwell-cli"
 
   app "Inkwell.app"
 end

@@ -1,4 +1,4 @@
-class Inkwell < Formula
+class InkwellCli < Formula
   desc "Live markdown preview daemon with file picker and fuzzy search"
   homepage "https://github.com/zimakki/inkwell"
   license "MIT"
