@@ -20,6 +20,7 @@
   var previewTimer = null;
   var previewController = null;
   var browseDir = null;
+  var repoInfo = null;
 
   mermaid.initialize({ startOnLoad: false, theme: currentTheme === 'dark' ? 'dark' : 'default' });
 
@@ -58,15 +59,30 @@
     var url;
     if (browseDir) {
       url = '/browse?dir=' + encodeURIComponent(browseDir) + '&q=' + encodeURIComponent(query);
-    } else if (currentPath) {
-      url = '/search?current=' + encodeURIComponent(currentPath) + '&q=' + encodeURIComponent(query);
     } else {
-      return;
+      var params = 'q=' + encodeURIComponent(query);
+      if (currentPath) {
+        params = 'current=' + encodeURIComponent(currentPath) + '&' + params;
+      }
+      url = '/search?' + params;
     }
     fetch(url)
       .then(function(r) { return r.json(); })
-      .then(function(files) {
-        currentFiles = files;
+      .then(function(data) {
+        if (browseDir) {
+          // Browse mode still returns flat array
+          currentFiles = data;
+          repoInfo = null;
+        } else {
+          // Structured response
+          currentFiles = (data.recent || []).concat(data.siblings || []);
+          if (data.repository && data.repository.files) {
+            repoInfo = { name: data.repository.name, total: data.repository.total };
+            currentFiles = currentFiles.concat(data.repository.files);
+          } else {
+            repoInfo = null;
+          }
+        }
         selectedIndex = 0;
         renderPathBar();
         renderFileList();
@@ -82,22 +98,47 @@
       if (f.section !== currentSection) {
         currentSection = f.section;
         var label;
+        var cls = 'picker-section';
         if (f.section === 'recent') {
           label = 'Recent';
         } else if (f.section === 'browse' && browseDir) {
           label = 'Browse: ' + browseDir;
+        } else if (f.section === 'repository' && repoInfo) {
+          label = 'Repository (' + repoInfo.name + ')';
+          cls = 'picker-section repo';
         } else {
           label = f.path.split('/').slice(-2, -1)[0] + '/';
         }
-        html += '<div class="picker-section">' + escapeHtml(label) + '</div>';
+        html += '<div class="' + cls + '">' + escapeHtml(label) + '</div>';
       }
-      var cls = i === selectedIndex ? 'picker-item selected' : 'picker-item';
+      var itemCls = i === selectedIndex ? 'picker-item selected' : 'picker-item';
       var title = f.title || f.filename;
-      html += '<div class="' + cls + '" data-index="' + i + '">'
-        + '<div class="picker-item-title">' + escapeHtml(title) + '</div>'
-        + '<div class="picker-item-file">' + escapeHtml(f.filename) + '</div>'
-        + '</div>';
+
+      if (f.section === 'repository' && f.rel_path) {
+        var relDir = f.rel_path.split('/').slice(0, -1).join('/');
+        html += '<div class="' + itemCls + '" data-index="' + i + '">'
+          + '<div class="picker-item-title-row">'
+          + '<span class="picker-item-title">' + escapeHtml(title) + '</span>'
+          + (relDir ? '<span class="picker-item-dir">' + escapeHtml(relDir + '/') + '</span>' : '')
+          + '</div>'
+          + '<div class="picker-item-file">' + escapeHtml(f.filename) + '</div>'
+          + '</div>';
+      } else {
+        html += '<div class="' + itemCls + '" data-index="' + i + '">'
+          + '<div class="picker-item-title">' + escapeHtml(title) + '</div>'
+          + '<div class="picker-item-file">' + escapeHtml(f.filename) + '</div>'
+          + '</div>';
+      }
     });
+
+    // Truncation hint for repository section
+    if (repoInfo && repoInfo.total > 0) {
+      var repoFilesShown = currentFiles.filter(function(f) { return f.section === 'repository'; }).length;
+      if (repoFilesShown < repoInfo.total) {
+        html += '<div class="picker-hint">Showing ' + repoFilesShown + ' of ' + repoInfo.total + ' files — type to search all</div>';
+      }
+    }
+
     pickerListItems.innerHTML = html;
     pickerStatus.textContent = currentFiles.length + ' files \u00b7 \u2191\u2193 navigate \u00b7 \u21b5 open';
 
@@ -117,8 +158,10 @@
       if (previewController) previewController.abort();
       previewController = new AbortController();
       var previewCurrent = currentPath || file.path;
-      var url = '/preview?current=' + encodeURIComponent(previewCurrent) + '&path=' + encodeURIComponent(file.path);
-      if (browseDir) url += '&source=browse';
+      var source = '';
+      if (browseDir) source = '&source=browse';
+      else if (file.section === 'repository') source = '&source=repository';
+      var url = '/preview?current=' + encodeURIComponent(previewCurrent) + '&path=' + encodeURIComponent(file.path) + source;
       fetch(url, { signal: previewController.signal })
         .then(function(r) {
           if (!r.ok) throw new Error('Preview failed');
@@ -147,9 +190,21 @@
   function selectFile() {
     var file = currentFiles[selectedIndex];
     if (!file) return;
+
+    // Empty state: no currentPath, do full page navigation
+    if (!currentPath && !browseDir) {
+      window.location = '/?path=' + encodeURIComponent(file.path);
+      return;
+    }
+
     var switchCurrent = currentPath || file.path;
-    var url = '/switch?current=' + encodeURIComponent(switchCurrent) + '&path=' + encodeURIComponent(file.path);
-    if (browseDir) url += '&source=browse';
+    var source = '';
+    if (browseDir) {
+      source = '&source=browse';
+    } else if (file.section === 'repository') {
+      source = '&source=repository';
+    }
+    var url = '/switch?current=' + encodeURIComponent(switchCurrent) + '&path=' + encodeURIComponent(file.path) + source;
     fetch(url)
       .then(function(r) {
         if (!r.ok) throw new Error('Switch failed');
@@ -216,6 +271,11 @@
       })
       .then(function(data) {
         if (!data) return;
+        // Empty state: no currentPath, do full page navigation
+        if (!currentPath) {
+          window.location = '/?path=' + encodeURIComponent(data.path);
+          return;
+        }
         // Switch to the picked file directly
         browseDir = '__pick__';
         var url = '/switch?current=' + encodeURIComponent(currentPath) + '&path=' + encodeURIComponent(data.path) + '&source=browse';
@@ -370,8 +430,16 @@
       }, 30000);
     };
   }
-  if (initialBrowseDir) {
-    // Opened via `inkwell <directory>` — auto-open picker in browse mode
+  var noFile = document.body.dataset.noFile;
+
+  if (noFile) {
+    // Empty state — auto-open picker with recent files
+    pickerOverlay.classList.add('open');
+    pickerInput.focus();
+    selectedIndex = 0;
+    renderPathBar();
+    loadSearch('');
+  } else if (initialBrowseDir) {
     browseDir = initialBrowseDir;
     pickerOverlay.classList.add('open');
     pickerInput.focus();
