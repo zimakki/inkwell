@@ -84,11 +84,11 @@ defmodule Inkwell.Router do
 
   get "/switch" do
     conn = Plug.Conn.fetch_query_params(conn)
+    source = conn.query_params["source"]
 
     with {:ok, current_path} <- fetch_query_path(conn, "current"),
          {:ok, new_path} <- fetch_query_path(conn, "path"),
-         true <- File.exists?(new_path),
-         true <- Inkwell.Search.allowed_path?(current_path, new_path) do
+         true <- authorized?(current_path, new_path, source) do
       Inkwell.Watcher.ensure_file(new_path)
       Inkwell.History.push(new_path)
 
@@ -130,12 +130,11 @@ defmodule Inkwell.Router do
 
   get "/preview" do
     conn = Plug.Conn.fetch_query_params(conn)
+    source = conn.query_params["source"]
 
     with {:ok, current_path} <- fetch_query_path(conn, "current"),
          {:ok, path} <- fetch_query_path(conn, "path"),
-         true <- String.ends_with?(path, ".md"),
-         true <- File.exists?(path),
-         true <- Inkwell.Search.allowed_path?(current_path, path) do
+         true <- authorized?(current_path, path, source) do
       html = path |> File.read!() |> Inkwell.Renderer.render()
 
       conn
@@ -144,6 +143,55 @@ defmodule Inkwell.Router do
     else
       {:error, reason} -> send_resp(conn, 400, reason)
       false -> send_resp(conn, 403, "Path not in allowed file set")
+    end
+  end
+
+  get "/browse" do
+    conn = Plug.Conn.fetch_query_params(conn)
+
+    case conn.query_params["dir"] do
+      nil ->
+        send_resp(conn, 400, "Missing dir parameter")
+
+      dir ->
+        query = conn.query_params["q"] || ""
+        results = Inkwell.Search.search_directory(dir, query)
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(results))
+    end
+  end
+
+  get "/pick-file" do
+    case Inkwell.FileDialog.pick_file() do
+      {:ok, path} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{path: path, filename: Path.basename(path)}))
+
+      :cancel ->
+        send_resp(conn, 204, "")
+
+      {:error, reason} ->
+        send_resp(conn, 500, reason)
+    end
+  end
+
+  get "/pick-directory" do
+    case Inkwell.FileDialog.pick_directory() do
+      {:ok, dir} ->
+        results = Inkwell.Search.list_directory_files(dir)
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{dir: dir, files: results}))
+
+      :cancel ->
+        send_resp(conn, 204, "")
+
+      {:error, reason} ->
+        send_resp(conn, 500, reason)
     end
   end
 
@@ -165,6 +213,16 @@ defmodule Inkwell.Router do
       true ->
         {:ok, Inkwell.open_file(path, theme: theme)}
     end
+  end
+
+  defp authorized?(_current_path, new_path, "browse") do
+    File.exists?(new_path) and String.ends_with?(new_path, ".md")
+  end
+
+  defp authorized?(current_path, new_path, _source) do
+    File.exists?(new_path) and
+      String.ends_with?(new_path, ".md") and
+      Inkwell.Search.allowed_path?(current_path, new_path)
   end
 
   defp fetch_path_param(conn, name) do
@@ -209,6 +267,8 @@ defmodule Inkwell.Router do
           <div id="picker-search">
             <span id="picker-search-icon">&#9906;</span>
             <input type="text" id="picker-input" placeholder="Search files and titles..." autocomplete="off" />
+            <button id="btn-open-file" class="picker-btn" title="Open a markdown file">Open File</button>
+            <button id="btn-open-folder" class="picker-btn" title="Browse a folder">Open Folder</button>
             <span class="hint">ESC to close</span>
           </div>
           <div id="picker-body">

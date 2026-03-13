@@ -6,6 +6,8 @@
   var pickerListItems = document.getElementById('picker-list-items');
   var pickerStatus = document.getElementById('picker-status');
   var pickerPreview = document.getElementById('picker-preview');
+  var btnOpenFile = document.getElementById('btn-open-file');
+  var btnOpenFolder = document.getElementById('btn-open-folder');
   var ws, pingInterval, reconnectTimer;
   var currentPath = document.body.dataset.currentPath;
   var currentTheme = document.querySelector('[data-theme]').dataset.theme;
@@ -15,6 +17,7 @@
   var escapeDiv = document.createElement('div');
   var previewTimer = null;
   var previewController = null;
+  var browseDir = null;
 
   mermaid.initialize({ startOnLoad: false, theme: currentTheme === 'dark' ? 'dark' : 'default' });
 
@@ -29,6 +32,7 @@
   // ── Picker ────────────────────────────────────
 
   function openPicker() {
+    browseDir = null;
     pickerOverlay.classList.add('open');
     pickerInput.value = '';
     pickerInput.focus();
@@ -40,13 +44,20 @@
     pickerOverlay.classList.remove('open');
     pickerInput.blur();
     currentFiles = [];
+    browseDir = null;
     pickerListItems.innerHTML = '';
     pickerPreview.innerHTML = '<div class="preview-unavailable">Select a file to preview</div>';
   }
 
   function loadSearch(query) {
     if (previewController) { previewController.abort(); previewController = null; }
-    fetch('/search?current=' + encodeURIComponent(currentPath) + '&q=' + encodeURIComponent(query))
+    var url;
+    if (browseDir) {
+      url = '/browse?dir=' + encodeURIComponent(browseDir) + '&q=' + encodeURIComponent(query);
+    } else {
+      url = '/search?current=' + encodeURIComponent(currentPath) + '&q=' + encodeURIComponent(query);
+    }
+    fetch(url)
       .then(function(r) { return r.json(); })
       .then(function(files) {
         currentFiles = files;
@@ -63,8 +74,15 @@
     currentFiles.forEach(function(f, i) {
       if (f.section !== currentSection) {
         currentSection = f.section;
-        var label = f.section === 'recent' ? 'Recent' : (f.path.split('/').slice(-2, -1)[0] + '/');
-        html += '<div class="picker-section">' + label + '</div>';
+        var label;
+        if (f.section === 'recent') {
+          label = 'Recent';
+        } else if (f.section === 'browse' && browseDir) {
+          label = 'Browse: ' + browseDir;
+        } else {
+          label = f.path.split('/').slice(-2, -1)[0] + '/';
+        }
+        html += '<div class="picker-section">' + escapeHtml(label) + '</div>';
       }
       var cls = i === selectedIndex ? 'picker-item selected' : 'picker-item';
       var title = f.title || f.filename;
@@ -91,7 +109,9 @@
       if (!file) return;
       if (previewController) previewController.abort();
       previewController = new AbortController();
-      fetch('/preview?current=' + encodeURIComponent(currentPath) + '&path=' + encodeURIComponent(file.path), { signal: previewController.signal })
+      var url = '/preview?current=' + encodeURIComponent(currentPath) + '&path=' + encodeURIComponent(file.path);
+      if (browseDir) url += '&source=browse';
+      fetch(url, { signal: previewController.signal })
         .then(function(r) {
           if (!r.ok) throw new Error('Preview failed');
           return r.text();
@@ -119,7 +139,9 @@
   function selectFile() {
     var file = currentFiles[selectedIndex];
     if (!file) return;
-    fetch('/switch?current=' + encodeURIComponent(currentPath) + '&path=' + encodeURIComponent(file.path))
+    var url = '/switch?current=' + encodeURIComponent(currentPath) + '&path=' + encodeURIComponent(file.path);
+    if (browseDir) url += '&source=browse';
+    fetch(url)
       .then(function(r) {
         if (!r.ok) throw new Error('Switch failed');
         return r.json();
@@ -138,6 +160,56 @@
     escapeDiv.textContent = str;
     return escapeDiv.innerHTML;
   }
+
+  // ── Browse buttons ──────────────────────────────
+
+  btnOpenFile.addEventListener('click', function(e) {
+    e.stopPropagation();
+    fetch('/pick-file')
+      .then(function(r) {
+        if (r.status === 204) return null;
+        if (!r.ok) throw new Error('Pick failed');
+        return r.json();
+      })
+      .then(function(data) {
+        if (!data) return;
+        // Switch to the picked file directly
+        browseDir = '__pick__';
+        var url = '/switch?current=' + encodeURIComponent(currentPath) + '&path=' + encodeURIComponent(data.path) + '&source=browse';
+        return fetch(url).then(function(r) {
+          if (!r.ok) throw new Error('Switch failed');
+          return r.json();
+        }).then(function(switchData) {
+          currentPath = switchData.path;
+          headerTitle.textContent = switchData.filename;
+          document.title = switchData.filename;
+          history.replaceState(null, '', '/?path=' + encodeURIComponent(currentPath));
+          reconnectSocket();
+          closePicker();
+        });
+      })
+      .catch(function() {});
+  });
+
+  btnOpenFolder.addEventListener('click', function(e) {
+    e.stopPropagation();
+    fetch('/pick-directory')
+      .then(function(r) {
+        if (r.status === 204) return null;
+        if (!r.ok) throw new Error('Pick failed');
+        return r.json();
+      })
+      .then(function(data) {
+        if (!data) return;
+        browseDir = data.dir;
+        currentFiles = data.files;
+        selectedIndex = 0;
+        pickerInput.value = '';
+        renderFileList();
+        loadPreview();
+      })
+      .catch(function() {});
+  });
 
   // ── Picker events ─────────────────────────────
 
