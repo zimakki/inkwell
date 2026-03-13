@@ -38,6 +38,9 @@ Key patterns:
 - Elixir ~> 1.19, standard `mix format` style
 - Burrito distribution (`mix release`, self-extracting binaries with bundled ERTS)
 - Static assets in `priv/static/`
+- When bumping the app version, update all release metadata together:
+  `mix.exs`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, and the
+  `inkwell-desktop` package version entry in `src-tauri/Cargo.lock`
 
 <!-- usage-rules-start -->
 <!-- mdex-start -->
