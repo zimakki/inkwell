@@ -40,3 +40,4 @@ inkwell-*.tar
 # Tauri
 src-tauri/target/
 src-tauri/binaries/
+src-tauri/gen/
