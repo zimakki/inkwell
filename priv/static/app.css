@@ -123,3 +123,30 @@
   display: flex; align-items: center; justify-content: center;
   height: 100%;
 }
+
+.picker-section.repo {
+  color: var(--h2);
+}
+
+.picker-item-dir {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: 'SF Mono', monospace;
+  margin-left: auto;
+  flex-shrink: 0;
+  padding-left: 8px;
+}
+
+.picker-item-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.picker-hint {
+  padding: 6px 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: italic;
+  font-family: system-ui;
+}
