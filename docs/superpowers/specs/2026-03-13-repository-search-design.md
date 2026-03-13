@@ -35,7 +35,7 @@ Note: `.superpowers` is NOT skipped — markdown files there should be discovera
 
 ### 3. Backend API Changes
 
-**`GET /search`** response gains a `repository` key:
+**Breaking change to `/search` response format.** The current endpoint returns a flat JSON array. The new format is a structured object:
 
 ```json
 {
@@ -57,11 +57,16 @@ Note: `.superpowers` is NOT skipped — markdown files there should be discovera
 }
 ```
 
+The `recent` and `siblings` arrays contain the same file objects as the current flat array, just grouped. The `rel_dir` for display is derived client-side from `rel_path` (strip the filename).
+
 - Without query: first 20 repo files (alphabetical), excluding duplicates from recent/siblings
 - With query: fuzzy match across all repo files, top 50, deduped against recent/siblings
 - `repository` is `null` when the current file isn't in a git repo
+- Deduplication of repo files against recent/siblings happens server-side (consistent with existing sibling dedup in `search.ex`)
 
-**Authorization** — `authorized?/3` updated to accept any file under the git root, not just recent + siblings.
+**Empty `current` param:** When `/search` is called with no `current` parameter (empty state), `Search.list_recent/0` returns only recent files from `Inkwell.History`. No siblings or repository results (since there's no current file to derive a directory or git root from).
+
+**Authorization** — `authorized?/3` updated to accept any file under the git root. Uses a `source: "repository"` parameter (analogous to existing `source: "browse"`) to distinguish repo-based access from the default recent+siblings check.
 
 ### 4. Frontend Changes
 
@@ -72,10 +77,13 @@ Note: `.superpowers` is NOT skipped — markdown files there should be discovera
 - Keyboard nav, preview pane, and selection work seamlessly across all three sections
 - Files already in Recent/Sibling sections are not repeated in Repository
 
+**`loadSearch()` changes:**
+- Parse the new structured response (instead of flat array) and merge `recent` + `siblings` + `repository.files` into `currentFiles` for keyboard navigation
+- Store `repository.name` and `repository.total` for section header and truncation hint
+
 **`renderFileList()` changes:**
-- Parse new `repository` key from `/search` response
 - Render third section with repo-specific styling
-- Repository items include a `rel_dir` field displayed right-aligned
+- Repository items derive `rel_dir` from `rel_path` client-side (strip filename) and display it right-aligned
 
 ### 5. Empty State — No Path or Dir
 
@@ -83,9 +91,10 @@ When `GET /` is called with no `path` or `dir` parameter:
 
 - Router serves the full HTML page (same template as browse mode) with a `data-no-file` attribute instead of the "Missing path or dir parameter" error
 - `app.js` detects `data-no-file` and auto-opens the picker
-- Picker calls `/search` with no `current` param to show just recent files
+- No WebSocket connection is established (existing code already skips `connect()` when both `currentPath` and `initialBrowseDir` are null — this behavior is preserved)
+- Picker calls `/search` with no `current` param, which triggers `Search.list_recent/0` returning only recent files
 - Main content area shows a minimal welcome message (e.g., "Open a file to get started")
-- Once user picks a file, switches to normal preview mode
+- Once user picks a file, `selectFile()` sets `currentPath` and switches to normal preview mode with WebSocket connection
 
 ## Technical Decisions
 
@@ -103,7 +112,7 @@ When `GET /` is called with no `path` or `dir` parameter:
 | File | Change |
 |------|--------|
 | `lib/inkwell/git_repo.ex` | **New** — `find_root/1`, `find_markdown_files/1` |
-| `lib/inkwell/search.ex` | Add repository results to `list_files/1` and `search/2` |
+| `lib/inkwell/search.ex` | Add repository results to `list_files/1` and `search/2`, add `list_recent/0` |
 | `lib/inkwell/router.ex` | Update `/search` response format, update `authorized?/3`, handle empty `GET /` |
 | `priv/static/app.js` | Parse repository section, render with directory paths, handle `data-no-file` |
 | `priv/static/app.css` | Style for `.picker-section.repo` and `.picker-item-dir` |
