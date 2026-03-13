@@ -74,9 +74,27 @@ fn show_error(_app: &tauri::AppHandle, title: &str, message: &str) {
     eprintln!("ERROR: {} - {}", title, message);
 }
 
+fn stop_owned_daemon(owns_sidecar: &AtomicBool) {
+    if owns_sidecar.swap(false, Ordering::SeqCst) {
+        if let Some(port) = read_port() {
+            let _ = reqwest::blocking::Client::builder()
+                .timeout(Duration::from_secs(2))
+                .build()
+                .ok()
+                .and_then(|client| {
+                    client
+                        .post(format!("http://localhost:{}/stop", port))
+                        .send()
+                        .ok()
+                });
+        }
+    }
+}
+
 fn main() {
     let owns_sidecar = Arc::new(AtomicBool::new(false));
     let owns_sidecar_clone = owns_sidecar.clone();
+    let owns_sidecar_run = owns_sidecar.clone();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -173,26 +191,13 @@ fn main() {
         })
         .on_window_event(move |_window, event| {
             if let tauri::WindowEvent::Destroyed = event {
-                if owns_sidecar_clone.load(Ordering::SeqCst) {
-                    if let Some(port) = read_port() {
-                        let _ = reqwest::blocking::Client::builder()
-                            .timeout(Duration::from_secs(2))
-                            .build()
-                            .ok()
-                            .and_then(|client| {
-                                client
-                                    .post(format!("http://localhost:{}/stop", port))
-                                    .send()
-                                    .ok()
-                            });
-                    }
-                }
+                stop_owned_daemon(&owns_sidecar_clone);
             }
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app_handle, event| {
-            if let tauri::RunEvent::Opened { urls } = event {
+        .run(move |app_handle, event| match event {
+            tauri::RunEvent::Opened { urls } => {
                 for url in urls {
                     let path = url.path();
                     if path.ends_with(".md") || path.ends_with(".markdown") {
@@ -200,5 +205,9 @@ fn main() {
                     }
                 }
             }
+            tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. } => {
+                stop_owned_daemon(&owns_sidecar_run);
+            }
+            _ => {}
         });
 }
