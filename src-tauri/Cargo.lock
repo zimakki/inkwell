@@ -1591,7 +1591,7 @@ dependencies = [
 
 [[package]]
 name = "inkwell-desktop"
-version = "0.1.0"
+version = "0.2.7"
 dependencies = [
  "dirs",
  "reqwest 0.12.28",
