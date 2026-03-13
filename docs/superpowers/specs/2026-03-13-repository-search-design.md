@@ -31,7 +31,7 @@ Note: `.superpowers` is NOT skipped — markdown files there should be discovera
 - Paths stored as absolute paths internally, displayed as relative to git root in the UI
 - Title extraction (first H1) uses existing `Search.extract_title/1`
 - Without a search query: returns only the first 20 files (alphabetical). Title extraction only runs on those 20.
-- With a search query: fuzzy match runs against filename + relative path + title, returns top 50 results
+- With a search query: fuzzy match runs against filename + relative path + title, returns top 50 results. Scoring weights: filename 1.0, title 1.2 (matching existing behavior), relative path 0.8 (lower since it's supplementary context)
 
 ### 3. Backend API Changes
 
@@ -64,9 +64,13 @@ The `recent` and `siblings` arrays contain the same file objects as the current 
 - `repository` is `null` when the current file isn't in a git repo
 - Deduplication of repo files against recent/siblings happens server-side (consistent with existing sibling dedup in `search.ex`)
 
-**Empty `current` param:** When `/search` is called with no `current` parameter (empty state), `Search.list_recent/0` returns only recent files from `Inkwell.History`. No siblings or repository results (since there's no current file to derive a directory or git root from).
+**Router `/search` handler changes:** The current handler uses `fetch_query_path(conn, "current")` which requires the param. This becomes an optional param with two code branches:
+- When `current` is present: existing behavior + new repository results
+- When `current` is absent: call `Search.list_recent/0` which returns `%{recent: files, siblings: [], repository: nil}` — only recent files from `Inkwell.History`
 
-**Authorization** — `authorized?/3` updated to accept any file under the git root. Uses a `source: "repository"` parameter (analogous to existing `source: "browse"`) to distinguish repo-based access from the default recent+siblings check.
+**`/search` is only consumed by `app.js`** — no external consumers (Tauri desktop app opens the browser which loads app.js; CLI only hits `/open`).
+
+**Authorization** — `authorized?/3` updated to accept any file under the git root. For `source: "repository"`, derives the git root from `current_path` via `GitRepo.find_root/1` and verifies `new_path` starts with that root. When `current_path` is nil (empty state), repository source is not used — the user must pick via Open File/Open Folder buttons or select a recent file (which are already authorized).
 
 ### 4. Frontend Changes
 
@@ -94,7 +98,7 @@ When `GET /` is called with no `path` or `dir` parameter:
 - No WebSocket connection is established (existing code already skips `connect()` when both `currentPath` and `initialBrowseDir` are null — this behavior is preserved)
 - Picker calls `/search` with no `current` param, which triggers `Search.list_recent/0` returning only recent files
 - Main content area shows a minimal welcome message (e.g., "Open a file to get started")
-- Once user picks a file, `selectFile()` sets `currentPath` and switches to normal preview mode with WebSocket connection
+- Once user picks a file, `selectFile()` calls `/switch`. In the empty state, `currentPath` is null, so `selectFile()` does a full page navigation (`window.location = '/?path=' + encodeURIComponent(path)`) instead of the normal `/switch` fetch, since `/switch` requires a valid `current` param. After navigation, the page loads in normal preview mode with WebSocket connection.
 
 ## Technical Decisions
 
