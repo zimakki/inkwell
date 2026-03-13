@@ -36,3 +36,7 @@ inkwell-*.tar
 
 # Git worktrees.
 /.worktrees/
+
+# Tauri
+src-tauri/target/
+src-tauri/binaries/
