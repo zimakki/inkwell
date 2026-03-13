@@ -10,9 +10,40 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 TAURI_DIR="$PROJECT_DIR/src-tauri"
 BINARIES_DIR="$TAURI_DIR/binaries"
 
+default_burrito_target() {
+  local os="$(uname -s)"
+  local arch="$(uname -m)"
+
+  case "$os:$arch" in
+    Darwin:arm64|Darwin:aarch64)
+      echo "darwin_arm64"
+      ;;
+    Darwin:x86_64)
+      echo "darwin_amd64"
+      ;;
+    Linux:x86_64)
+      echo "linux_amd64"
+      ;;
+    MINGW*:x86_64|MSYS*:x86_64|CYGWIN*:x86_64)
+      echo "windows_amd64"
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
+BURRITO_TARGET_NAME="${BURRITO_TARGET:-$(default_burrito_target)}"
+
+if [ -z "$BURRITO_TARGET_NAME" ]; then
+  echo "Unsupported host platform for automatic Burrito target selection." >&2
+  echo "Set BURRITO_TARGET explicitly (for example: darwin_arm64)." >&2
+  exit 1
+fi
+
 echo "==> Building Burrito release..."
 cd "$PROJECT_DIR"
-MIX_ENV=prod mix release
+BURRITO_TARGET="$BURRITO_TARGET_NAME" MIX_ENV=prod mix release --overwrite
 
 echo "==> Copying sidecar binaries..."
 mkdir -p "$BINARIES_DIR"
