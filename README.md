@@ -10,17 +10,39 @@ A live markdown preview daemon for your terminal. Inkwell runs a lightweight bac
 
 ## Features
 
-- **Live preview** — edits appear in the browser instantly via WebSocket
-- **File picker** — fuzzy search across recent and sibling files (`Ctrl+P`)
-- **Directory browsing** — open any directory to browse and search its markdown files
-- **Git repository search** — file picker discovers all `.md` files across your entire git repo
-- **Dark/light themes** — toggle with `Ctrl+Shift+T`
-- **Mermaid diagrams** — rendered automatically in fenced code blocks
-- **Syntax highlighting** — code blocks highlighted with theme-aware colors
-- **Desktop app** — native macOS app via Tauri with `inkwell://` deep links
-- **Single daemon** — one server per user, shared across editors and terminals
-- **Idle shutdown** — daemon stops after 10 minutes with no viewers
-- **Cross-platform** — macOS (Apple Silicon + Intel) and Linux x86_64
+### Instant Live Preview
+
+Save a file and see it in the browser immediately — no refresh needed. Inkwell pushes re-rendered HTML over WebSocket the moment a file changes on disk.
+
+### Smart File Navigation
+
+Hit `Ctrl+P` to open the file picker with fuzzy search across filenames, H1 titles, and file paths. Results are grouped into sections:
+
+- **Recent** — your 20 most recently opened files
+- **Sibling** — other `.md` files in the same directory
+- **Repository** — every markdown file in the git repo, discovered automatically
+
+Select any result to see a rendered preview before opening it.
+
+### Rich Markdown Rendering
+
+Full GitHub Flavored Markdown support including tables, task lists, strikethrough, autolinks, and footnotes. Plus:
+
+- **Syntax highlighting** — theme-aware colors for code blocks (powered by [MDEx](https://github.com/leandrocp/mdex))
+- **Mermaid diagrams** — fenced `mermaid` blocks render as diagrams automatically
+- **Dark and light themes** — toggle anytime with `Ctrl+Shift+T`
+
+### Lightweight Daemon Architecture
+
+One server per user, shared across all your editors and terminals. The daemon starts on first use, binds to a random port, and shuts itself down after 10 minutes of inactivity. No configuration needed.
+
+### Desktop App
+
+A native macOS app built with Tauri. When installed, Inkwell opens previews in its own window via `inkwell://` deep links instead of your browser.
+
+### Cross-Platform
+
+Pre-built binaries for macOS (Apple Silicon + Intel) and Linux x86_64 via [Burrito](https://github.com/burrito-elixir/burrito) self-extracting releases.
 
 ## Installation
 
@@ -147,6 +169,52 @@ MIX_ENV=prod mix release       # Build standalone binary (Burrito)
 5. Open a pull request
 
 Please ensure `mix compile --warnings-as-errors` passes before submitting.
+
+## Bonus: Neovim Integration
+
+Add this to your Neovim config to preview markdown files with `<leader>mp` or the `:InkwellPreview` command:
+
+```lua
+local function preview_current_markdown()
+  local cmd = vim.g.inkwell_cmd or "inkwell"
+  local file = vim.fn.expand "%:p"
+
+  local job_id = vim.fn.jobstart({ cmd, "preview", file }, { detach = true })
+
+  if job_id <= 0 then
+    vim.notify("Failed to start Inkwell. Is `" .. cmd .. "` installed and on your PATH?", vim.log.levels.ERROR)
+  end
+end
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "markdown",
+  callback = function(args)
+    vim.api.nvim_buf_create_user_command(args.buf, "InkwellPreview", preview_current_markdown, {
+      desc = "Preview the current markdown file in Inkwell",
+    })
+
+    vim.keymap.set("n", "<leader>mp", preview_current_markdown, {
+      buffer = args.buf,
+      desc = "Preview in Inkwell",
+    })
+  end,
+})
+```
+
+Set `vim.g.inkwell_cmd` if your binary is installed somewhere other than `$PATH`.
+
+## Thanks
+
+Inkwell is built on top of some excellent open-source libraries:
+
+- [MDEx](https://github.com/leandrocp/mdex) — fast Markdown-to-HTML with syntax highlighting, GFM, and more
+- [Bandit](https://github.com/mtrudel/bandit) — pure Elixir HTTP server
+- [Plug](https://github.com/elixir-plug/plug) — composable web middleware
+- [WebSock](https://github.com/phoenixframework/websock) — WebSocket handling
+- [FileSystem](https://github.com/falood/file_system) — cross-platform filesystem watcher
+- [Burrito](https://github.com/burrito-elixir/burrito) — self-extracting binary releases for Elixir
+- [Tauri](https://github.com/tauri-apps/tauri) — lightweight desktop app framework
+- [Mermaid](https://github.com/mermaid-js/mermaid) — diagrams from text
 
 ## License
 
