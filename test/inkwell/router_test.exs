@@ -275,6 +275,56 @@ defmodule Inkwell.RouterTest do
     assert body["path"] == sub_file
   end
 
+  test "GET /browse returns files from subdirectories in git repos", %{base: base} do
+    # Set up a git repo with nested files
+    File.mkdir_p!(Path.join(base, ".git"))
+    sub = Path.join(base, "plans")
+    File.mkdir_p!(sub)
+    File.write!(Path.join(sub, "roadmap.md"), "# Roadmap")
+
+    conn =
+      conn(:get, "/browse?dir=#{URI.encode_www_form(base)}")
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 200
+    results = Jason.decode!(conn.resp_body)
+    paths = Enum.map(results, & &1["path"])
+    assert Path.join(sub, "roadmap.md") in paths
+    # Should also include rel_path for directory context
+    roadmap = Enum.find(results, &(&1["filename"] == "roadmap.md"))
+    assert roadmap["rel_path"] == "plans/roadmap.md"
+  end
+
+  test "GET /browse search matches on rel_path", %{base: base} do
+    File.mkdir_p!(Path.join(base, ".git"))
+    sub = Path.join(base, "plans")
+    File.mkdir_p!(sub)
+    File.write!(Path.join(sub, "roadmap.md"), "# Roadmap")
+    File.write!(Path.join(base, "notes.md"), "# Notes")
+
+    conn =
+      conn(:get, "/browse?dir=#{URI.encode_www_form(base)}&q=plans")
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 200
+    results = Jason.decode!(conn.resp_body)
+    # "plans" should match the rel_path "plans/roadmap.md"
+    assert length(results) >= 1
+    filenames = Enum.map(results, & &1["filename"])
+    assert "roadmap.md" in filenames
+  end
+
+  test "GET / with dir param preserves browse-dir for JS context restoration", %{base: base} do
+    conn =
+      conn(:get, "/?dir=#{URI.encode_www_form(base)}")
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 200
+    # The browse page must include data-browse-dir so JS can restore browse context
+    # after the user opens a file and reopens the picker
+    assert conn.resp_body =~ "data-browse-dir=\"#{base}\""
+  end
+
   test "GET /preview with source=browse bypasses allowed_path?", %{base: base} do
     other_dir =
       Path.join(System.tmp_dir!(), "inkwell-browse-#{System.unique_integer([:positive])}")
