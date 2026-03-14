@@ -191,9 +191,7 @@ body::-webkit-scrollbar-thumb {
   position: sticky;
   top: 0;
   z-index: 100;
-  margin: 0 -40px 1.5em;
-  padding-left: 40px;
-  padding-right: 40px;
+  margin-bottom: 1.5em;
   border-bottom: 1px solid var(--header-border);
   background: var(--header-bg);
   backdrop-filter: blur(12px);
