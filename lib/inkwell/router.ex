@@ -114,9 +114,14 @@ defmodule Inkwell.Router do
       Inkwell.Watcher.ensure_file(new_path)
       Inkwell.History.push(new_path)
 
+      html = new_path |> File.read!() |> Inkwell.Renderer.render()
+
       conn
       |> put_resp_content_type("application/json")
-      |> send_resp(200, Jason.encode!(%{path: new_path, filename: Path.basename(new_path)}))
+      |> send_resp(
+        200,
+        Jason.encode!(%{path: new_path, filename: Path.basename(new_path), html: html})
+      )
     else
       {:error, reason} -> send_resp(conn, 400, reason)
       false -> send_resp(conn, 403, "Path not in allowed file set")
