@@ -18,12 +18,14 @@ A comprehensive test file for every rendered element in Inkwell.
 
 ## Paragraphs & Inline Formatting
 
-This is a regular paragraph with **bold text**, *italic text*, and ***bold italic*** together. You can also use ~~strikethrough~~ for deleted content.
+Inkwell is a live markdown preview daemon built in Elixir that watches your files for changes and pushes rendered HTML to the browser over a WebSocket connection. It was designed for writers and developers who want a **fast, distraction-free preview** without leaving their editor. The rendering pipeline uses MDEx under the hood, which wraps the *comrak* parser via Rust NIFs — giving you CommonMark compliance with GitHub Flavored Markdown extensions at native speed. Whether you're drafting documentation, writing a blog post, or sketching out a technical spec, the preview updates instantly as you type.
 
-Here's some `inline code` in a sentence, and a [hyperlink](https://example.com) plus an autolinked URL: https://example.com
+The architecture follows standard OTP conventions: a supervision tree manages a `Registry` for pub/sub, a `DynamicSupervisor` that spawns one file watcher per directory, and a `GenServer` that handles daemon lifecycle including idle shutdown. Static assets are served via `Plug.Static`, and the whole thing compiles down to a self-contained binary using ~~Distillery~~ Burrito. The result is a single executable with ***zero runtime dependencies*** — no Erlang installation required on the target machine.
+
+Here's some `inline code` in a sentence, a [hyperlink to the repo](https://github.com/zimakki/inkwell), and an autolinked URL: https://example.com/some/long/path/that/tests/wrapping/behavior
 
 This paragraph has a hard line break right here
-and continues on the next line (two trailing spaces above).
+and continues on the next line (two trailing spaces above). Hard breaks are useful when you want to control line wrapping within a single paragraph — for example in addresses, poetry, or changelogs where each line is a distinct entry but doesn't warrant its own paragraph element.
 
 ---
 
