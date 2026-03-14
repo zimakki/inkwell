@@ -187,8 +187,9 @@ body::-webkit-scrollbar-thumb {
 
 #page-header {
   margin-bottom: 1.5em;
-  padding-bottom: 0.75em;
   border-bottom: 1px solid var(--header-border);
+  background: var(--bg-surface);
+  border-radius: 8px;
 }
 
 /* ── Headings ─────────────────────────────────────────── */

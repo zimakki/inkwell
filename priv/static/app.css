@@ -1,51 +1,27 @@
 /* ── Page header bar ── */
 #page-header {
-  cursor: pointer; user-select: none; position: relative;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px;
-}
-#header-left {
-  display: flex; align-items: baseline; gap: 0;
-  min-width: 0; overflow: hidden;
-}
-#header-dir {
-  font-family: 'SF Mono', ui-monospace, monospace;
-  font-size: 0.8em; color: var(--text-muted);
-  white-space: nowrap; flex-shrink: 1; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis;
-}
-#header-dir:not(:empty)::after {
-  content: '/'; opacity: 0.4; margin: 0 1px;
-}
-#header-title {
-  font-family: 'Outfit', system-ui, sans-serif;
-  font-size: 0.85em; font-weight: 500;
-  color: var(--header-text, var(--text));
-  white-space: nowrap; flex-shrink: 0;
-}
-#header-caret {
-  font-size: 0.55em; opacity: 0.4; margin-left: 5px;
-  color: var(--text-muted); flex-shrink: 0;
+  display: flex; align-items: center;
+  user-select: none;
+  padding: 0 16px; height: 56px;
 }
 
-/* ── Header action buttons ── */
+/* Action button cluster (left side) */
 #header-actions {
-  display: flex; align-items: center; gap: 2px;
+  display: flex; align-items: center; gap: 4px;
   flex-shrink: 0;
 }
 .header-btn {
   position: relative;
-  background: none; border: none; cursor: pointer;
-  color: var(--text-muted); padding: 5px;
-  border-radius: 4px; display: flex; align-items: center;
-  transition: color 0.15s ease, background 0.15s ease;
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  border: none; border-radius: 6px;
+  background: transparent; cursor: pointer;
+  color: var(--text-muted);
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.header-btn:hover {
-  color: var(--text); background: var(--bg-hover);
-}
-.header-btn svg {
-  width: 15px; height: 15px;
-}
+.header-btn:hover { background: var(--bg-hover); color: var(--text-secondary); }
+.header-btn:active { background: var(--border); }
+.header-btn svg { width: 19px; height: 19px; }
 
 /* Theme toggle: show sun in dark, moon in light */
 #btn-toggle-theme .icon-moon { display: none; }
@@ -55,19 +31,53 @@
 
 /* Keyboard shortcut tooltip */
 .header-tooltip {
-  position: absolute; top: calc(100% + 6px); right: 0;
-  background: var(--bg-surface); color: var(--text-secondary);
+  position: absolute; bottom: -32px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-hover); color: var(--text-secondary);
   font-family: 'SF Mono', ui-monospace, monospace;
-  font-size: 10px; padding: 3px 7px;
+  font-size: 11px; padding: 4px 8px;
   border-radius: 4px; border: 1px solid var(--border);
   white-space: nowrap; pointer-events: none;
-  opacity: 0; transform: translateY(-2px);
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  opacity: 0; transition: opacity 0.15s ease;
   z-index: 10;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
-.header-btn:hover .header-tooltip {
-  opacity: 1; transform: translateY(0);
+.header-btn:hover .header-tooltip { opacity: 1; }
+
+/* Vertical separator */
+#header-separator {
+  width: 1px; height: 28px;
+  background: var(--border);
+  margin: 0 12px; flex-shrink: 0;
+}
+
+/* File info (right of separator, clickable) */
+#header-file-info {
+  display: flex; flex-direction: column;
+  justify-content: center; gap: 1px;
+  min-width: 0; cursor: pointer;
+  padding: 6px 10px; border-radius: 6px;
+  transition: background 0.15s ease;
+}
+#header-file-info:hover { background: var(--bg-hover); }
+
+#header-title {
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 15px; font-weight: 600;
+  color: var(--header-text, var(--text));
+  line-height: 1.3;
+}
+#header-caret {
+  color: var(--text-muted); font-size: 12px; line-height: 1;
+  transition: color 0.15s ease;
+}
+#header-file-info:hover #header-caret { color: var(--text-secondary); }
+
+#header-dir {
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 11.5px; color: var(--text-muted);
+  line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 /* ── Picker overlay ── */

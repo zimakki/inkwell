@@ -305,10 +305,9 @@ defmodule Inkwell.Router do
     <body data-browse-dir="#{safe_dir}">
       <div data-theme="#{theme}">
         <div id="page-header">
-          <div id="header-left">
-            <span id="header-dir"></span>
-            <span id="header-title">Inkwell</span>
-            <span id="header-caret">&#9662;</span>
+          <div id="header-file-info">
+            <div id="header-title"><span id="header-filename">Inkwell</span> <span id="header-caret">&#9662;</span></div>
+            <div id="header-dir"></div>
           </div>
         </div>
         <div id="page-ctn"></div>
@@ -357,10 +356,9 @@ defmodule Inkwell.Router do
     <body data-no-file="true">
       <div data-theme="#{theme}">
         <div id="page-header">
-          <div id="header-left">
-            <span id="header-dir"></span>
-            <span id="header-title">Inkwell</span>
-            <span id="header-caret">&#9662;</span>
+          <div id="header-file-info">
+            <div id="header-title"><span id="header-filename">Inkwell</span> <span id="header-caret">&#9662;</span></div>
+            <div id="header-dir"></div>
           </div>
         </div>
         <div id="page-ctn">
@@ -419,21 +417,21 @@ defmodule Inkwell.Router do
     <body data-current-path="#{safe_current_path}" data-rel-dir="#{safe_rel_dir}">
       <div data-theme="#{theme}">
         <div id="page-header">
-          <div id="header-left">
-            <span id="header-dir"></span>
-            <span id="header-title">#{safe_filename}</span>
-            <span id="header-caret">&#9662;</span>
-          </div>
           <div id="header-actions">
             <button id="btn-toggle-theme" class="header-btn" aria-label="Toggle theme">
-              <svg class="icon-sun" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/></svg>
-              <svg class="icon-moon" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+              <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
               <span class="header-tooltip">Ctrl+Shift+T</span>
             </button>
             <button id="btn-search" class="header-btn" aria-label="Search files">
-              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               <span class="header-tooltip">Ctrl+P</span>
             </button>
+          </div>
+          <div id="header-separator"></div>
+          <div id="header-file-info">
+            <div id="header-title"><span id="header-filename">#{safe_filename}</span> <span id="header-caret">&#9662;</span></div>
+            <div id="header-dir"></div>
           </div>
         </div>
         <div id="page-ctn">

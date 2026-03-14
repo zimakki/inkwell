@@ -1,6 +1,6 @@
 (function() {
   var ctn = document.getElementById('page-ctn');
-  var headerTitle = document.getElementById('header-title');
+  var headerFilename = document.getElementById('header-filename');
   var headerDir = document.getElementById('header-dir');
   var pickerOverlay = document.getElementById('picker-overlay');
   var pickerInput = document.getElementById('picker-input');
@@ -218,7 +218,7 @@
       })
       .then(function(data) {
         currentPath = data.path;
-        headerTitle.textContent = data.filename;
+        headerFilename.textContent = data.filename;
         if (headerDir) headerDir.textContent = data.rel_dir || '';
         document.title = data.filename;
         history.replaceState(null, '', '/?path=' + encodeURIComponent(currentPath));
@@ -295,7 +295,7 @@
           return r.json();
         }).then(function(switchData) {
           currentPath = switchData.path;
-          headerTitle.textContent = switchData.filename;
+          headerFilename.textContent = switchData.filename;
           document.title = switchData.filename;
           history.replaceState(null, '', '/?path=' + encodeURIComponent(currentPath));
           reconnectSocket();
@@ -389,7 +389,7 @@
     });
   }
 
-  document.getElementById('header-left').addEventListener('click', function() {
+  document.getElementById('header-file-info').addEventListener('click', function() {
     if (pickerOverlay.classList.contains('open')) {
       pickerInput.focus();
     } else {
