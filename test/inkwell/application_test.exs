@@ -28,6 +28,16 @@ defmodule Inkwell.ApplicationTest do
     assert {:client, %{command: :status}} == Inkwell.Application.parse_mode(["status"])
   end
 
+  test "parse_mode returns :client for update command" do
+    assert {:client, %{command: :update, check_only: false}} ==
+             Inkwell.Application.parse_mode(["update"])
+  end
+
+  test "parse_mode returns :client for update --check command" do
+    assert {:client, %{command: :update, check_only: true}} ==
+             Inkwell.Application.parse_mode(["update", "--check"])
+  end
+
   test "parse_mode returns :client browse for unknown single arg (treated as dir)" do
     assert {:client, %{command: :browse, dir: "unknown", theme: "dark"}} ==
              Inkwell.Application.parse_mode(["unknown"])
