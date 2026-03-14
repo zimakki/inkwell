@@ -2,13 +2,18 @@ defmodule Inkwell.Updater do
   @moduledoc "Checks for and applies CLI self-updates from GitHub releases."
 
   @latest_release_url "https://api.github.com/repos/zimakki/inkwell/releases/latest"
-  @homebrew_prefixes ["/opt/homebrew/", "/usr/local/Cellar/", "/home/linuxbrew/"]
+  @homebrew_prefixes [
+    "/opt/homebrew/",
+    "/usr/local/Cellar/",
+    "/home/linuxbrew/",
+    "/home/linuxbrew/.linuxbrew/"
+  ]
 
   def check(opts \\ []) do
     with {:ok, release} <- fetch_release(opts),
          {:ok, latest} <- release_version(release) do
       current = Keyword.get(opts, :current_version, current_version())
-      method = install_method(Keyword.get(opts, :executable_path, current_executable()))
+      method = install_method(Keyword.get(opts, :executable_path, current_executable!()))
 
       case Version.compare(latest, current) do
         :gt -> {:update_available, %{current: current, latest: latest, install_method: method}}
@@ -18,7 +23,7 @@ defmodule Inkwell.Updater do
   end
 
   def update(opts \\ []) do
-    executable_path = Keyword.get(opts, :executable_path, current_executable())
+    executable_path = Keyword.get(opts, :executable_path, current_executable!())
 
     case install_method(executable_path) do
       :homebrew ->
@@ -32,16 +37,23 @@ defmodule Inkwell.Updater do
   def current_executable do
     cond do
       (burrito_bin = System.get_env("__BURRITO_BIN_PATH")) && File.exists?(burrito_bin) ->
-        burrito_bin
+        {:ok, burrito_bin}
 
       (script = List.to_string(:escript.script_name())) != "" ->
-        Path.expand(script, File.cwd!())
+        {:ok, Path.expand(script, File.cwd!())}
 
       exec = System.find_executable("inkwell") ->
-        exec
+        {:ok, exec}
 
       true ->
-        raise "Unable to locate inkwell executable"
+        {:error, :executable_not_found}
+    end
+  end
+
+  defp current_executable! do
+    case current_executable() do
+      {:ok, path} -> path
+      {:error, :executable_not_found} -> raise "Unable to locate inkwell executable"
     end
   end
 
@@ -50,7 +62,23 @@ defmodule Inkwell.Updater do
   end
 
   def install_method(path) when is_binary(path) do
-    if Enum.any?(@homebrew_prefixes, &String.starts_with?(path, &1)), do: :homebrew, else: :direct
+    resolved = resolve_symlinks(path)
+
+    if Enum.any?(@homebrew_prefixes, &String.starts_with?(resolved, &1)),
+      do: :homebrew,
+      else: :direct
+  end
+
+  defp resolve_symlinks(path) do
+    case File.read_link(path) do
+      {:ok, target} ->
+        target
+        |> Path.expand(Path.dirname(path))
+        |> resolve_symlinks()
+
+      {:error, _} ->
+        path
+    end
   end
 
   def platform_asset_name(os_type \\ :os.type(), architecture \\ system_architecture()) do
@@ -76,9 +104,9 @@ defmodule Inkwell.Updater do
            ),
          {:ok, binary_url} <- asset_url(release, asset_name),
          {:ok, checksums_url} <- asset_url(release, "checksums.txt"),
-         download_fn = Keyword.get(opts, :download_fn, &download_binary/2),
-         {:ok, binary_body} <- download_fn.(binary_url, request_headers()),
-         {:ok, checksums_body} <- download_fn.(checksums_url, request_headers()),
+         download_fn = Keyword.get(opts, :download_fn, &Inkwell.GitHub.download_binary/2),
+         {:ok, binary_body} <- download_fn.(binary_url, Inkwell.GitHub.request_headers()),
+         {:ok, checksums_body} <- download_fn.(checksums_url, Inkwell.GitHub.request_headers()),
          :ok <- verify_checksum(asset_name, binary_body, checksums_body),
          :ok <-
            replace_executable(executable_path, binary_body, Keyword.get(opts, :file_module, File)) do
@@ -97,18 +125,23 @@ defmodule Inkwell.Updater do
 
   defp fetch_release(opts) do
     fetch_release_fn = Keyword.get(opts, :fetch_release_fn, &fetch_latest_release/1)
-    fetch_release_fn.(request_headers())
+    fetch_release_fn.(Inkwell.GitHub.request_headers())
   end
 
   defp fetch_latest_release(headers) do
-    case download_binary(@latest_release_url, headers) do
+    case Inkwell.GitHub.download_binary(@latest_release_url, headers) do
       {:ok, body} -> Jason.decode(body)
       {:error, _} = error -> error
     end
   end
 
   defp release_version(%{"tag_name" => tag_name}) do
-    {:ok, normalize_version(tag_name)}
+    version = Inkwell.GitHub.normalize_version(tag_name)
+
+    case Version.parse(version) do
+      {:ok, _} -> {:ok, version}
+      :error -> {:error, {:invalid_version, tag_name}}
+    end
   end
 
   defp release_version(_), do: {:error, :missing_tag_name}
@@ -172,7 +205,7 @@ defmodule Inkwell.Updater do
       {:error, _} = error ->
         file_module.rm(temp_path)
 
-        if File.exists?(backup_path) do
+        if file_module.exists?(backup_path) do
           _ = file_module.rename(backup_path, executable_path)
         end
 
@@ -186,44 +219,6 @@ defmodule Inkwell.Updater do
       _ -> file_module.chmod(path, 0o755)
     end
   end
-
-  defp download_binary(url, headers) do
-    :inets.start()
-    :ssl.start()
-
-    request_headers =
-      Enum.map(headers, fn {key, value} ->
-        {String.to_charlist(key), String.to_charlist(value)}
-      end)
-
-    http_opts = [timeout: 30_000, connect_timeout: 5_000]
-
-    case :httpc.request(
-           :get,
-           {String.to_charlist(url), request_headers},
-           http_opts,
-           body_format: :binary
-         ) do
-      {:ok, {{_, 200, _}, _resp_headers, body}} -> {:ok, body}
-      {:ok, {{_, status, _}, _resp_headers, body}} -> {:error, {:http_error, status, body}}
-      other -> {:error, other}
-    end
-  end
-
-  defp request_headers do
-    [{"user-agent", "inkwell"} | github_auth_header()]
-  end
-
-  defp github_auth_header do
-    case System.get_env("GITHUB_TOKEN") do
-      nil -> []
-      "" -> []
-      token -> [{"authorization", "Bearer #{token}"}]
-    end
-  end
-
-  defp normalize_version("v" <> version), do: version
-  defp normalize_version(version), do: version
 
   defp system_architecture do
     :erlang.system_info(:system_architecture) |> List.to_string()

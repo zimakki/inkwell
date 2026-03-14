@@ -59,41 +59,31 @@ defmodule Inkwell.UpdateChecker do
     state = %{state | latest: cached.latest}
 
     if stale?(cached.checked_at, state.now_fn) do
-      server = self()
-
-      Task.start(fn ->
-        send_check_result(server, state.request_fn, state.state_dir, state.now_fn)
-      end)
+      {:ok, state, {:continue, :check}}
+    else
+      {:ok, state}
     end
+  end
 
-    {:ok, state}
+  @impl true
+  def handle_continue(:check, state) do
+    case state.request_fn.() do
+      {:ok, release} ->
+        latest = Inkwell.GitHub.normalize_version(release["tag_name"])
+        write_cache(state.state_dir, latest, state.now_fn.())
+        {:noreply, %{state | latest: latest}}
+
+      _ ->
+        # Write cache with existing version to advance the timestamp and avoid
+        # hammering the API on every daemon start when network is unavailable.
+        write_cache(state.state_dir, state.latest, state.now_fn.())
+        {:noreply, state}
+    end
   end
 
   @impl true
   def handle_call(:latest_version, _from, state) do
     {:reply, state.latest, state}
-  end
-
-  @impl true
-  def handle_cast({:latest_version_checked, latest}, state) do
-    {:noreply, %{state | latest: latest}}
-  end
-
-  defp send_check_result(server, request_fn, state_dir, now_fn) do
-    latest =
-      case request_fn.() do
-        {:ok, release} ->
-          latest = normalize_version(release["tag_name"])
-          write_cache(state_dir, latest, now_fn.())
-          latest
-
-        _ ->
-          nil
-      end
-
-    if latest do
-      GenServer.cast(server, {:latest_version_checked, latest})
-    end
   end
 
   defp stale?(nil, _now_fn), do: true
@@ -118,44 +108,11 @@ defmodule Inkwell.UpdateChecker do
   end
 
   defp request_latest_release do
-    case http_get(@latest_release_url, [{"user-agent", "inkwell"} | github_auth_header()]) do
+    case Inkwell.GitHub.http_get(@latest_release_url, Inkwell.GitHub.request_headers()) do
       {:ok, 200, body} -> Jason.decode(body)
       other -> {:error, other}
     end
   end
-
-  defp http_get(url, headers) do
-    :inets.start()
-    :ssl.start()
-
-    request_headers =
-      Enum.map(headers, fn {key, value} ->
-        {String.to_charlist(key), String.to_charlist(value)}
-      end)
-
-    http_opts = [timeout: 5_000, connect_timeout: 3_000]
-
-    case :httpc.request(
-           :get,
-           {String.to_charlist(url), request_headers},
-           http_opts,
-           body_format: :binary
-         ) do
-      {:ok, {{_, status, _}, _resp_headers, body}} -> {:ok, status, body}
-      other -> {:error, other}
-    end
-  end
-
-  defp github_auth_header do
-    case System.get_env("GITHUB_TOKEN") do
-      nil -> []
-      "" -> []
-      token -> [{"authorization", "Bearer #{token}"}]
-    end
-  end
-
-  defp normalize_version("v" <> version), do: version
-  defp normalize_version(version), do: version
 
   defp cache_path(opts) do
     Path.join(Keyword.get(opts, :state_dir, state_dir()), @cache_file)
