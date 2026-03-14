@@ -191,26 +191,6 @@ body::-webkit-scrollbar-thumb {
   border-bottom: 1px solid var(--header-border);
 }
 
-#page-header h3 {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  font-family: "Outfit", system-ui, sans-serif;
-  font-size: 0.85em;
-  font-weight: 500;
-  color: var(--header-text);
-  text-transform: none;
-  letter-spacing: 0;
-  margin: 0;
-}
-
-#page-header h3 svg {
-  width: 14px;
-  height: 14px;
-  fill: currentColor;
-  opacity: 0.6;
-}
-
 /* ── Headings ─────────────────────────────────────────── */
 
 h1,

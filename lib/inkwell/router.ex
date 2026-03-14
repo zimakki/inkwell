@@ -116,11 +116,19 @@ defmodule Inkwell.Router do
 
       html = new_path |> File.read!() |> Inkwell.Renderer.render()
 
+      rel = compute_rel_path(new_path)
+      rel_dir = rel |> Path.dirname() |> then(fn "." -> ""; d -> d end)
+
       conn
       |> put_resp_content_type("application/json")
       |> send_resp(
         200,
-        Jason.encode!(%{path: new_path, filename: Path.basename(new_path), html: html})
+        Jason.encode!(%{
+          path: new_path,
+          filename: Path.basename(new_path),
+          rel_dir: rel_dir,
+          html: html
+        })
       )
     else
       {:error, reason} -> send_resp(conn, 400, reason)
@@ -259,6 +267,16 @@ defmodule Inkwell.Router do
       Inkwell.Search.allowed_path?(current_path, new_path)
   end
 
+  defp compute_rel_path(path) do
+    case Inkwell.GitRepo.find_root(path) do
+      {:ok, root} ->
+        Path.relative_to(path, root)
+
+      :error ->
+        Path.basename(path)
+    end
+  end
+
   defp markdown_file?(path) do
     String.ends_with?(path, ".md") or String.ends_with?(path, ".markdown")
   end
@@ -287,7 +305,11 @@ defmodule Inkwell.Router do
     <body data-browse-dir="#{safe_dir}">
       <div data-theme="#{theme}">
         <div id="page-header">
-          <h3 id="header-title">Inkwell</h3>
+          <div id="header-left">
+            <span id="header-dir"></span>
+            <span id="header-title">Inkwell</span>
+            <span id="header-caret">&#9662;</span>
+          </div>
         </div>
         <div id="page-ctn"></div>
       </div>
@@ -335,7 +357,11 @@ defmodule Inkwell.Router do
     <body data-no-file="true">
       <div data-theme="#{theme}">
         <div id="page-header">
-          <h3 id="header-title">Inkwell</h3>
+          <div id="header-left">
+            <span id="header-dir"></span>
+            <span id="header-title">Inkwell</span>
+            <span id="header-caret">&#9662;</span>
+          </div>
         </div>
         <div id="page-ctn">
           <div style="display:flex;align-items:center;justify-content:center;height:60vh;color:var(--text-muted);font-family:system-ui;font-size:15px;">
@@ -376,6 +402,9 @@ defmodule Inkwell.Router do
     safe_filename = Plug.HTML.html_escape(filename)
     safe_current_path = Plug.HTML.html_escape(current_path)
 
+    rel_path = compute_rel_path(current_path)
+    safe_rel_dir = rel_path |> Path.dirname() |> then(fn "." -> ""; d -> d end) |> Plug.HTML.html_escape()
+
     """
     <!DOCTYPE html>
     <html lang="en">
@@ -387,10 +416,25 @@ defmodule Inkwell.Router do
       <link rel="stylesheet" href="/static/app.css">
       <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     </head>
-    <body data-current-path="#{safe_current_path}">
+    <body data-current-path="#{safe_current_path}" data-rel-dir="#{safe_rel_dir}">
       <div data-theme="#{theme}">
         <div id="page-header">
-          <h3 id="header-title">#{safe_filename}</h3>
+          <div id="header-left">
+            <span id="header-dir"></span>
+            <span id="header-title">#{safe_filename}</span>
+            <span id="header-caret">&#9662;</span>
+          </div>
+          <div id="header-actions">
+            <button id="btn-toggle-theme" class="header-btn" aria-label="Toggle theme">
+              <svg class="icon-sun" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"/></svg>
+              <svg class="icon-moon" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+              <span class="header-tooltip">Ctrl+Shift+T</span>
+            </button>
+            <button id="btn-search" class="header-btn" aria-label="Search files">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+              <span class="header-tooltip">Ctrl+P</span>
+            </button>
+          </div>
         </div>
         <div id="page-ctn">
           #{content}
