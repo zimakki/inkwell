@@ -66,8 +66,10 @@
       }
       url = '/search?' + params;
     }
-    pickerStatus.textContent = 'Searching...';
-    pickerListItems.innerHTML = '<div class="picker-hint loading">Loading files</div>';
+    pickerStatus.textContent = 'Searching\u2026';
+    pickerListItems.innerHTML = '<div class="picker-skeleton">'
+      + Array(8).fill('<div class="picker-skeleton-row"><div class="skeleton-bone title"></div><div class="skeleton-bone file"></div></div>').join('')
+      + '</div>';
     fetch(url)
       .then(function(r) { return r.json(); })
       .then(function(data) {
