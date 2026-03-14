@@ -2,12 +2,13 @@
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
   "productName": "Inkwell",
   "identifier": "com.zimakki.inkwell",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "build": {
     "frontendDist": "frontend"
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": false,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -32,6 +33,13 @@
       "desktop": {
         "schemes": ["inkwell"]
       }
+    },
+    "updater": {
+      "endpoints": [
+        "https://github.com/zimakki/inkwell/releases/latest/download/latest.json"
+      ],
+      "pubkey": "GENERATE_WITH_npx_tauri_signer_generate",
+      "_comment": "Updater is disabled (createUpdaterArtifacts: false) until signing keys are generated"
     }
   },
   "app": {

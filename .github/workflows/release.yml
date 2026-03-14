@@ -238,6 +238,16 @@ jobs:
             echo "${target}_dmg: $sha"
           done
 
+      - name: Create checksums.txt
+        run: |
+          : > checksums.txt
+          for target in darwin_arm64 darwin_amd64 linux_amd64; do
+            (cd "inkwell_${target}" && sha256sum "inkwell_${target}") >> checksums.txt
+          done
+
+      # When updater signing keys are ready, tauri-apps/tauri-action can generate
+      # updater artifacts like latest.json automatically as part of the desktop release flow.
+
       - name: Make binaries executable
         run: chmod +x inkwell_*/inkwell_*
 
@@ -248,6 +258,7 @@ jobs:
           files: |
             inkwell_*/inkwell_*
             inkwell_desktop_*/*.dmg
+            checksums.txt
           body: |
             ## Install
 

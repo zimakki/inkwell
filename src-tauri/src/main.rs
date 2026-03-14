@@ -144,6 +144,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
             let shell = app.shell();
             let app_handle = app.handle().clone();

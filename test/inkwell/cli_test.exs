@@ -96,6 +96,8 @@ defmodule Inkwell.CLITest do
     text = Inkwell.CLI.help_text()
     assert text =~ "inkwell"
     assert text =~ "preview"
+    assert text =~ "update"
+    assert text =~ "--check"
     assert text =~ "--help"
     assert text =~ "--version"
     assert text =~ "--theme"

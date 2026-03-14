@@ -9,6 +9,7 @@
     "core:default",
     "shell:allow-execute",
     "shell:allow-spawn",
-    "deep-link:default"
+    "deep-link:default",
+    "updater:default"
   ]
 }
