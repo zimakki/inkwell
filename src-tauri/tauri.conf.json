@@ -8,7 +8,7 @@
   },
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -38,7 +38,8 @@
       "endpoints": [
         "https://github.com/zimakki/inkwell/releases/latest/download/latest.json"
       ],
-      "pubkey": "GENERATE_WITH_npx_tauri_signer_generate"
+      "pubkey": "GENERATE_WITH_npx_tauri_signer_generate",
+      "_comment": "Updater is disabled (createUpdaterArtifacts: false) until signing keys are generated"
     }
   },
   "app": {
