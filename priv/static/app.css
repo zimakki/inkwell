@@ -102,13 +102,13 @@
 .picker-item-title {
   color: var(--text); font-size: 13px; font-weight: 500;
   font-family: system-ui;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  min-width: 0;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; line-height: 1.35;
 }
 .picker-item.selected .picker-item-title { color: var(--text); }
 .picker-item:not(.selected) .picker-item-title { color: var(--text-secondary); }
 .picker-item-file {
-  color: var(--text-muted); font-size: 11px; margin-top: 2px;
+  color: var(--text-muted); font-size: 11px; margin-top: 3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -136,21 +136,8 @@
   color: var(--text-muted);
   font-size: 11px;
   font-family: 'SF Mono', monospace;
-  margin-left: auto;
-  flex-shrink: 1;
-  min-width: 0;
-  padding-left: 8px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  max-width: 50%;
-  direction: rtl; text-align: left;
-}
-
-.picker-item-title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  min-width: 0;
-  gap: 8px;
+  margin-left: 4px;
+  opacity: 0.6;
 }
 
 .picker-hint {

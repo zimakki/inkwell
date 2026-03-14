@@ -121,11 +121,10 @@
       if (f.rel_path) {
         var relDir = f.rel_path.split('/').slice(0, -1).join('/');
         html += '<div class="' + itemCls + '" data-index="' + i + '">'
-          + '<div class="picker-item-title-row">'
-          + '<span class="picker-item-title">' + escapeHtml(title) + '</span>'
+          + '<div class="picker-item-title">' + escapeHtml(title) + '</div>'
+          + '<div class="picker-item-file">' + escapeHtml(f.filename)
           + (relDir ? '<span class="picker-item-dir">' + escapeHtml(relDir + '/') + '</span>' : '')
           + '</div>'
-          + '<div class="picker-item-file">' + escapeHtml(f.filename) + '</div>'
           + '</div>';
       } else {
         html += '<div class="' + itemCls + '" data-index="' + i + '">'
