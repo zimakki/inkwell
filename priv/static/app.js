@@ -1,6 +1,7 @@
 (function() {
   var ctn = document.getElementById('page-ctn');
   var headerTitle = document.getElementById('header-title');
+  var headerDir = document.getElementById('header-dir');
   var pickerOverlay = document.getElementById('picker-overlay');
   var pickerInput = document.getElementById('picker-input');
   var pickerListItems = document.getElementById('picker-list-items');
@@ -9,6 +10,8 @@
   var btnOpenFile = document.getElementById('btn-open-file');
   var btnOpenFolder = document.getElementById('btn-open-folder');
   var pickerPathBar = document.getElementById('picker-path');
+  var btnToggleTheme = document.getElementById('btn-toggle-theme');
+  var btnSearch = document.getElementById('btn-search');
   var ws, pingInterval, reconnectTimer;
   var currentPath = document.body.dataset.currentPath || null;
   var initialBrowseDir = document.body.dataset.browseDir || null;
@@ -216,6 +219,7 @@
       .then(function(data) {
         currentPath = data.path;
         headerTitle.textContent = data.filename;
+        if (headerDir) headerDir.textContent = data.rel_dir || '';
         document.title = data.filename;
         history.replaceState(null, '', '/?path=' + encodeURIComponent(currentPath));
         if (data.html) {
@@ -373,15 +377,43 @@
     if (e.target === pickerOverlay) closePicker();
   });
 
-  // ── Global keyboard ───────────────────────────
+  // ── Global keyboard & header actions ──────────
 
-  document.getElementById('page-header').addEventListener('click', function() {
+  function toggleTheme() {
+    fetch('/toggle-theme').then(function(r) { return r.json(); }).then(function(data) {
+      var el = document.querySelector('[data-theme]');
+      el.dataset.theme = data.theme;
+      currentTheme = data.theme;
+      mermaid.initialize({ startOnLoad: false, theme: data.theme === 'dark' ? 'dark' : 'default' });
+      renderMermaid();
+    });
+  }
+
+  document.getElementById('header-left').addEventListener('click', function() {
     if (pickerOverlay.classList.contains('open')) {
       pickerInput.focus();
     } else {
       openPicker();
     }
   });
+
+  if (btnToggleTheme) {
+    btnToggleTheme.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleTheme();
+    });
+  }
+
+  if (btnSearch) {
+    btnSearch.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (pickerOverlay.classList.contains('open')) {
+        pickerInput.focus();
+      } else {
+        openPicker();
+      }
+    });
+  }
 
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && pickerOverlay.classList.contains('open')) {
@@ -398,13 +430,7 @@
       return;
     }
     if (e.ctrlKey && e.shiftKey && e.key === 'T') {
-      fetch('/toggle-theme').then(function(r) { return r.json(); }).then(function(data) {
-        var el = document.querySelector('[data-theme]');
-        el.dataset.theme = data.theme;
-        currentTheme = data.theme;
-        mermaid.initialize({ startOnLoad: false, theme: data.theme === 'dark' ? 'dark' : 'default' });
-        renderMermaid();
-      });
+      toggleTheme();
     }
   });
 
@@ -437,6 +463,11 @@
       }, 30000);
     };
   }
+  // Populate header directory breadcrumb from server-rendered data
+  if (headerDir) {
+    headerDir.textContent = document.body.dataset.relDir || '';
+  }
+
   var noFile = document.body.dataset.noFile;
 
   if (noFile) {
