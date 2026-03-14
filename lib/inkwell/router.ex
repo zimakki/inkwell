@@ -117,7 +117,14 @@ defmodule Inkwell.Router do
       html = new_path |> File.read!() |> Inkwell.Renderer.render()
 
       rel = compute_rel_path(new_path)
-      rel_dir = rel |> Path.dirname() |> then(fn "." -> ""; d -> d end)
+
+      rel_dir =
+        rel
+        |> Path.dirname()
+        |> then(fn
+          "." -> ""
+          d -> d
+        end)
 
       conn
       |> put_resp_content_type("application/json")
@@ -403,7 +410,15 @@ defmodule Inkwell.Router do
     safe_current_path = Plug.HTML.html_escape(current_path)
 
     rel_path = compute_rel_path(current_path)
-    safe_rel_dir = rel_path |> Path.dirname() |> then(fn "." -> ""; d -> d end) |> Plug.HTML.html_escape()
+
+    safe_rel_dir =
+      rel_path
+      |> Path.dirname()
+      |> then(fn
+        "." -> ""
+        d -> d
+      end)
+      |> Plug.HTML.html_escape()
 
     """
     <!DOCTYPE html>
