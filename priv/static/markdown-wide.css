@@ -53,6 +53,7 @@ body {
 
   --header-text: #888888;
   --header-border: #d6d3cc;
+  --header-bg: rgba(240, 238, 232, 0.85);
 
   --mark-bg: rgba(180, 83, 9, 0.12);
   --mark-text: #b45309;
@@ -115,6 +116,7 @@ body:has([data-theme="dark"]) {
 
   --header-text: #565f89;
   --header-border: #2f334d;
+  --header-bg: rgba(31, 35, 53, 0.85);
 
   --mark-bg: rgba(240, 198, 116, 0.2);
   --mark-text: #f0c674;
@@ -186,10 +188,16 @@ body::-webkit-scrollbar-thumb {
 /* ── Page header ─────────────────────────────────────── */
 
 #page-header {
-  margin-bottom: 1.5em;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  margin: 0 -40px 1.5em;
+  padding-left: 40px;
+  padding-right: 40px;
   border-bottom: 1px solid var(--header-border);
-  background: var(--bg-surface);
-  border-radius: 8px;
+  background: var(--header-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 /* ── Headings ─────────────────────────────────────────── */
