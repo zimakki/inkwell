@@ -1,5 +1,9 @@
 # Inkwell
 
+[![CI](https://github.com/zimakki/inkwell/actions/workflows/ci.yml/badge.svg)](https://github.com/zimakki/inkwell/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-0.2.12-blue)](https://github.com/zimakki/inkwell/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 A live markdown preview daemon for your terminal. Inkwell runs a lightweight background server that watches your markdown files and pushes real-time updates to a browser preview.
 
 <!-- TODO: Add screenshot/GIF of the preview UI here -->
@@ -8,11 +12,15 @@ A live markdown preview daemon for your terminal. Inkwell runs a lightweight bac
 
 - **Live preview** — edits appear in the browser instantly via WebSocket
 - **File picker** — fuzzy search across recent and sibling files (`Ctrl+P`)
+- **Directory browsing** — open any directory to browse and search its markdown files
+- **Git repository search** — file picker discovers all `.md` files across your entire git repo
 - **Dark/light themes** — toggle with `Ctrl+Shift+T`
 - **Mermaid diagrams** — rendered automatically in fenced code blocks
+- **Syntax highlighting** — code blocks highlighted with theme-aware colors
+- **Desktop app** — native macOS app via Tauri with `inkwell://` deep links
 - **Single daemon** — one server per user, shared across editors and terminals
 - **Idle shutdown** — daemon stops after 10 minutes with no viewers
-- **Syntax highlighting** — code blocks highlighted with theme-aware colors
+- **Cross-platform** — macOS (Apple Silicon + Intel) and Linux x86_64
 
 ## Installation
 
@@ -38,32 +46,51 @@ Requires Elixir ~> 1.19.
 git clone https://github.com/zimakki/inkwell.git
 cd inkwell
 mix deps.get
-mix escript.build
+MIX_ENV=prod mix release
 ```
 
-Move the `inkwell` binary to somewhere in your `$PATH`:
+The binary will be in `burrito_out/`. Move it to somewhere on your `$PATH`:
 
 ```bash
-cp inkwell ~/.local/bin/
+cp burrito_out/inkwell_darwin_arm64 ~/.local/bin/inkwell
 ```
 
 ## Quick Start
 
 ```bash
-inkwell preview README.md
+inkwell preview README.md     # Preview a single file
+inkwell .                     # Browse markdown files in current directory
 ```
 
-This starts the daemon (if not already running), opens the preview in the desktop app when installed or your browser otherwise, and watches the file for changes.
+This starts the daemon (if not already running), opens the preview in the desktop app when installed or your browser otherwise, and watches for changes.
 
 ## Usage
 
 ```
-inkwell preview <file.md> [--theme dark|light]   # Open live preview
-inkwell status                                    # Show daemon info
-inkwell stop                                      # Stop the daemon
+inkwell <directory>            Open file picker for a directory
+inkwell preview <file.md>      Preview a specific markdown file
+inkwell stop                   Stop the daemon
+inkwell status                 Show daemon status
 ```
 
-The default theme is `dark`. The daemon starts automatically on `preview` and shuts down after 10 minutes of inactivity.
+### Options
+
+```
+--theme dark|light             Set the theme (default: dark)
+--help, -h                     Show this help message
+--version, -v                  Show the version
+```
+
+### Examples
+
+```bash
+inkwell .                                 # Browse current directory
+inkwell ~/Documents                       # Browse a specific directory
+inkwell preview README.md                 # Preview README.md
+inkwell preview README.md --theme light   # Preview with light theme
+```
+
+The daemon starts automatically on first use and shuts down after 10 minutes of inactivity.
 
 ## Keyboard Shortcuts
 
@@ -104,12 +131,27 @@ State files live in `~/.inkwell/` (pid, port). The daemon binds to a random port
 ## Development
 
 ```bash
-mix deps.get          # Install dependencies
-mix test              # Run tests (44 tests)
-mix format            # Format code
-mix escript.build     # Build standalone binary
+mix deps.get                   # Install dependencies
+mix test                       # Run tests (120 tests)
+mix format                     # Format code
+mix compile --warnings-as-errors
+MIX_ENV=prod mix release       # Build standalone binary (Burrito)
 ```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/my-feature`)
+3. Run tests and formatting (`mix test && mix format --check-formatted`)
+4. Commit your changes
+5. Open a pull request
+
+Please ensure `mix compile --warnings-as-errors` passes before submitting.
 
 ## License
 
-MIT
+[MIT](LICENSE)
+
+## Links
+
+- [GitHub](https://github.com/zimakki/inkwell)
