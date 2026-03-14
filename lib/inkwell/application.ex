@@ -67,6 +67,7 @@ defmodule Inkwell.Application do
       case mode do
         :daemon ->
           :persistent_term.put(:inkwell_theme, parsed[:theme] || "dark")
+          Inkwell.GitRepo.init_cache()
 
           [
             {Registry, keys: :duplicate, name: Inkwell.Registry},

@@ -1,6 +1,7 @@
 (function() {
   var ctn = document.getElementById('page-ctn');
-  var headerTitle = document.getElementById('header-title');
+  var headerFilename = document.getElementById('header-filename');
+  var headerDir = document.getElementById('header-dir');
   var pickerOverlay = document.getElementById('picker-overlay');
   var pickerInput = document.getElementById('picker-input');
   var pickerListItems = document.getElementById('picker-list-items');
@@ -9,6 +10,8 @@
   var btnOpenFile = document.getElementById('btn-open-file');
   var btnOpenFolder = document.getElementById('btn-open-folder');
   var pickerPathBar = document.getElementById('picker-path');
+  var btnToggleTheme = document.getElementById('btn-toggle-theme');
+  var btnSearch = document.getElementById('btn-search');
   var ws, pingInterval, reconnectTimer;
   var currentPath = document.body.dataset.currentPath || null;
   var initialBrowseDir = document.body.dataset.browseDir || null;
@@ -20,6 +23,7 @@
   var previewTimer = null;
   var previewController = null;
   var browseDir = null;
+  var repoInfo = null;
 
   mermaid.initialize({ startOnLoad: false, theme: currentTheme === 'dark' ? 'dark' : 'default' });
 
@@ -34,8 +38,8 @@
   // ── Picker ────────────────────────────────────
 
   function openPicker() {
-    // If no file is loaded yet (browse-from-CLI), reopen in browse mode
-    browseDir = currentPath ? null : initialBrowseDir;
+    // If we entered via folder browse, always reopen in that context
+    browseDir = initialBrowseDir || null;
     pickerOverlay.classList.add('open');
     pickerInput.value = '';
     pickerInput.focus();
@@ -58,15 +62,34 @@
     var url;
     if (browseDir) {
       url = '/browse?dir=' + encodeURIComponent(browseDir) + '&q=' + encodeURIComponent(query);
-    } else if (currentPath) {
-      url = '/search?current=' + encodeURIComponent(currentPath) + '&q=' + encodeURIComponent(query);
     } else {
-      return;
+      var params = 'q=' + encodeURIComponent(query);
+      if (currentPath) {
+        params = 'current=' + encodeURIComponent(currentPath) + '&' + params;
+      }
+      url = '/search?' + params;
     }
+    pickerStatus.textContent = 'Searching\u2026';
+    pickerListItems.innerHTML = '<div class="picker-skeleton">'
+      + Array(8).fill('<div class="picker-skeleton-row"><div class="skeleton-bone title"></div><div class="skeleton-bone file"></div></div>').join('')
+      + '</div>';
     fetch(url)
       .then(function(r) { return r.json(); })
-      .then(function(files) {
-        currentFiles = files;
+      .then(function(data) {
+        if (browseDir) {
+          // Browse mode still returns flat array
+          currentFiles = data;
+          repoInfo = null;
+        } else {
+          // Structured response
+          currentFiles = (data.recent || []).concat(data.siblings || []);
+          if (data.repository && data.repository.files) {
+            repoInfo = { name: data.repository.name, total: data.repository.total };
+            currentFiles = currentFiles.concat(data.repository.files);
+          } else {
+            repoInfo = null;
+          }
+        }
         selectedIndex = 0;
         renderPathBar();
         renderFileList();
@@ -82,22 +105,46 @@
       if (f.section !== currentSection) {
         currentSection = f.section;
         var label;
+        var cls = 'picker-section';
         if (f.section === 'recent') {
           label = 'Recent';
         } else if (f.section === 'browse' && browseDir) {
           label = 'Browse: ' + browseDir;
+        } else if (f.section === 'repository' && repoInfo) {
+          label = 'Repository (' + repoInfo.name + ')';
+          cls = 'picker-section repo';
         } else {
           label = f.path.split('/').slice(-2, -1)[0] + '/';
         }
-        html += '<div class="picker-section">' + escapeHtml(label) + '</div>';
+        html += '<div class="' + cls + '">' + escapeHtml(label) + '</div>';
       }
-      var cls = i === selectedIndex ? 'picker-item selected' : 'picker-item';
+      var itemCls = i === selectedIndex ? 'picker-item selected' : 'picker-item';
       var title = f.title || f.filename;
-      html += '<div class="' + cls + '" data-index="' + i + '">'
-        + '<div class="picker-item-title">' + escapeHtml(title) + '</div>'
-        + '<div class="picker-item-file">' + escapeHtml(f.filename) + '</div>'
-        + '</div>';
+
+      if (f.rel_path) {
+        var relDir = f.rel_path.split('/').slice(0, -1).join('/');
+        html += '<div class="' + itemCls + '" data-index="' + i + '">'
+          + '<div class="picker-item-title">' + escapeHtml(title) + '</div>'
+          + '<div class="picker-item-file">' + escapeHtml(f.filename)
+          + (relDir ? '<span class="picker-item-dir">' + escapeHtml(relDir + '/') + '</span>' : '')
+          + '</div>'
+          + '</div>';
+      } else {
+        html += '<div class="' + itemCls + '" data-index="' + i + '">'
+          + '<div class="picker-item-title">' + escapeHtml(title) + '</div>'
+          + '<div class="picker-item-file">' + escapeHtml(f.filename) + '</div>'
+          + '</div>';
+      }
     });
+
+    // Truncation hint for repository section
+    if (repoInfo && repoInfo.total > 0) {
+      var repoFilesShown = currentFiles.filter(function(f) { return f.section === 'repository'; }).length;
+      if (repoFilesShown < repoInfo.total) {
+        html += '<div class="picker-hint">Showing ' + repoFilesShown + ' of ' + repoInfo.total + ' files — type to search all</div>';
+      }
+    }
+
     pickerListItems.innerHTML = html;
     pickerStatus.textContent = currentFiles.length + ' files \u00b7 \u2191\u2193 navigate \u00b7 \u21b5 open';
 
@@ -117,8 +164,10 @@
       if (previewController) previewController.abort();
       previewController = new AbortController();
       var previewCurrent = currentPath || file.path;
-      var url = '/preview?current=' + encodeURIComponent(previewCurrent) + '&path=' + encodeURIComponent(file.path);
-      if (browseDir) url += '&source=browse';
+      var source = '';
+      if (browseDir) source = '&source=browse';
+      else if (file.section === 'repository') source = '&source=repository';
+      var url = '/preview?current=' + encodeURIComponent(previewCurrent) + '&path=' + encodeURIComponent(file.path) + source;
       fetch(url, { signal: previewController.signal })
         .then(function(r) {
           if (!r.ok) throw new Error('Preview failed');
@@ -147,9 +196,21 @@
   function selectFile() {
     var file = currentFiles[selectedIndex];
     if (!file) return;
+
+    // Empty state: no currentPath, do full page navigation
+    if (!currentPath && !browseDir) {
+      window.location = '/?path=' + encodeURIComponent(file.path);
+      return;
+    }
+
     var switchCurrent = currentPath || file.path;
-    var url = '/switch?current=' + encodeURIComponent(switchCurrent) + '&path=' + encodeURIComponent(file.path);
-    if (browseDir) url += '&source=browse';
+    var source = '';
+    if (browseDir) {
+      source = '&source=browse';
+    } else if (file.section === 'repository') {
+      source = '&source=repository';
+    }
+    var url = '/switch?current=' + encodeURIComponent(switchCurrent) + '&path=' + encodeURIComponent(file.path) + source;
     fetch(url)
       .then(function(r) {
         if (!r.ok) throw new Error('Switch failed');
@@ -157,9 +218,14 @@
       })
       .then(function(data) {
         currentPath = data.path;
-        headerTitle.textContent = data.filename;
+        headerFilename.textContent = data.filename;
+        if (headerDir) headerDir.textContent = data.rel_dir || '';
         document.title = data.filename;
         history.replaceState(null, '', '/?path=' + encodeURIComponent(currentPath));
+        if (data.html) {
+          ctn.innerHTML = data.html;
+          renderMermaid();
+        }
         reconnectSocket();
         closePicker();
       });
@@ -216,6 +282,11 @@
       })
       .then(function(data) {
         if (!data) return;
+        // Empty state: no currentPath, do full page navigation
+        if (!currentPath) {
+          window.location = '/?path=' + encodeURIComponent(data.path);
+          return;
+        }
         // Switch to the picked file directly
         browseDir = '__pick__';
         var url = '/switch?current=' + encodeURIComponent(currentPath) + '&path=' + encodeURIComponent(data.path) + '&source=browse';
@@ -224,7 +295,7 @@
           return r.json();
         }).then(function(switchData) {
           currentPath = switchData.path;
-          headerTitle.textContent = switchData.filename;
+          headerFilename.textContent = switchData.filename;
           document.title = switchData.filename;
           history.replaceState(null, '', '/?path=' + encodeURIComponent(currentPath));
           reconnectSocket();
@@ -245,12 +316,12 @@
       .then(function(data) {
         if (!data) return;
         browseDir = data.dir;
-        currentFiles = data.files;
+        initialBrowseDir = data.dir;
         selectedIndex = 0;
         pickerInput.value = '';
         renderPathBar();
-        renderFileList();
-        loadPreview();
+        loadSearch('');
+        pickerInput.focus();
       })
       .catch(function() {});
   });
@@ -306,15 +377,43 @@
     if (e.target === pickerOverlay) closePicker();
   });
 
-  // ── Global keyboard ───────────────────────────
+  // ── Global keyboard & header actions ──────────
 
-  document.getElementById('page-header').addEventListener('click', function() {
+  function toggleTheme() {
+    fetch('/toggle-theme').then(function(r) { return r.json(); }).then(function(data) {
+      var el = document.querySelector('[data-theme]');
+      el.dataset.theme = data.theme;
+      currentTheme = data.theme;
+      mermaid.initialize({ startOnLoad: false, theme: data.theme === 'dark' ? 'dark' : 'default' });
+      renderMermaid();
+    });
+  }
+
+  document.getElementById('header-file-info').addEventListener('click', function() {
     if (pickerOverlay.classList.contains('open')) {
       pickerInput.focus();
     } else {
       openPicker();
     }
   });
+
+  if (btnToggleTheme) {
+    btnToggleTheme.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleTheme();
+    });
+  }
+
+  if (btnSearch) {
+    btnSearch.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (pickerOverlay.classList.contains('open')) {
+        pickerInput.focus();
+      } else {
+        openPicker();
+      }
+    });
+  }
 
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && pickerOverlay.classList.contains('open')) {
@@ -331,13 +430,7 @@
       return;
     }
     if (e.ctrlKey && e.shiftKey && e.key === 'T') {
-      fetch('/toggle-theme').then(function(r) { return r.json(); }).then(function(data) {
-        var el = document.querySelector('[data-theme]');
-        el.dataset.theme = data.theme;
-        currentTheme = data.theme;
-        mermaid.initialize({ startOnLoad: false, theme: data.theme === 'dark' ? 'dark' : 'default' });
-        renderMermaid();
-      });
+      toggleTheme();
     }
   });
 
@@ -370,8 +463,21 @@
       }, 30000);
     };
   }
-  if (initialBrowseDir) {
-    // Opened via `inkwell <directory>` — auto-open picker in browse mode
+  // Populate header directory breadcrumb from server-rendered data
+  if (headerDir) {
+    headerDir.textContent = document.body.dataset.relDir || '';
+  }
+
+  var noFile = document.body.dataset.noFile;
+
+  if (noFile) {
+    // Empty state — auto-open picker with recent files
+    pickerOverlay.classList.add('open');
+    pickerInput.focus();
+    selectedIndex = 0;
+    renderPathBar();
+    loadSearch('');
+  } else if (initialBrowseDir) {
     browseDir = initialBrowseDir;
     pickerOverlay.classList.add('open');
     pickerInput.focus();
