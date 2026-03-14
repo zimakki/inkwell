@@ -297,6 +297,7 @@ defmodule Inkwell.Router do
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <link rel="icon" href="data:,">
       <title>Inkwell</title>
       <link rel="stylesheet" href="/static/markdown-wide.css">
       <link rel="stylesheet" href="/static/app.css">
@@ -348,6 +349,7 @@ defmodule Inkwell.Router do
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <link rel="icon" href="data:,">
       <title>Inkwell</title>
       <link rel="stylesheet" href="/static/markdown-wide.css">
       <link rel="stylesheet" href="/static/app.css">
@@ -409,6 +411,7 @@ defmodule Inkwell.Router do
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <link rel="icon" href="data:,">
       <title>#{safe_filename}</title>
       <link rel="stylesheet" href="/static/markdown-wide.css">
       <link rel="stylesheet" href="/static/app.css">

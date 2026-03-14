@@ -142,6 +142,7 @@ html {
 }
 
 body {
+  margin: 0;
   font-family:
     "Outfit",
     system-ui,
