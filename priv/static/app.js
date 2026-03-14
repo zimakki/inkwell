@@ -35,8 +35,8 @@
   // ── Picker ────────────────────────────────────
 
   function openPicker() {
-    // If no file is loaded yet (browse-from-CLI), reopen in browse mode
-    browseDir = currentPath ? null : initialBrowseDir;
+    // If we entered via folder browse, always reopen in that context
+    browseDir = initialBrowseDir || null;
     pickerOverlay.classList.add('open');
     pickerInput.value = '';
     pickerInput.focus();
@@ -66,6 +66,8 @@
       }
       url = '/search?' + params;
     }
+    pickerStatus.textContent = 'Searching...';
+    pickerListItems.innerHTML = '<div class="picker-hint">Loading files...</div>';
     fetch(url)
       .then(function(r) { return r.json(); })
       .then(function(data) {
@@ -215,6 +217,10 @@
         headerTitle.textContent = data.filename;
         document.title = data.filename;
         history.replaceState(null, '', '/?path=' + encodeURIComponent(currentPath));
+        if (data.html) {
+          ctn.innerHTML = data.html;
+          renderMermaid();
+        }
         reconnectSocket();
         closePicker();
       });
@@ -305,12 +311,14 @@
       .then(function(data) {
         if (!data) return;
         browseDir = data.dir;
+        initialBrowseDir = data.dir;
         currentFiles = data.files;
         selectedIndex = 0;
         pickerInput.value = '';
         renderPathBar();
         renderFileList();
         loadPreview();
+        pickerInput.focus();
       })
       .catch(function() {});
   });
