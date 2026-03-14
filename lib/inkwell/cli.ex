@@ -313,13 +313,10 @@ defmodule Inkwell.CLI do
   defp maybe_print_update_notice do
     with {:ok, %{latest: latest}} <- Inkwell.UpdateChecker.cached_info(),
          current <- Application.spec(:inkwell, :vsn) |> to_string(),
-         :gt <- Version.compare(latest, current) do
-      install_method =
-        Inkwell.Updater.current_executable()
-        |> Inkwell.Updater.install_method()
-
+         :gt <- Version.compare(latest, current),
+         {:ok, executable} <- Inkwell.Updater.current_executable() do
       message =
-        case install_method do
+        case Inkwell.Updater.install_method(executable) do
           :homebrew ->
             "A new version of inkwell is available (#{current} -> #{latest}). Run '#{Inkwell.Updater.brew_upgrade_command()}' to upgrade."
 
@@ -328,9 +325,9 @@ defmodule Inkwell.CLI do
         end
 
       IO.puts(:stderr, message)
+    else
+      _ -> :ok
     end
-  rescue
-    _ -> :ok
   end
 
   defp format_update_error({:missing_asset, name}), do: "release asset not found: #{name}"
