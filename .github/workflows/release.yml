@@ -242,7 +242,7 @@ jobs:
         run: |
           : > checksums.txt
           for target in darwin_arm64 darwin_amd64 linux_amd64; do
-            sha256sum "inkwell_${target}/inkwell_${target}" >> checksums.txt
+            (cd "inkwell_${target}" && sha256sum "inkwell_${target}") >> checksums.txt
           done
 
       # When updater signing keys are ready, tauri-apps/tauri-action can generate
