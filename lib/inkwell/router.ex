@@ -209,11 +209,9 @@ defmodule Inkwell.Router do
   get "/pick-directory" do
     case Inkwell.FileDialog.pick_directory() do
       {:ok, dir} ->
-        results = Inkwell.Search.list_directory_files(dir)
-
         conn
         |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(%{dir: dir, files: results}))
+        |> send_resp(200, Jason.encode!(%{dir: dir}))
 
       :cancel ->
         send_resp(conn, 204, "")

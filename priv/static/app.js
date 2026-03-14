@@ -312,12 +312,10 @@
         if (!data) return;
         browseDir = data.dir;
         initialBrowseDir = data.dir;
-        currentFiles = data.files;
         selectedIndex = 0;
         pickerInput.value = '';
         renderPathBar();
-        renderFileList();
-        loadPreview();
+        loadSearch('');
         pickerInput.focus();
       })
       .catch(function() {});
