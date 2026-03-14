@@ -67,7 +67,7 @@
       url = '/search?' + params;
     }
     pickerStatus.textContent = 'Searching...';
-    pickerListItems.innerHTML = '<div class="picker-hint">Loading files...</div>';
+    pickerListItems.innerHTML = '<div class="picker-hint loading">Loading files</div>';
     fetch(url)
       .then(function(r) { return r.json(); })
       .then(function(data) {
