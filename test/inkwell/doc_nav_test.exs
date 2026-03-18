@@ -34,6 +34,18 @@ defmodule Inkwell.DocNavTest do
     assert [%{id: "whats-new"}, %{id: "héllo-wörld"}] = headings
   end
 
+  test "strips inline markdown from heading text" do
+    md = "## **Bold** heading\n## A `code` thing\n## [Link text](http://x)\n"
+
+    headings = DocNav.extract_headings(md)
+
+    assert [
+             %{text: "Bold heading"},
+             %{text: "A code thing"},
+             %{text: "Link text"}
+           ] = headings
+  end
+
   test "returns empty list for no headings" do
     assert DocNav.extract_headings("Just a paragraph.\n") == []
   end
@@ -129,6 +141,14 @@ defmodule Inkwell.DocNavTest do
 
     note_ids = alerts |> Enum.filter(&(&1.type == "note")) |> Enum.map(& &1.id)
     assert note_ids == ["alert-note-1"]
+  end
+
+  test "extracts alert at end of file without trailing newline" do
+    md = "> [!WARNING]\n> No trailing newline"
+
+    alerts = DocNav.extract_alerts(md)
+
+    assert [%{type: "warning"}] = alerts
   end
 
   test "returns empty list for no alerts" do

@@ -8,14 +8,14 @@ defmodule Inkwell.DocNav do
     ~r/^(\#{2,3})\s+(.+)$/mu
     |> Regex.scan(markdown)
     |> Enum.map(fn [_, hashes, text] ->
-      text = String.trim(text)
+      text = text |> String.trim() |> strip_inline_markdown()
       %{level: String.length(hashes), text: text, id: slugify(text)}
     end)
   end
 
   @doc "Extract GitHub-style alerts from raw markdown. Returns list of %{type, title, id}."
   def extract_alerts(markdown) do
-    ~r/> \[!(WARNING|NOTE|TIP|IMPORTANT|CAUTION)\]\n((?:>.*\n?)*)/mu
+    ~r/> \[!(WARNING|NOTE|TIP|IMPORTANT|CAUTION)\]\n?((?:>.*\n?)*)/mu
     |> Regex.scan(markdown)
     |> Enum.reduce({[], %{}}, fn [_, type_raw, body], {acc, counts} ->
       type = String.downcase(type_raw)
@@ -113,6 +113,17 @@ defmodule Inkwell.DocNav do
           String.capitalize(type)
         end
     end
+  end
+
+  defp strip_inline_markdown(text) do
+    text
+    |> String.replace(~r/\*\*(.+?)\*\*/u, "\\1")
+    |> String.replace(~r/\*(.+?)\*/u, "\\1")
+    |> String.replace(~r/__(.+?)__/u, "\\1")
+    |> String.replace(~r/_(.+?)_/u, "\\1")
+    |> String.replace(~r/~~(.+?)~~/u, "\\1")
+    |> String.replace(~r/`(.+?)`/u, "\\1")
+    |> String.replace(~r/\[([^\]]+)\]\([^)]+\)/u, "\\1")
   end
 
   defp slugify(text) do
