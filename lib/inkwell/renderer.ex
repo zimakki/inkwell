@@ -7,12 +7,20 @@ defmodule Inkwell.Renderer do
       table: true,
       autolink: true,
       tasklist: true,
-      footnotes: true
+      footnotes: true,
+      alerts: true
     ],
     render: [unsafe: true]
   ]
 
+  @doc "Render markdown to HTML string (legacy, no nav data)."
   def render(markdown) do
+    {html, _headings, _alerts} = render_with_nav(markdown)
+    html
+  end
+
+  @doc "Render markdown to {html, headings, alerts} with injected IDs for navigation."
+  def render_with_nav(markdown) do
     theme = :persistent_term.get(:inkwell_theme, "dark")
     syntax_theme = if theme == "light", do: "onelight", else: "onedark"
 
@@ -25,6 +33,7 @@ defmodule Inkwell.Renderer do
         "<pre class=\"mermaid\">#{escaped}</pre>"
       end)
 
-    MDEx.to_html!(md, opts)
+    html = MDEx.to_html!(md, opts)
+    Inkwell.DocNav.process(markdown, html)
   end
 end

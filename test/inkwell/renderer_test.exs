@@ -25,8 +25,8 @@ defmodule Inkwell.RendererTest do
     html = Inkwell.Renderer.render("# H1\n## H2\n### H3\n")
 
     assert html =~ "<h1>H1</h1>"
-    assert html =~ "<h2>H2</h2>"
-    assert html =~ "<h3>H3</h3>"
+    assert html =~ ~r/<h2[^>]*>H2<\/h2>/
+    assert html =~ ~r/<h3[^>]*>H3<\/h3>/
   end
 
   test "renders code blocks with syntax highlighting" do
@@ -68,5 +68,36 @@ defmodule Inkwell.RendererTest do
 
     assert html =~ "<pre class=\"mermaid\">"
     refute html =~ "<script>alert"
+  end
+
+  # ── render_with_nav/1 ──────────────────────────
+
+  test "render_with_nav returns {html, headings, alerts} tuple" do
+    :persistent_term.put(:inkwell_theme, "dark")
+
+    {html, headings, alerts} =
+      Inkwell.Renderer.render_with_nav("## Section\n\n> [!WARNING]\n> Be careful\n")
+
+    assert is_binary(html)
+    assert [%{level: 2, text: "Section", id: "section"}] = headings
+    assert [%{type: "warning"}] = alerts
+  end
+
+  test "render_with_nav injects heading IDs into HTML" do
+    :persistent_term.put(:inkwell_theme, "dark")
+
+    {html, _headings, _alerts} = Inkwell.Renderer.render_with_nav("## My Section\n")
+
+    assert html =~ ~s(id="my-section")
+  end
+
+  test "render_with_nav with empty input returns empty nav data" do
+    :persistent_term.put(:inkwell_theme, "dark")
+
+    {html, headings, alerts} = Inkwell.Renderer.render_with_nav("")
+
+    assert is_binary(html)
+    assert headings == []
+    assert alerts == []
   end
 end

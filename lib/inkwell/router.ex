@@ -19,9 +19,10 @@ defmodule Inkwell.Router do
           Inkwell.History.push(file_path)
 
           theme = :persistent_term.get(:inkwell_theme, "dark")
-          html = file_path |> File.read!() |> Inkwell.Renderer.render()
+          markdown = File.read!(file_path)
+          {html, headings, alerts} = Inkwell.Renderer.render_with_nav(markdown)
           filename = Path.basename(file_path)
-          page = html_page(html, filename, theme, file_path)
+          page = html_page(html, headings, alerts, filename, theme, file_path)
 
           conn
           |> put_resp_content_type("text/html")
@@ -114,7 +115,7 @@ defmodule Inkwell.Router do
       Inkwell.Watcher.ensure_file(new_path)
       Inkwell.History.push(new_path)
 
-      html = new_path |> File.read!() |> Inkwell.Renderer.render()
+      {html, headings, alerts} = new_path |> File.read!() |> Inkwell.Renderer.render_with_nav()
 
       rel = compute_rel_path(new_path)
 
@@ -134,7 +135,9 @@ defmodule Inkwell.Router do
           path: new_path,
           filename: Path.basename(new_path),
           rel_dir: rel_dir,
-          html: html
+          html: html,
+          headings: headings,
+          alerts: alerts
         })
       )
     else
@@ -429,7 +432,7 @@ defmodule Inkwell.Router do
     """
   end
 
-  defp html_page(content, filename, theme, current_path) do
+  defp html_page(content, headings, alerts, filename, theme, current_path) do
     safe_filename = Plug.HTML.html_escape(filename)
     safe_current_path = Plug.HTML.html_escape(current_path)
 
@@ -444,6 +447,10 @@ defmodule Inkwell.Router do
       end)
       |> Plug.HTML.html_escape()
 
+    nav_data_json =
+      Jason.encode!(%{headings: headings, alerts: alerts})
+      |> Plug.HTML.html_escape()
+
     """
     <!DOCTYPE html>
     <html lang="en">
@@ -456,7 +463,7 @@ defmodule Inkwell.Router do
       <link rel="stylesheet" href="/static/app.css">
       <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     </head>
-    <body data-current-path="#{safe_current_path}" data-rel-dir="#{safe_rel_dir}">
+    <body data-current-path="#{safe_current_path}" data-rel-dir="#{safe_rel_dir}" data-nav="#{nav_data_json}">
       <div data-theme="#{theme}">
         <div id="page-header">
           <div id="header-actions">
@@ -476,9 +483,22 @@ defmodule Inkwell.Router do
             <div id="header-dir"></div>
           </div>
         </div>
-        <div id="page-ctn">
-          #{content}
+        <div id="page-body">
+          <article id="page-ctn">
+            #{content}
+          </article>
+          <aside id="doc-rail"></aside>
         </div>
+      </div>
+
+      <!-- Mobile FAB for doc map -->
+      <button id="doc-map-fab" aria-label="Document map"></button>
+
+      <!-- Mobile bottom sheet -->
+      <div id="doc-map-backdrop"></div>
+      <div id="doc-map-sheet">
+        <div id="doc-map-handle"></div>
+        <div id="doc-map-content"></div>
       </div>
 
       <div id="picker-overlay">

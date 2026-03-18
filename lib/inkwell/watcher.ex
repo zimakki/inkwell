@@ -39,7 +39,8 @@ defmodule Inkwell.Watcher do
     |> Enum.each(fn path ->
       case File.read(path) do
         {:ok, content} ->
-          content |> Inkwell.Renderer.render() |> broadcast(path)
+          {html, headings, alerts} = Inkwell.Renderer.render_with_nav(content)
+          broadcast_nav(html, headings, alerts, path)
 
         {:error, reason} ->
           Logger.warning("Failed to read #{path}: #{inspect(reason)}")
@@ -47,9 +48,12 @@ defmodule Inkwell.Watcher do
     end)
   end
 
-  def broadcast(html, path) do
+  def broadcast_nav(html, headings, alerts, path) do
+    payload =
+      Jason.encode!(%{html: html, headings: headings, alerts: alerts})
+
     Registry.dispatch(Inkwell.Registry, {:ws_clients, path}, fn entries ->
-      for {pid, _} <- entries, do: send(pid, {:reload, html})
+      for {pid, _} <- entries, do: send(pid, {:reload, payload})
     end)
   end
 
@@ -92,7 +96,8 @@ defmodule Inkwell.Watcher do
 
       case File.read(expanded) do
         {:ok, content} ->
-          content |> Inkwell.Renderer.render() |> broadcast(expanded)
+          {html, headings, alerts} = Inkwell.Renderer.render_with_nav(content)
+          broadcast_nav(html, headings, alerts, expanded)
 
         {:error, reason} ->
           Logger.warning("Failed to read #{expanded}: #{inspect(reason)}")
