@@ -41,20 +41,16 @@ defmodule Inkwell.DocNav do
 
   @doc "Inject id attributes onto markdown-alert divs in rendered HTML."
   def inject_alert_ids(html, alerts) do
-    # Count per-type as we go, matching the extraction order
-    {result, _} =
-      Enum.reduce(alerts, {html, %{}}, fn %{type: type, id: id}, {acc, counts} ->
-        count = Map.get(counts, type, 0)
-        # Find the (count+1)th occurrence of this alert type div
-        {replaced, _} = inject_nth_alert_id(acc, type, count, id)
-        {replaced, Map.put(counts, type, count + 1)}
-      end)
-
-    result
+    # Each injection modifies the div so it no longer matches the bare pattern,
+    # so we always target the first unmodified match (skip_count = 0).
+    Enum.reduce(alerts, html, fn %{type: type, id: id}, acc ->
+      {replaced, _} = inject_nth_alert_id(acc, type, 0, id)
+      replaced
+    end)
   end
 
   defp inject_nth_alert_id(html, type, skip_count, id) do
-    pattern = ~r/<div class="markdown-alert markdown-alert-#{type}"/u
+    pattern = ~r/<div class="markdown-alert markdown-alert-#{type}">/u
 
     parts = Regex.split(pattern, html, include_captures: true)
 
