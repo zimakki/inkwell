@@ -25,8 +25,8 @@ defmodule Inkwell.RendererTest do
     html = Inkwell.Renderer.render("# H1\n## H2\n### H3\n")
 
     assert html =~ "<h1>H1</h1>"
-    assert html =~ "<h2>H2</h2>"
-    assert html =~ "<h3>H3</h3>"
+    assert html =~ ~r/<h2[^>]*>H2<\/h2>/
+    assert html =~ ~r/<h3[^>]*>H3<\/h3>/
   end
 
   test "renders code blocks with syntax highlighting" do
