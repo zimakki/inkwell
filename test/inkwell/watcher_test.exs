@@ -31,14 +31,15 @@ defmodule Inkwell.WatcherTest do
     assert file2 in watched
   end
 
-  test "broadcast dispatches to registered clients", %{test_file: test_file} do
+  test "broadcast_nav dispatches JSON to registered clients", %{test_file: test_file} do
     Inkwell.Watcher.ensure_file(test_file)
     expanded = Path.expand(test_file)
     Registry.register(Inkwell.Registry, {:ws_clients, expanded}, [])
 
-    Inkwell.Watcher.broadcast("<p>Updated</p>", expanded)
+    Inkwell.Watcher.broadcast_nav("<p>Hi</p>", [%{level: 2, text: "Hi", id: "hi"}], [], expanded)
 
-    assert_receive {:reload, "<p>Updated</p>"}, 1000
+    assert_receive {:reload, payload}, 1000
+    assert %{"html" => "<p>Hi</p>", "headings" => [_]} = Jason.decode!(payload)
   end
 
   test "rebroadcast_all handles deleted files gracefully", %{base: base} do

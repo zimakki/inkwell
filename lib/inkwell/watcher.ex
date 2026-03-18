@@ -48,12 +48,6 @@ defmodule Inkwell.Watcher do
     end)
   end
 
-  def broadcast(html, path) do
-    Registry.dispatch(Inkwell.Registry, {:ws_clients, path}, fn entries ->
-      for {pid, _} <- entries, do: send(pid, {:reload, html})
-    end)
-  end
-
   def broadcast_nav(html, headings, alerts, path) do
     payload =
       Jason.encode!(%{html: html, headings: headings, alerts: alerts})
