@@ -12,6 +12,11 @@
   var pickerPathBar = document.getElementById('picker-path');
   var btnToggleTheme = document.getElementById('btn-toggle-theme');
   var btnSearch = document.getElementById('btn-search');
+  var docRail = document.getElementById('doc-rail');
+  var docMapFab = document.getElementById('doc-map-fab');
+  var docMapBackdrop = document.getElementById('doc-map-backdrop');
+  var docMapSheet = document.getElementById('doc-map-sheet');
+  var docMapContent = document.getElementById('doc-map-content');
   var ws, pingInterval, reconnectTimer;
   var currentPath = document.body.dataset.currentPath || null;
   var initialBrowseDir = document.body.dataset.browseDir || null;
@@ -24,6 +29,7 @@
   var previewController = null;
   var browseDir = null;
   var repoInfo = null;
+  var scrollSpyObserver = null;
 
   mermaid.initialize({ startOnLoad: false, theme: currentTheme === 'dark' ? 'dark' : 'default' });
 
@@ -33,6 +39,233 @@
       blocks.forEach(function(el) { el.removeAttribute('data-processed'); });
       mermaid.run({ nodes: blocks });
     }
+  }
+
+  // ── Alert metadata ─────────────────────────────
+  var alertIcons = {
+    warning: '\u26A0\uFE0F',
+    note: '\u{1F4DD}',
+    tip: '\u{1F4A1}',
+    important: '\u2757',
+    caution: '\u{1F6A8}'
+  };
+  var alertColors = {
+    warning: '#e6a700',
+    note: '#7aa2f7',
+    tip: '#73daca',
+    important: '#bb9af7',
+    caution: '#ff757f'
+  };
+
+  // ── Doc Navigation Rail ─────────────────────────
+  function updateDocNav(headings, alerts) {
+    if (!docRail) return;
+    var hasNav = (headings && headings.length > 0) || (alerts && alerts.length > 0);
+
+    if (!hasNav) {
+      docRail.innerHTML = '';
+      docRail.classList.remove('visible');
+      if (docMapFab) docMapFab.classList.remove('visible');
+      return;
+    }
+
+    var html = buildNavHtml(headings, alerts);
+    docRail.innerHTML = html;
+    docRail.classList.add('visible');
+
+    // Mobile FAB
+    if (docMapFab) {
+      docMapFab.classList.add('visible');
+      var warnCount = alerts ? alerts.filter(function(a) { return a.type === 'warning'; }).length : 0;
+      docMapFab.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>'
+        + '<span class="doc-fab-label">Map</span>'
+        + (warnCount > 0 ? '<span class="doc-fab-badge">' + warnCount + '</span>' : '');
+    }
+
+    // Update mobile sheet content too
+    if (docMapContent) {
+      docMapContent.innerHTML = buildNavHtml(headings, alerts);
+    }
+
+    bindNavClicks(docRail);
+    if (docMapContent) bindNavClicks(docMapContent);
+    initScrollSpy();
+  }
+
+  function buildNavHtml(headings, alerts) {
+    var html = '';
+    if (headings && headings.length > 0) {
+      html += '<div class="doc-rail-section"><div class="doc-rail-title">Contents</div>';
+      headings.forEach(function(h) {
+        var cls = 'doc-rail-link';
+        if (h.level === 3) cls += ' doc-rail-h3';
+        html += '<a class="' + cls + '" href="#' + escapeHtml(h.id) + '" data-target="' + escapeHtml(h.id) + '">'
+          + escapeHtml(h.text) + '</a>';
+      });
+      html += '</div>';
+    }
+    if (alerts && alerts.length > 0) {
+      html += '<div class="doc-rail-section doc-rail-alerts"><div class="doc-rail-title">Alerts</div>';
+      alerts.forEach(function(a) {
+        var icon = alertIcons[a.type] || '';
+        var color = alertColors[a.type] || 'inherit';
+        html += '<a class="doc-rail-link doc-rail-alert" href="#' + escapeHtml(a.id) + '" data-target="' + escapeHtml(a.id) + '" style="color:' + color + '">'
+          + '<span class="doc-rail-alert-icon">' + icon + '</span> '
+          + escapeHtml(a.title) + '</a>';
+      });
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function bindNavClicks(container) {
+    container.addEventListener('click', function(e) {
+      var link = e.target.closest('.doc-rail-link');
+      if (!link) return;
+      e.preventDefault();
+      var targetId = link.dataset.target;
+      var target = document.getElementById(targetId);
+      if (!target) return;
+
+      // Close mobile sheet if open
+      if (docMapSheet && docMapSheet.classList.contains('open')) {
+        closeDocMapSheet();
+        setTimeout(function() { scrollToTarget(target); }, 300);
+      } else {
+        scrollToTarget(target);
+      }
+    });
+  }
+
+  function scrollToTarget(target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Flash highlight
+    target.classList.add('doc-highlight');
+    setTimeout(function() { target.classList.remove('doc-highlight'); }, 1200);
+  }
+
+  // ── ScrollSpy ──────────────────────────────────
+  function initScrollSpy() {
+    if (scrollSpyObserver) {
+      scrollSpyObserver.disconnect();
+      scrollSpyObserver = null;
+    }
+    if (!ctn) return;
+
+    var headingEls = ctn.querySelectorAll('h2[id], h3[id]');
+    if (headingEls.length === 0) return;
+
+    scrollSpyObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          setActiveRailLink(entry.target.id);
+        }
+      });
+    }, {
+      rootMargin: '-10% 0px -80% 0px',
+      threshold: 0
+    });
+
+    headingEls.forEach(function(el) {
+      scrollSpyObserver.observe(el);
+    });
+  }
+
+  function setActiveRailLink(id) {
+    // Desktop rail
+    if (docRail) {
+      var links = docRail.querySelectorAll('.doc-rail-link');
+      links.forEach(function(l) { l.classList.remove('doc-rail-active'); });
+      var active = docRail.querySelector('[data-target="' + id + '"]');
+      if (active) active.classList.add('doc-rail-active');
+    }
+    // Mobile sheet
+    if (docMapContent) {
+      var mLinks = docMapContent.querySelectorAll('.doc-rail-link');
+      mLinks.forEach(function(l) { l.classList.remove('doc-rail-active'); });
+      var mActive = docMapContent.querySelector('[data-target="' + id + '"]');
+      if (mActive) mActive.classList.add('doc-rail-active');
+    }
+  }
+
+  // ── Mobile Bottom Sheet ────────────────────────
+  var sheetTouchStartY = 0;
+  var sheetTouchCurrentY = 0;
+
+  function openDocMapSheet() {
+    if (!docMapSheet) return;
+    docMapBackdrop.classList.add('open');
+    docMapSheet.classList.add('open');
+  }
+
+  function closeDocMapSheet() {
+    if (!docMapSheet) return;
+    docMapSheet.style.transform = '';
+    docMapSheet.classList.remove('open');
+    docMapBackdrop.classList.remove('open');
+  }
+
+  if (docMapFab) {
+    docMapFab.addEventListener('click', function() {
+      openDocMapSheet();
+    });
+  }
+
+  if (docMapBackdrop) {
+    docMapBackdrop.addEventListener('click', function() {
+      closeDocMapSheet();
+    });
+  }
+
+  if (docMapSheet) {
+    docMapSheet.addEventListener('touchstart', function(e) {
+      sheetTouchStartY = e.touches[0].clientY;
+      sheetTouchCurrentY = sheetTouchStartY;
+      docMapSheet.style.transition = 'none';
+    }, { passive: true });
+
+    docMapSheet.addEventListener('touchmove', function(e) {
+      sheetTouchCurrentY = e.touches[0].clientY;
+      var dy = sheetTouchCurrentY - sheetTouchStartY;
+      if (dy > 0) {
+        docMapSheet.style.transform = 'translateY(' + dy + 'px)';
+      }
+    }, { passive: true });
+
+    docMapSheet.addEventListener('touchend', function() {
+      docMapSheet.style.transition = '';
+      var dy = sheetTouchCurrentY - sheetTouchStartY;
+      if (dy > 80) {
+        closeDocMapSheet();
+      } else {
+        docMapSheet.style.transform = '';
+      }
+    });
+  }
+
+  // ── Handle content updates with nav data ───────
+  function handleContentUpdate(data) {
+    if (typeof data === 'string') {
+      // Try to parse as JSON (new format)
+      try {
+        var parsed = JSON.parse(data);
+        if (parsed.html !== undefined) {
+          ctn.innerHTML = parsed.html;
+          renderMermaid();
+          updateDocNav(parsed.headings || [], parsed.alerts || []);
+          return;
+        }
+      } catch(e) {
+        // Not JSON, treat as raw HTML (legacy)
+      }
+      ctn.innerHTML = data;
+      renderMermaid();
+      return;
+    }
+    // Object with html/headings/alerts
+    ctn.innerHTML = data.html;
+    renderMermaid();
+    updateDocNav(data.headings || [], data.alerts || []);
   }
 
   // ── Picker ────────────────────────────────────
@@ -223,8 +456,7 @@
         document.title = data.filename;
         history.replaceState(null, '', '/?path=' + encodeURIComponent(currentPath));
         if (data.html) {
-          ctn.innerHTML = data.html;
-          renderMermaid();
+          handleContentUpdate(data);
         }
         reconnectSocket();
         closePicker();
@@ -416,9 +648,15 @@
   }
 
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && pickerOverlay.classList.contains('open')) {
-      closePicker();
-      return;
+    if (e.key === 'Escape') {
+      if (docMapSheet && docMapSheet.classList.contains('open')) {
+        closeDocMapSheet();
+        return;
+      }
+      if (pickerOverlay.classList.contains('open')) {
+        closePicker();
+        return;
+      }
     }
     if (e.ctrlKey && e.key === 'p') {
       e.preventDefault();
@@ -449,8 +687,7 @@
     ws = new WebSocket('ws://' + location.host + '/ws?path=' + encodeURIComponent(currentPath));
     ws.onmessage = function(e) {
       if (e.data === 'pong') return;
-      ctn.innerHTML = e.data;
-      renderMermaid();
+      handleContentUpdate(e.data);
     };
     ws.onclose = function() {
       if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
@@ -466,6 +703,15 @@
   // Populate header directory breadcrumb from server-rendered data
   if (headerDir) {
     headerDir.textContent = document.body.dataset.relDir || '';
+  }
+
+  // Load initial nav data from server-rendered attribute
+  var initialNav = document.body.dataset.nav;
+  if (initialNav) {
+    try {
+      var navData = JSON.parse(initialNav);
+      updateDocNav(navData.headings || [], navData.alerts || []);
+    } catch(e) {}
   }
 
   var noFile = document.body.dataset.noFile;

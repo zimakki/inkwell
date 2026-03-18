@@ -181,9 +181,25 @@ body::-webkit-scrollbar-thumb {
   border-radius: 4px;
 }
 
-#page-ctn {
+/* ── Page body grid (content + nav rail) ──────────────── */
+
+#page-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   max-width: 1400px;
-  padding: 2rem 3rem;
+  padding: 0 3rem;
+}
+
+@media (min-width: 1024px) {
+  #page-body:has(#doc-rail.visible) {
+    grid-template-columns: minmax(0, 1fr) 14rem;
+    gap: 2rem;
+  }
+}
+
+#page-ctn {
+  padding: 2rem 0;
+  min-width: 0;
 }
 
 /* ── Page header ─────────────────────────────────────── */
@@ -570,4 +586,14 @@ mark {
 ::selection {
   background: var(--selection);
   color: inherit;
+}
+
+/* ── Doc-highlight flash (scroll-to-target) ──────────── */
+
+@keyframes doc-highlight-flash {
+  0% { background-color: rgba(212, 177, 104, 0.35); }
+  100% { background-color: transparent; }
+}
+.doc-highlight {
+  animation: doc-highlight-flash 1.2s ease-out;
 }
