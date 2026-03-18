@@ -463,7 +463,7 @@ defmodule Inkwell.Router do
       <link rel="stylesheet" href="/static/app.css">
       <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     </head>
-    <body data-current-path="#{safe_current_path}" data-rel-dir="#{safe_rel_dir}" data-nav='#{nav_data_json}'>
+    <body data-current-path="#{safe_current_path}" data-rel-dir="#{safe_rel_dir}" data-nav="#{nav_data_json}">
       <div data-theme="#{theme}">
         <div id="page-header">
           <div id="header-actions">
