@@ -221,10 +221,11 @@ defmodule Inkwell.DocNavTest do
   test "process returns enriched HTML with headings and alerts" do
     md = "## Overview\n### Details\n\n> [!NOTE]\n> Remember this.\n"
 
-    html = MDEx.to_html!(md,
-      extension: [alerts: true],
-      render: [unsafe: true]
-    )
+    html =
+      MDEx.to_html!(md,
+        extension: [alerts: true],
+        render: [unsafe: true]
+      )
 
     {enriched, headings, alerts} = DocNav.process(md, html)
 
