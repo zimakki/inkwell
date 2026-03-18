@@ -20,8 +20,8 @@ defmodule Inkwell.WsHandler do
   def handle_in(_message, state), do: {:ok, state}
 
   @impl true
-  def handle_info({:reload, html}, state) do
-    {:push, {:text, html}, state}
+  def handle_info({:reload, payload}, state) do
+    {:push, {:text, payload}, state}
   end
 
   @impl true
