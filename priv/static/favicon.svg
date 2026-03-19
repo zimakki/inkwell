@@ -1,0 +1,12 @@
+<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="quill" x1="6" y1="4" x2="26" y2="28" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a0b0ff"/>
+      <stop offset="0.5" stop-color="#6a7ae0"/>
+      <stop offset="1" stop-color="#4a5acf"/>
+    </linearGradient>
+  </defs>
+  <path d="M24 3 C24 3 22 6 20 10 C18 14 10 22 8 24 L6 29 L8 28 C10 27 12 26 14 24 C18 20 22 12 24 8 C26 5 27 3 24 3Z" fill="url(#quill)"/>
+  <path d="M6 29 L8 24 L10 26 Z" fill="#3a4abf"/>
+  <line x1="10" y1="22" x2="22" y2="6" stroke="#2a3a8f" stroke-width="0.7" opacity="0.6"/>
+</svg>
