@@ -90,7 +90,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
       echo "==> Refreshing updater archive after ad-hoc codesign..."
       rm -f "$updater_archive" "$updater_signature"
       tar -C "$(dirname "$app")" -czf "$updater_archive" "$(basename "$app")"
-      RUSTUP_TOOLCHAIN=stable cargo tauri signer sign "$updater_archive" > "$updater_signature"
+      RUSTUP_TOOLCHAIN=stable cargo tauri signer sign "$updater_archive"
       echo "  Refreshed $updater_archive"
     fi
   fi
