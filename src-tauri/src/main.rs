@@ -242,7 +242,7 @@ fn trigger_update_check<R: Runtime>(app: AppHandle<R>, mode: UpdateCheckMode) {
     });
 }
 
-async fn run_update_check<R: Runtime>(
+async fn run_update_check<R: Runtime + ‘static>(
     app: &AppHandle<R>,
     mode: UpdateCheckMode,
 ) -> Result<(), String> {
@@ -253,11 +253,16 @@ async fn run_update_check<R: Runtime>(
         Some(update) => install_update(app, update, mode).await,
         None => {
             if mode == UpdateCheckMode::Manual {
-                show_info_dialog(
-                    app,
-                    "No Updates Available",
-                    "You’re already running the latest version of Inkwell.",
-                );
+                let app = app.clone();
+                tokio::task::spawn_blocking(move || {
+                    show_info_dialog(
+                        &app,
+                        "No Updates Available",
+                        "You’re already running the latest version of Inkwell.",
+                    );
+                })
+                .await
+                .map_err(|error| error.to_string())?;
             }
 
             Ok(())
@@ -265,23 +270,34 @@ async fn run_update_check<R: Runtime>(
     }
 }
 
-async fn install_update<R: Runtime>(
+async fn install_update<R: Runtime + ‘static>(
     app: &AppHandle<R>,
     update: Update,
     mode: UpdateCheckMode,
 ) -> Result<(), String> {
-    let should_install = ask_to_install_update(app, "Update Available", &update_prompt_message(&update));
+    let message = update_prompt_message(&update);
+    let app_clone = app.clone();
+    let should_install = tokio::task::spawn_blocking(move || {
+        ask_to_install_update(&app_clone, "Update Available", &message)
+    })
+    .await
+    .map_err(|error| error.to_string())?;
 
     if !should_install {
         return Ok(());
     }
 
     if mode == UpdateCheckMode::Manual {
-        show_info_dialog(
-            app,
-            "Installing Update",
-            "Inkwell is downloading the update and will close when installation begins.",
-        );
+        let app_clone = app.clone();
+        tokio::task::spawn_blocking(move || {
+            show_info_dialog(
+                &app_clone,
+                "Installing Update",
+                "Inkwell is downloading the update and will close when installation begins.",
+            );
+        })
+        .await
+        .map_err(|error| error.to_string())?;
     }
 
     update
