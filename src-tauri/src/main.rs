@@ -3,9 +3,9 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::menu::{AboutMetadataBuilder, MenuBuilder, SubmenuBuilder};
@@ -223,7 +223,12 @@ fn update_prompt_message(update: &Update) -> String {
         update.version, update.current_version
     );
 
-    if let Some(body) = update.body.as_deref().map(str::trim).filter(|body| !body.is_empty()) {
+    if let Some(body) = update
+        .body
+        .as_deref()
+        .map(str::trim)
+        .filter(|body| !body.is_empty())
+    {
         message.push_str("\n\nRelease notes:\n");
         message.push_str(body);
     }
@@ -251,7 +256,7 @@ fn trigger_update_check<R: Runtime>(app: AppHandle<R>, mode: UpdateCheckMode) {
     });
 }
 
-async fn run_update_check<R: Runtime + ‘static>(
+async fn run_update_check<R: Runtime + 'static>(
     app: &AppHandle<R>,
     mode: UpdateCheckMode,
 ) -> Result<(), String> {
@@ -267,7 +272,7 @@ async fn run_update_check<R: Runtime + ‘static>(
         None => {
             if mode == UpdateCheckMode::Manual {
                 let app = app.clone();
-                tokio::task::spawn_blocking(move || {
+                tauri::async_runtime::spawn_blocking(move || {
                     show_info_dialog(
                         &app,
                         "No Updates Available",
@@ -283,14 +288,14 @@ async fn run_update_check<R: Runtime + ‘static>(
     }
 }
 
-async fn install_update<R: Runtime + ‘static>(
+async fn install_update<R: Runtime + 'static>(
     app: &AppHandle<R>,
     update: Update,
     mode: UpdateCheckMode,
 ) -> Result<(), String> {
     let message = update_prompt_message(&update);
     let app_clone = app.clone();
-    let should_install = tokio::task::spawn_blocking(move || {
+    let should_install = tauri::async_runtime::spawn_blocking(move || {
         ask_to_install_update(&app_clone, "Update Available", &message)
     })
     .await
@@ -302,7 +307,7 @@ async fn install_update<R: Runtime + ‘static>(
 
     if mode == UpdateCheckMode::Manual {
         let app_clone = app.clone();
-        tokio::task::spawn_blocking(move || {
+        tauri::async_runtime::spawn_blocking(move || {
             show_info_dialog(
                 &app_clone,
                 "Installing Update",
@@ -506,4 +511,64 @@ fn main() {
             }
             _ => {}
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_url(s: &str) -> tauri::Url {
+        tauri::Url::parse(s).unwrap()
+    }
+
+    #[test]
+    fn test_inkwell_scheme_extracts_path() {
+        let url = parse_url("inkwell://open?path=/tmp/readme.md");
+        assert_eq!(
+            markdown_path_from_url(&url),
+            Some("/tmp/readme.md".to_string())
+        );
+    }
+
+    #[test]
+    fn test_inkwell_scheme_without_path_param() {
+        let url = parse_url("inkwell://open?other=value");
+        assert_eq!(markdown_path_from_url(&url), None);
+    }
+
+    #[test]
+    fn test_file_scheme_md_extension() {
+        let url = parse_url("file:///Users/test/doc.md");
+        assert_eq!(
+            markdown_path_from_url(&url),
+            Some("/Users/test/doc.md".to_string())
+        );
+    }
+
+    #[test]
+    fn test_file_scheme_markdown_extension() {
+        let url = parse_url("file:///Users/test/doc.markdown");
+        assert_eq!(
+            markdown_path_from_url(&url),
+            Some("/Users/test/doc.markdown".to_string())
+        );
+    }
+
+    #[test]
+    fn test_file_scheme_non_markdown_returns_none() {
+        let url = parse_url("file:///Users/test/image.png");
+        assert_eq!(markdown_path_from_url(&url), None);
+    }
+
+    #[test]
+    fn test_http_scheme_returns_none() {
+        let url = parse_url("http://example.com/readme.md");
+        assert_eq!(markdown_path_from_url(&url), None);
+    }
+
+    #[test]
+    fn test_inkwell_dir_is_under_home() {
+        let dir = inkwell_dir();
+        assert!(dir.ends_with(".inkwell"));
+    }
 }
