@@ -230,7 +230,13 @@ fn update_prompt_message(update: &Update) -> String {
     message
 }
 
+static UPDATE_CHECK_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+
 fn trigger_update_check<R: Runtime>(app: AppHandle<R>, mode: UpdateCheckMode) {
+    if UPDATE_CHECK_IN_PROGRESS.swap(true, Ordering::SeqCst) {
+        return;
+    }
+
     tauri::async_runtime::spawn(async move {
         if let Err(error) = run_update_check(&app, mode).await {
             if mode == UpdateCheckMode::Manual {
@@ -239,6 +245,7 @@ fn trigger_update_check<R: Runtime>(app: AppHandle<R>, mode: UpdateCheckMode) {
                 eprintln!("Startup update check failed: {error}");
             }
         }
+        UPDATE_CHECK_IN_PROGRESS.store(false, Ordering::SeqCst);
     });
 }
 
