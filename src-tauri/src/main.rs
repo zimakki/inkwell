@@ -210,6 +210,8 @@ end run"#,
     .unwrap_or(false)
 }
 
+// Non-macOS: no native dialog available, so updates are never auto-installed.
+// To support Linux/Windows in the future, implement platform-specific dialogs here.
 #[cfg(not(target_os = "macos"))]
 fn ask_to_install_update<R: Runtime>(_app: &AppHandle<R>, _title: &str, _message: &str) -> bool {
     false
