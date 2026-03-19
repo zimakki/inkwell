@@ -123,8 +123,8 @@ fn navigate_to_file(
     navigate_current(app, Some(path))
 }
 
-fn show_error(_app: &tauri::AppHandle, title: &str, message: &str) {
-    eprintln!("ERROR: {} - {}", title, message);
+fn show_error(app: &tauri::AppHandle, title: &str, message: &str) {
+    show_error_dialog(app, title, message);
 }
 
 #[cfg(target_os = "macos")]
