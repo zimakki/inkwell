@@ -253,6 +253,10 @@ async fn run_update_check<R: Runtime + ‘static>(
     app: &AppHandle<R>,
     mode: UpdateCheckMode,
 ) -> Result<(), String> {
+    if mode == UpdateCheckMode::Startup {
+        tokio::time::sleep(Duration::from_secs(10)).await;
+    }
+
     let updater = app.updater().map_err(|error| error.to_string())?;
     let maybe_update = updater.check().await.map_err(|error| error.to_string())?;
 
