@@ -2,15 +2,26 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
-use tauri::Manager;
+use tauri::menu::{AboutMetadataBuilder, MenuBuilder, SubmenuBuilder};
+use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
+use tauri_plugin_updater::{Update, UpdaterExt};
+
+const CHECK_FOR_UPDATES_MENU_ID: &str = "check-for-updates";
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum UpdateCheckMode {
+    Startup,
+    Manual,
+}
 
 fn inkwell_dir() -> PathBuf {
     dirs::home_dir()
@@ -116,6 +127,169 @@ fn show_error(_app: &tauri::AppHandle, title: &str, message: &str) {
     eprintln!("ERROR: {} - {}", title, message);
 }
 
+#[cfg(target_os = "macos")]
+fn build_app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::Menu<R>> {
+    let about_metadata = AboutMetadataBuilder::new()
+        .name(Some(app.package_info().name.clone()))
+        .version(Some(app.package_info().version.to_string()))
+        .build();
+
+    let app_menu = SubmenuBuilder::new(app, app.package_info().name.clone())
+        .about(Some(about_metadata))
+        .separator()
+        .text(CHECK_FOR_UPDATES_MENU_ID, "Check for Updates...")
+        .separator()
+        .quit()
+        .build()?;
+
+    MenuBuilder::new(app).item(&app_menu).build()
+}
+
+#[cfg(target_os = "macos")]
+fn run_osascript(script: &str, args: &[&str]) -> Result<String, String> {
+    let output = Command::new("osascript")
+        .arg("-e")
+        .arg(script)
+        .args(args)
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).trim().to_string())
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn show_info_dialog<R: Runtime>(_app: &AppHandle<R>, title: &str, message: &str) {
+    let _ = run_osascript(
+        r#"on run argv
+set dialogMessage to item 1 of argv
+set dialogTitle to item 2 of argv
+display dialog dialogMessage with title dialogTitle buttons {"OK"} default button "OK" with icon note
+return "OK"
+end run"#,
+        &[message, title],
+    );
+}
+
+#[cfg(not(target_os = "macos"))]
+fn show_info_dialog<R: Runtime>(_app: &AppHandle<R>, _title: &str, _message: &str) {}
+
+#[cfg(target_os = "macos")]
+fn show_error_dialog<R: Runtime>(_app: &AppHandle<R>, title: &str, message: &str) {
+    let _ = run_osascript(
+        r#"on run argv
+set dialogMessage to item 1 of argv
+set dialogTitle to item 2 of argv
+display dialog dialogMessage with title dialogTitle buttons {"OK"} default button "OK" with icon stop
+return "OK"
+end run"#,
+        &[message, title],
+    );
+}
+
+#[cfg(not(target_os = "macos"))]
+fn show_error_dialog<R: Runtime>(_app: &AppHandle<R>, title: &str, message: &str) {
+    eprintln!("{title}: {message}");
+}
+
+#[cfg(target_os = "macos")]
+fn ask_to_install_update<R: Runtime>(_app: &AppHandle<R>, title: &str, message: &str) -> bool {
+    run_osascript(
+        r#"on run argv
+set dialogMessage to item 1 of argv
+set dialogTitle to item 2 of argv
+set buttonName to button returned of (display dialog dialogMessage with title dialogTitle buttons {"Later", "Install"} default button "Install" cancel button "Later" with icon note)
+return buttonName
+end run"#,
+        &[message, title],
+    )
+    .map(|button| button == "Install")
+    .unwrap_or(false)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn ask_to_install_update<R: Runtime>(_app: &AppHandle<R>, _title: &str, _message: &str) -> bool {
+    false
+}
+
+fn update_prompt_message(update: &Update) -> String {
+    let mut message = format!(
+        "Inkwell {} is available. You’re currently on {}.",
+        update.version, update.current_version
+    );
+
+    if let Some(body) = update.body.as_deref().map(str::trim).filter(|body| !body.is_empty()) {
+        message.push_str("\n\nRelease notes:\n");
+        message.push_str(body);
+    }
+
+    message.push_str("\n\nInstall the update now?");
+    message
+}
+
+fn trigger_update_check<R: Runtime>(app: AppHandle<R>, mode: UpdateCheckMode) {
+    tauri::async_runtime::spawn(async move {
+        if let Err(error) = run_update_check(&app, mode).await {
+            if mode == UpdateCheckMode::Manual {
+                show_error_dialog(&app, "Update Check Failed", &error);
+            } else {
+                eprintln!("Startup update check failed: {error}");
+            }
+        }
+    });
+}
+
+async fn run_update_check<R: Runtime>(
+    app: &AppHandle<R>,
+    mode: UpdateCheckMode,
+) -> Result<(), String> {
+    let updater = app.updater().map_err(|error| error.to_string())?;
+    let maybe_update = updater.check().await.map_err(|error| error.to_string())?;
+
+    match maybe_update {
+        Some(update) => install_update(app, update, mode).await,
+        None => {
+            if mode == UpdateCheckMode::Manual {
+                show_info_dialog(
+                    app,
+                    "No Updates Available",
+                    "You’re already running the latest version of Inkwell.",
+                );
+            }
+
+            Ok(())
+        }
+    }
+}
+
+async fn install_update<R: Runtime>(
+    app: &AppHandle<R>,
+    update: Update,
+    mode: UpdateCheckMode,
+) -> Result<(), String> {
+    let should_install = ask_to_install_update(app, "Update Available", &update_prompt_message(&update));
+
+    if !should_install {
+        return Ok(());
+    }
+
+    if mode == UpdateCheckMode::Manual {
+        show_info_dialog(
+            app,
+            "Installing Update",
+            "Inkwell is downloading the update and will close when installation begins.",
+        );
+    }
+
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|error| error.to_string())
+}
+
 fn stop_owned_daemon(owns_sidecar: &AtomicBool) {
     if owns_sidecar.swap(false, Ordering::SeqCst) {
         if let Some(port) = read_port() {
@@ -145,9 +319,20 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .on_menu_event(|app, event| {
+            if event.id() == CHECK_FOR_UPDATES_MENU_ID {
+                trigger_update_check(app.clone(), UpdateCheckMode::Manual);
+            }
+        })
         .setup(move |app| {
             let shell = app.shell();
             let app_handle = app.handle().clone();
+
+            #[cfg(target_os = "macos")]
+            {
+                let menu = build_app_menu(&app_handle)?;
+                app_handle.set_menu(menu)?;
+            }
 
             let port = if let Some(port) = find_running_daemon() {
                 port
@@ -267,6 +452,8 @@ fn main() {
                     }
                 }
             }
+
+            trigger_update_check(app_handle.clone(), UpdateCheckMode::Startup);
 
             Ok(())
         })

@@ -83,6 +83,16 @@ if [ "$(uname -s)" = "Darwin" ]; then
   if [ -n "$app" ]; then
     codesign --force --deep -s - "$app"
     echo "  Signed $app"
+
+    updater_archive=$(find "$TAURI_DIR/target/release/bundle/macos" -maxdepth 1 -name '*.app.tar.gz' -type f | head -n 1 || true)
+    updater_signature="${updater_archive}.sig"
+    if [ -n "${updater_archive:-}" ] && [ -f "$updater_signature" ]; then
+      echo "==> Refreshing updater archive after ad-hoc codesign..."
+      rm -f "$updater_archive" "$updater_signature"
+      tar -C "$(dirname "$app")" -czf "$updater_archive" "$(basename "$app")"
+      RUSTUP_TOOLCHAIN=stable cargo tauri signer sign "$updater_archive" > "$updater_signature"
+      echo "  Refreshed $updater_archive"
+    fi
   fi
 fi
 
