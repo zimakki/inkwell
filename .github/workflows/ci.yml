@@ -49,7 +49,7 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          components: clippy, rustfmt
 
       - name: Cache Cargo registry and target
         uses: actions/cache@v5
@@ -60,6 +60,10 @@ jobs:
             src-tauri/target
           key: ${{ runner.os }}-cargo-check-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-check-
+
+      - name: Cargo fmt
+        working-directory: src-tauri
+        run: cargo fmt -- --check
 
       - name: Cargo check
         working-directory: src-tauri

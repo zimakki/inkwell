@@ -3,9 +3,9 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::menu::{AboutMetadataBuilder, MenuBuilder, SubmenuBuilder};
@@ -223,7 +223,12 @@ fn update_prompt_message(update: &Update) -> String {
         update.version, update.current_version
     );
 
-    if let Some(body) = update.body.as_deref().map(str::trim).filter(|body| !body.is_empty()) {
+    if let Some(body) = update
+        .body
+        .as_deref()
+        .map(str::trim)
+        .filter(|body| !body.is_empty())
+    {
         message.push_str("\n\nRelease notes:\n");
         message.push_str(body);
     }
