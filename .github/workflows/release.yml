@@ -130,6 +130,8 @@ jobs:
       MIX_HOME: ${{ github.workspace }}/.mix
       HEX_HOME: ${{ github.workspace }}/.hex
       BURRITO_TARGET: ${{ matrix.target }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v6
@@ -187,17 +189,21 @@ jobs:
       - name: Build desktop app
         run: ./scripts/build-desktop.sh --release
 
-      - name: Collect desktop artifact
+      - name: Collect desktop artifacts
         run: |
           mkdir -p desktop_out
           dmg=$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -name '*.dmg' | head -n 1)
+          updater=$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app.tar.gz' | head -n 1)
+          sig="${updater}.sig"
           cp "$dmg" "desktop_out/Inkwell_${{ matrix.target }}.dmg"
+          cp "$updater" "desktop_out/Inkwell_${{ matrix.target }}.app.tar.gz"
+          cp "$sig" "desktop_out/Inkwell_${{ matrix.target }}.app.tar.gz.sig"
 
       - name: Upload desktop artifact
         uses: actions/upload-artifact@v7
         with:
           name: inkwell_desktop_${{ matrix.target }}
-          path: desktop_out/Inkwell_${{ matrix.target }}.dmg
+          path: desktop_out/*
 
   release:
     name: Create GitHub Release
@@ -245,8 +251,36 @@ jobs:
             (cd "inkwell_${target}" && sha256sum "inkwell_${target}") >> checksums.txt
           done
 
-      # When updater signing keys are ready, tauri-apps/tauri-action can generate
-      # updater artifacts like latest.json automatically as part of the desktop release flow.
+      - name: Generate latest.json
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          pub_date="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          arm_url="https://github.com/zimakki/inkwell/releases/download/v${version}/Inkwell_darwin_arm64.app.tar.gz"
+          intel_url="https://github.com/zimakki/inkwell/releases/download/v${version}/Inkwell_darwin_amd64.app.tar.gz"
+          arm_sig="$(tr -d '\n' < inkwell_desktop_darwin_arm64/Inkwell_darwin_arm64.app.tar.gz.sig)"
+          intel_sig="$(tr -d '\n' < inkwell_desktop_darwin_amd64/Inkwell_darwin_amd64.app.tar.gz.sig)"
+
+          jq -n \
+            --arg version "$version" \
+            --arg pub_date "$pub_date" \
+            --arg arm_url "$arm_url" \
+            --arg intel_url "$intel_url" \
+            --arg arm_sig "$arm_sig" \
+            --arg intel_sig "$intel_sig" \
+            '{
+              version: $version,
+              pub_date: $pub_date,
+              platforms: {
+                "darwin-aarch64": {
+                  signature: $arm_sig,
+                  url: $arm_url
+                },
+                "darwin-x86_64": {
+                  signature: $intel_sig,
+                  url: $intel_url
+                }
+              }
+            }' > latest.json
 
       - name: Make binaries executable
         run: chmod +x inkwell_*/inkwell_*
@@ -258,6 +292,9 @@ jobs:
           files: |
             inkwell_*/inkwell_*
             inkwell_desktop_*/*.dmg
+            inkwell_desktop_*/*.app.tar.gz
+            inkwell_desktop_*/*.app.tar.gz.sig
+            latest.json
             checksums.txt
           body: |
             ## Install
