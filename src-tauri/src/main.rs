@@ -267,7 +267,7 @@ async fn run_update_check<R: Runtime + 'static>(
         None => {
             if mode == UpdateCheckMode::Manual {
                 let app = app.clone();
-                tokio::task::spawn_blocking(move || {
+                tauri::async_runtime::spawn_blocking(move || {
                     show_info_dialog(
                         &app,
                         "No Updates Available",
@@ -290,7 +290,7 @@ async fn install_update<R: Runtime + 'static>(
 ) -> Result<(), String> {
     let message = update_prompt_message(&update);
     let app_clone = app.clone();
-    let should_install = tokio::task::spawn_blocking(move || {
+    let should_install = tauri::async_runtime::spawn_blocking(move || {
         ask_to_install_update(&app_clone, "Update Available", &message)
     })
     .await
@@ -302,7 +302,7 @@ async fn install_update<R: Runtime + 'static>(
 
     if mode == UpdateCheckMode::Manual {
         let app_clone = app.clone();
-        tokio::task::spawn_blocking(move || {
+        tauri::async_runtime::spawn_blocking(move || {
             show_info_dialog(
                 &app_clone,
                 "Installing Update",
