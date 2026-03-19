@@ -512,3 +512,63 @@ fn main() {
             _ => {}
         });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_url(s: &str) -> tauri::Url {
+        tauri::Url::parse(s).unwrap()
+    }
+
+    #[test]
+    fn test_inkwell_scheme_extracts_path() {
+        let url = parse_url("inkwell://open?path=/tmp/readme.md");
+        assert_eq!(
+            markdown_path_from_url(&url),
+            Some("/tmp/readme.md".to_string())
+        );
+    }
+
+    #[test]
+    fn test_inkwell_scheme_without_path_param() {
+        let url = parse_url("inkwell://open?other=value");
+        assert_eq!(markdown_path_from_url(&url), None);
+    }
+
+    #[test]
+    fn test_file_scheme_md_extension() {
+        let url = parse_url("file:///Users/test/doc.md");
+        assert_eq!(
+            markdown_path_from_url(&url),
+            Some("/Users/test/doc.md".to_string())
+        );
+    }
+
+    #[test]
+    fn test_file_scheme_markdown_extension() {
+        let url = parse_url("file:///Users/test/doc.markdown");
+        assert_eq!(
+            markdown_path_from_url(&url),
+            Some("/Users/test/doc.markdown".to_string())
+        );
+    }
+
+    #[test]
+    fn test_file_scheme_non_markdown_returns_none() {
+        let url = parse_url("file:///Users/test/image.png");
+        assert_eq!(markdown_path_from_url(&url), None);
+    }
+
+    #[test]
+    fn test_http_scheme_returns_none() {
+        let url = parse_url("http://example.com/readme.md");
+        assert_eq!(markdown_path_from_url(&url), None);
+    }
+
+    #[test]
+    fn test_inkwell_dir_is_under_home() {
+        let dir = inkwell_dir();
+        assert!(dir.ends_with(".inkwell"));
+    }
+}
