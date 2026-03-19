@@ -251,7 +251,7 @@ fn trigger_update_check<R: Runtime>(app: AppHandle<R>, mode: UpdateCheckMode) {
     });
 }
 
-async fn run_update_check<R: Runtime + ‘static>(
+async fn run_update_check<R: Runtime + 'static>(
     app: &AppHandle<R>,
     mode: UpdateCheckMode,
 ) -> Result<(), String> {
@@ -283,7 +283,7 @@ async fn run_update_check<R: Runtime + ‘static>(
     }
 }
 
-async fn install_update<R: Runtime + ‘static>(
+async fn install_update<R: Runtime + 'static>(
     app: &AppHandle<R>,
     update: Update,
     mode: UpdateCheckMode,
