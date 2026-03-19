@@ -48,6 +48,8 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
 
       - name: Cache Cargo registry and target
         uses: actions/cache@v5
@@ -62,3 +64,7 @@ jobs:
       - name: Cargo check
         working-directory: src-tauri
         run: cargo check
+
+      - name: Cargo clippy
+        working-directory: src-tauri
+        run: cargo clippy -- -D warnings
