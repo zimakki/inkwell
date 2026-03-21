@@ -3,7 +3,12 @@ defmodule Inkwell.Router do
   use Plug.Router
   require Logger
 
-  plug(Plug.Static, at: "/static", from: {:inkwell, "priv/static"})
+  plug(Plug.Static,
+    at: "/static",
+    from: {:inkwell, "priv/static"},
+    cache_control_for_etags: "public, no-cache"
+  )
+
   plug(:match)
   plug(:dispatch)
 
