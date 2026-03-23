@@ -348,6 +348,7 @@ fn main() {
     let current_path = Arc::new(Mutex::new(None::<String>));
     let current_path_setup = current_path.clone();
     let current_path_run = current_path.clone();
+    let current_path_drag = current_path.clone();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -491,9 +492,50 @@ fn main() {
 
             Ok(())
         })
-        .on_window_event(move |_window, event| {
-            if let tauri::WindowEvent::Destroyed = event {
-                stop_owned_daemon(&owns_sidecar_clone);
+        .on_window_event(move |window, event| {
+            match event {
+                tauri::WindowEvent::DragDrop(drag_event) => match drag_event {
+                    tauri::DragDropEvent::Enter { .. } => {
+                        if let Some(wv) = window.app_handle().get_webview_window("main") {
+                            let _ = wv.eval(
+                                "document.body.classList.add('drag-over')",
+                            );
+                        }
+                    }
+                    tauri::DragDropEvent::Drop { paths, .. } => {
+                        if let Some(wv) = window.app_handle().get_webview_window("main") {
+                            let _ = wv.eval(
+                                "document.body.classList.remove('drag-over')",
+                            );
+                        }
+                        if let Some(path) = paths.first() {
+                            if path.is_file() {
+                                let path_str = path.to_string_lossy();
+                                if path_str.ends_with(".md")
+                                    || path_str.ends_with(".markdown")
+                                {
+                                    let _ = navigate_to_file(
+                                        &window.app_handle(),
+                                        &current_path_drag,
+                                        &path_str,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    tauri::DragDropEvent::Leave => {
+                        if let Some(wv) = window.app_handle().get_webview_window("main") {
+                            let _ = wv.eval(
+                                "document.body.classList.remove('drag-over')",
+                            );
+                        }
+                    }
+                    _ => {}
+                },
+                tauri::WindowEvent::Destroyed => {
+                    stop_owned_daemon(&owns_sidecar_clone);
+                }
+                _ => {}
             }
         })
         .build(tauri::generate_context!())
