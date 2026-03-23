@@ -515,7 +515,7 @@ fn main() {
                                     || path_str.ends_with(".markdown")
                                 {
                                     let _ = navigate_to_file(
-                                        &window.app_handle(),
+                                        window.app_handle(),
                                         &current_path_drag,
                                         &path_str,
                                     );
