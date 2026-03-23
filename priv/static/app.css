@@ -513,3 +513,32 @@ body:has([data-theme="dark"]) .doc-rail-link.doc-rail-active {
   border-top: none;
   padding-top: 0;
 }
+
+/* ── Drag-and-drop overlay ── */
+
+body.drag-over::after {
+  content: 'Drop to preview';
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #8f6e39;
+  background: rgba(30, 30, 30, 0.75);
+  border: 3px dashed #8f6e39;
+  border-radius: 12px;
+  margin: 8px;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+body:has([data-theme="dark"]).drag-over::after {
+  color: #f0c674;
+  background: rgba(22, 22, 30, 0.8);
+  border-color: #f0c674;
+}
