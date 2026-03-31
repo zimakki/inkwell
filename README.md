@@ -1,7 +1,7 @@
 # Inkwell
 
 [![CI](https://github.com/zimakki/inkwell/actions/workflows/ci.yml/badge.svg)](https://github.com/zimakki/inkwell/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.2.12-blue)](https://github.com/zimakki/inkwell/releases)
+[![Version](https://img.shields.io/badge/version-0.2.21-blue)](https://github.com/zimakki/inkwell/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 A live markdown preview daemon for your terminal. Inkwell runs a lightweight background server that watches your markdown files and pushes real-time updates to a browser preview.
@@ -119,8 +119,9 @@ The daemon starts automatically on first use and shuts down after 10 minutes of 
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+P` | Open file picker |
+| `Cmd+F` / `Ctrl+F` | Find in page |
 | `Ctrl+Shift+T` | Toggle dark/light theme |
-| `Esc` | Close file picker |
+| `Esc` | Close file picker / find bar |
 | `Up/Down` | Navigate file list |
 | `Enter` | Open selected file |
 
@@ -154,7 +155,7 @@ State files live in `~/.inkwell/` (pid, port). The daemon binds to a random port
 
 ```bash
 mix deps.get                   # Install dependencies
-mix test                       # Run tests (120 tests)
+mix test                       # Run tests (162 tests)
 mix format                     # Format code
 mix compile --warnings-as-errors
 MIX_ENV=prod mix release       # Build standalone binary (Burrito)
