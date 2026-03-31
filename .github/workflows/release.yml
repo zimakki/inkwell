@@ -23,10 +23,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract version from mix.exs
+      - name: Extract version from VERSION file
         id: version
         run: |
-          version=$(grep 'version:' mix.exs | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          version=$(cat VERSION | tr -d '[:space:]')
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Detected version: $version"
 
