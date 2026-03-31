@@ -142,7 +142,20 @@ fn build_app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
         .quit()
         .build()?;
 
-    MenuBuilder::new(app).item(&app_menu).build()
+    let edit_menu = SubmenuBuilder::new(app, "Edit")
+        .undo()
+        .redo()
+        .separator()
+        .cut()
+        .copy()
+        .paste()
+        .select_all()
+        .build()?;
+
+    MenuBuilder::new(app)
+        .item(&app_menu)
+        .item(&edit_menu)
+        .build()
 }
 
 #[cfg(target_os = "macos")]

@@ -670,6 +670,10 @@
     if (e.ctrlKey && e.shiftKey && e.key === 'T') {
       toggleTheme();
     }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      e.preventDefault();
+      window.find();
+    }
   });
 
   // ── WebSocket ─────────────────────────────────

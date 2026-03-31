@@ -1,10 +1,12 @@
 defmodule Inkwell.MixProject do
   use Mix.Project
 
+  @version File.read!("VERSION") |> String.trim()
+
   def project do
     [
       app: :inkwell,
-      version: "0.2.20",
+      version: @version,
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -72,7 +74,7 @@ defmodule Inkwell.MixProject do
       description: "Live markdown preview daemon with file picker and fuzzy search",
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/zimakki/inkwell"},
-      files: ~w(lib priv mix.exs mix.lock README.md LICENSE)
+      files: ~w(lib priv mix.exs mix.lock README.md LICENSE VERSION)
     ]
   end
 end

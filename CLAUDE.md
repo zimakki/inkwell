@@ -38,9 +38,10 @@ Key patterns:
 - Elixir ~> 1.19, standard `mix format` style
 - Burrito distribution (`mix release`, self-extracting binaries with bundled ERTS)
 - Static assets in `priv/static/`
-- When bumping the app version, update all release metadata together:
-  `mix.exs`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, and the
-  `inkwell-desktop` package version entry in `src-tauri/Cargo.lock`
+- Version lives in the `VERSION` file at the project root. To bump:
+  1. Update the version string in `VERSION`
+  2. Run `mix bump` — this patches `mix.exs`, `src-tauri/Cargo.toml`,
+     `src-tauri/tauri.conf.json`, and regenerates `src-tauri/Cargo.lock`
 
 <!-- usage-rules-start -->
 <!-- mdex-start -->
