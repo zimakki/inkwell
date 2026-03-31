@@ -74,7 +74,7 @@ defmodule Inkwell.MixProject do
       description: "Live markdown preview daemon with file picker and fuzzy search",
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/zimakki/inkwell"},
-      files: ~w(lib priv mix.exs mix.lock README.md LICENSE)
+      files: ~w(lib priv mix.exs mix.lock README.md LICENSE VERSION)
     ]
   end
 end
