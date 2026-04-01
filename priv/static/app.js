@@ -186,6 +186,15 @@
     }
   }
 
+  function navigateMatch(direction) {
+    if (findMatches.length === 0) return;
+    findMatches[findCurrentIndex].classList.remove('active');
+    findCurrentIndex = (findCurrentIndex + direction + findMatches.length) % findMatches.length;
+    findMatches[findCurrentIndex].classList.add('active');
+    findMatches[findCurrentIndex].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    updateFindCount();
+  }
+
   // ── Alert metadata ─────────────────────────────
   var alertIcons = {
     warning: '\u26A0\uFE0F',
