@@ -545,7 +545,7 @@ body:has([data-theme="dark"]).drag-over::after {
 
 /* ── Find-in-document bar ── */
 #find-bar {
-  display: none; position: absolute; top: 8px; right: 16px; z-index: 999;
+  display: none; position: fixed; top: 64px; right: 16px; z-index: 999;
   background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;
   padding: 6px 8px; align-items: center; gap: 6px;
   box-shadow: var(--shadow); font-family: 'SF Mono', monospace; font-size: 13px;

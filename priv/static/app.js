@@ -100,7 +100,10 @@
     for (var i = 0; i < marks.length; i++) {
       var mark = marks[i];
       var parent = mark.parentNode;
-      parent.replaceChild(document.createTextNode(mark.textContent), mark);
+      while (mark.firstChild) {
+        parent.insertBefore(mark.firstChild, mark);
+      }
+      parent.removeChild(mark);
       parent.normalize();
     }
     findMatches = [];
@@ -154,10 +157,10 @@
         }
         var mark = document.createElement('mark');
         mark.className = 'find-match';
-        mark.textContent = text.substring(idx, idx + query.length);
+        mark.textContent = text.substring(idx, idx + lowerQuery.length);
         frag.appendChild(mark);
         findMatches.push(mark);
-        lastIdx = idx + query.length;
+        lastIdx = idx + lowerQuery.length;
         idx = lowerText.indexOf(lowerQuery, lastIdx);
       }
 
@@ -188,6 +191,7 @@
 
   function navigateMatch(direction) {
     if (findMatches.length === 0) return;
+    if (findCurrentIndex < 0) findCurrentIndex = 0;
     findMatches[findCurrentIndex].classList.remove('active');
     findCurrentIndex = (findCurrentIndex + direction + findMatches.length) % findMatches.length;
     findMatches[findCurrentIndex].classList.add('active');
