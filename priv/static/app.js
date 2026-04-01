@@ -95,6 +95,97 @@
 
   buildFindBar();
 
+  function clearHighlights() {
+    var marks = ctn.querySelectorAll('mark.find-match');
+    for (var i = 0; i < marks.length; i++) {
+      var mark = marks[i];
+      var parent = mark.parentNode;
+      parent.replaceChild(document.createTextNode(mark.textContent), mark);
+      parent.normalize();
+    }
+    findMatches = [];
+    findCurrentIndex = -1;
+  }
+
+  function reapplyFindHighlights() {
+    if (findBar && findBar.classList.contains('open') && findBarInput && findBarInput.value) {
+      performSearch();
+    }
+  }
+
+  function performSearch() {
+    clearHighlights();
+    var query = findBarInput ? findBarInput.value : '';
+    if (!query) {
+      if (findBarCount) findBarCount.textContent = '';
+      return;
+    }
+
+    var lowerQuery = query.toLowerCase();
+    var walker = document.createTreeWalker(ctn, NodeFilter.SHOW_TEXT, {
+      acceptNode: function(node) {
+        var parent = node.parentNode;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        var tag = parent.tagName;
+        if (tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    var textNodes = [];
+    while (walker.nextNode()) {
+      textNodes.push(walker.currentNode);
+    }
+
+    for (var i = 0; i < textNodes.length; i++) {
+      var node = textNodes[i];
+      var text = node.textContent;
+      var lowerText = text.toLowerCase();
+      var idx = lowerText.indexOf(lowerQuery);
+      if (idx === -1) continue;
+
+      var parent = node.parentNode;
+      var frag = document.createDocumentFragment();
+      var lastIdx = 0;
+
+      while (idx !== -1) {
+        if (idx > lastIdx) {
+          frag.appendChild(document.createTextNode(text.substring(lastIdx, idx)));
+        }
+        var mark = document.createElement('mark');
+        mark.className = 'find-match';
+        mark.textContent = text.substring(idx, idx + query.length);
+        frag.appendChild(mark);
+        findMatches.push(mark);
+        lastIdx = idx + query.length;
+        idx = lowerText.indexOf(lowerQuery, lastIdx);
+      }
+
+      if (lastIdx < text.length) {
+        frag.appendChild(document.createTextNode(text.substring(lastIdx)));
+      }
+
+      parent.replaceChild(frag, node);
+    }
+
+    if (findMatches.length > 0) {
+      findCurrentIndex = 0;
+      findMatches[0].classList.add('active');
+      findMatches[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+
+    updateFindCount();
+  }
+
+  function updateFindCount() {
+    if (!findBarCount) return;
+    if (findMatches.length === 0) {
+      findBarCount.textContent = findBarInput && findBarInput.value ? '0 results' : '';
+    } else {
+      findBarCount.textContent = (findCurrentIndex + 1) + ' of ' + findMatches.length;
+    }
+  }
+
   // ── Alert metadata ─────────────────────────────
   var alertIcons = {
     warning: '\u26A0\uFE0F',
