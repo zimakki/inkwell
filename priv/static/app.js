@@ -112,6 +112,7 @@
 
   function reapplyFindHighlights() {
     if (findBar && findBar.classList.contains('open') && findBarInput && findBarInput.value) {
+      clearTimeout(findDebounceTimer);
       performSearch();
     }
   }
@@ -131,6 +132,8 @@
         if (!parent) return NodeFilter.FILTER_REJECT;
         var tag = parent.tagName;
         if (tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT;
+        // Skip SVG internals — wrapping SVG text in <mark> breaks diagram rendering
+        if (node.parentNode.closest && node.parentNode.closest('svg')) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       }
     });
@@ -851,8 +854,9 @@
       toggleTheme();
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      if (!findBar) return; // no find bar on empty/browse pages — let native handle it
       e.preventDefault();
-      if (findBar && findBar.classList.contains('open')) {
+      if (findBar.classList.contains('open')) {
         findBarInput.focus();
         findBarInput.select();
       } else {
