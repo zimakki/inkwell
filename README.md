@@ -1,7 +1,7 @@
 # Inkwell
 
 [![CI](https://github.com/zimakki/inkwell/actions/workflows/ci.yml/badge.svg)](https://github.com/zimakki/inkwell/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.2.21-blue)](https://github.com/zimakki/inkwell/releases)
+[![Version](https://img.shields.io/badge/version-0.2.22-blue)](https://github.com/zimakki/inkwell/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 A live markdown preview daemon for your terminal. Inkwell runs a lightweight background server that watches your markdown files and pushes real-time updates to a browser preview.
@@ -119,7 +119,8 @@ The daemon starts automatically on first use and shuts down after 10 minutes of 
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+P` | Open file picker |
-| `Cmd+F` / `Ctrl+F` | Find in page |
+| `Cmd+F` / `Ctrl+F` | Open find-in-document search |
+| `Enter` / `Shift+Enter` | Next / previous match |
 | `Ctrl+Shift+T` | Toggle dark/light theme |
 | `Esc` | Close file picker / find bar |
 | `Up/Down` | Navigate file list |
