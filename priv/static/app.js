@@ -422,6 +422,7 @@
           ctn.innerHTML = parsed.html;
           renderMermaid();
           updateDocNav(parsed.headings || [], parsed.alerts || []);
+          reapplyFindHighlights();
           return;
         }
       } catch(e) {
@@ -429,12 +430,14 @@
       }
       ctn.innerHTML = data;
       renderMermaid();
+      reapplyFindHighlights();
       return;
     }
     // Object with html/headings/alerts
     ctn.innerHTML = data.html;
     renderMermaid();
     updateDocNav(data.headings || [], data.alerts || []);
+    reapplyFindHighlights();
   }
 
   // ── Picker ────────────────────────────────────
