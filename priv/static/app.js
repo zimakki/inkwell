@@ -30,6 +30,12 @@
   var browseDir = null;
   var repoInfo = null;
   var scrollSpyObserver = null;
+  var findBar = null;
+  var findBarInput = null;
+  var findBarCount = null;
+  var findMatches = [];
+  var findCurrentIndex = -1;
+  var findDebounceTimer = null;
 
   mermaid.initialize({ startOnLoad: false, theme: currentTheme === 'dark' ? 'dark' : 'default' });
 
@@ -40,6 +46,54 @@
       mermaid.run({ nodes: blocks });
     }
   }
+
+  // ── Find-in-document bar ────────────────────────
+  function buildFindBar() {
+    var pageBody = document.getElementById('page-body');
+    if (!pageBody) return; // no page-body on empty/browse pages
+
+    var bar = document.createElement('div');
+    bar.id = 'find-bar';
+    bar.innerHTML =
+      '<svg id="find-bar-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+      '<input id="find-bar-input" type="text" placeholder="Find in document\u2026" autocomplete="off" spellcheck="false">' +
+      '<span id="find-bar-count"></span>' +
+      '<button class="find-bar-btn" id="find-bar-prev" aria-label="Previous match"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg></button>' +
+      '<button class="find-bar-btn" id="find-bar-next" aria-label="Next match"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button>' +
+      '<button class="find-bar-btn" id="find-bar-close" aria-label="Close search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+
+    pageBody.insertBefore(bar, pageBody.firstChild);
+
+    findBar = bar;
+    findBarInput = document.getElementById('find-bar-input');
+    findBarCount = document.getElementById('find-bar-count');
+
+    findBarInput.addEventListener('input', function() {
+      clearTimeout(findDebounceTimer);
+      findDebounceTimer = setTimeout(performSearch, 150);
+    });
+
+    findBarInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          navigateMatch(-1);
+        } else {
+          navigateMatch(1);
+        }
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeFindBar();
+      }
+    });
+
+    document.getElementById('find-bar-prev').addEventListener('click', function() { navigateMatch(-1); });
+    document.getElementById('find-bar-next').addEventListener('click', function() { navigateMatch(1); });
+    document.getElementById('find-bar-close').addEventListener('click', function() { closeFindBar(); });
+  }
+
+  buildFindBar();
 
   // ── Alert metadata ─────────────────────────────
   var alertIcons = {
