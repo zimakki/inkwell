@@ -195,6 +195,21 @@
     updateFindCount();
   }
 
+  function openFindBar() {
+    if (!findBar) return;
+    findBar.classList.add('open');
+    findBarInput.focus();
+    findBarInput.select();
+  }
+
+  function closeFindBar() {
+    if (!findBar) return;
+    findBar.classList.remove('open');
+    clearHighlights();
+    if (findBarInput) findBarInput.value = '';
+    if (findBarCount) findBarCount.textContent = '';
+  }
+
   // ── Alert metadata ─────────────────────────────
   var alertIcons = {
     warning: '\u26A0\uFE0F',
@@ -803,6 +818,10 @@
 
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
+      if (findBar && findBar.classList.contains('open')) {
+        closeFindBar();
+        return;
+      }
       if (docMapSheet && docMapSheet.classList.contains('open')) {
         closeDocMapSheet();
         return;
@@ -826,7 +845,13 @@
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
       e.preventDefault();
-      window.find();
+      if (findBar && findBar.classList.contains('open')) {
+        findBarInput.focus();
+        findBarInput.select();
+      } else {
+        openFindBar();
+      }
+      return;
     }
   });
 
