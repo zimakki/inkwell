@@ -184,6 +184,7 @@ body::-webkit-scrollbar-thumb {
 /* ── Page body grid (content + nav rail) ──────────────── */
 
 #page-body {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   max-width: 1400px;

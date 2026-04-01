@@ -30,6 +30,12 @@
   var browseDir = null;
   var repoInfo = null;
   var scrollSpyObserver = null;
+  var findBar = null;
+  var findBarInput = null;
+  var findBarCount = null;
+  var findMatches = [];
+  var findCurrentIndex = -1;
+  var findDebounceTimer = null;
 
   mermaid.initialize({ startOnLoad: false, theme: currentTheme === 'dark' ? 'dark' : 'default' });
 
@@ -39,6 +45,176 @@
       blocks.forEach(function(el) { el.removeAttribute('data-processed'); });
       mermaid.run({ nodes: blocks });
     }
+  }
+
+  // ── Find-in-document bar ────────────────────────
+  function buildFindBar() {
+    var pageBody = document.getElementById('page-body');
+    if (!pageBody) return; // no page-body on empty/browse pages
+
+    var bar = document.createElement('div');
+    bar.id = 'find-bar';
+    bar.innerHTML =
+      '<svg id="find-bar-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+      '<input id="find-bar-input" type="text" placeholder="Find in document\u2026" autocomplete="off" spellcheck="false">' +
+      '<span id="find-bar-count"></span>' +
+      '<button class="find-bar-btn" id="find-bar-prev" aria-label="Previous match"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg></button>' +
+      '<button class="find-bar-btn" id="find-bar-next" aria-label="Next match"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button>' +
+      '<button class="find-bar-btn" id="find-bar-close" aria-label="Close search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+
+    pageBody.insertBefore(bar, pageBody.firstChild);
+
+    findBar = bar;
+    findBarInput = document.getElementById('find-bar-input');
+    findBarCount = document.getElementById('find-bar-count');
+
+    findBarInput.addEventListener('input', function() {
+      clearTimeout(findDebounceTimer);
+      findDebounceTimer = setTimeout(performSearch, 150);
+    });
+
+    findBarInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          navigateMatch(-1);
+        } else {
+          navigateMatch(1);
+        }
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeFindBar();
+      }
+    });
+
+    document.getElementById('find-bar-prev').addEventListener('click', function() { navigateMatch(-1); });
+    document.getElementById('find-bar-next').addEventListener('click', function() { navigateMatch(1); });
+    document.getElementById('find-bar-close').addEventListener('click', function() { closeFindBar(); });
+  }
+
+  buildFindBar();
+
+  function clearHighlights() {
+    var marks = ctn.querySelectorAll('mark.find-match');
+    for (var i = 0; i < marks.length; i++) {
+      var mark = marks[i];
+      var parent = mark.parentNode;
+      while (mark.firstChild) {
+        parent.insertBefore(mark.firstChild, mark);
+      }
+      parent.removeChild(mark);
+      parent.normalize();
+    }
+    findMatches = [];
+    findCurrentIndex = -1;
+  }
+
+  function reapplyFindHighlights() {
+    if (findBar && findBar.classList.contains('open') && findBarInput && findBarInput.value) {
+      clearTimeout(findDebounceTimer);
+      performSearch();
+    }
+  }
+
+  function performSearch() {
+    clearHighlights();
+    var query = findBarInput ? findBarInput.value : '';
+    if (!query) {
+      if (findBarCount) findBarCount.textContent = '';
+      return;
+    }
+
+    var lowerQuery = query.toLowerCase();
+    var walker = document.createTreeWalker(ctn, NodeFilter.SHOW_TEXT, {
+      acceptNode: function(node) {
+        var parent = node.parentNode;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        var tag = parent.tagName;
+        if (tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT;
+        // Skip SVG internals — wrapping SVG text in <mark> breaks diagram rendering
+        if (node.parentNode.closest && node.parentNode.closest('svg')) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    var textNodes = [];
+    while (walker.nextNode()) {
+      textNodes.push(walker.currentNode);
+    }
+
+    for (var i = 0; i < textNodes.length; i++) {
+      var node = textNodes[i];
+      var text = node.textContent;
+      var lowerText = text.toLowerCase();
+      var idx = lowerText.indexOf(lowerQuery);
+      if (idx === -1) continue;
+
+      var parent = node.parentNode;
+      var frag = document.createDocumentFragment();
+      var lastIdx = 0;
+
+      while (idx !== -1) {
+        if (idx > lastIdx) {
+          frag.appendChild(document.createTextNode(text.substring(lastIdx, idx)));
+        }
+        var mark = document.createElement('mark');
+        mark.className = 'find-match';
+        mark.textContent = text.substring(idx, idx + lowerQuery.length);
+        frag.appendChild(mark);
+        findMatches.push(mark);
+        lastIdx = idx + lowerQuery.length;
+        idx = lowerText.indexOf(lowerQuery, lastIdx);
+      }
+
+      if (lastIdx < text.length) {
+        frag.appendChild(document.createTextNode(text.substring(lastIdx)));
+      }
+
+      parent.replaceChild(frag, node);
+    }
+
+    if (findMatches.length > 0) {
+      findCurrentIndex = 0;
+      findMatches[0].classList.add('active');
+      findMatches[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+
+    updateFindCount();
+  }
+
+  function updateFindCount() {
+    if (!findBarCount) return;
+    if (findMatches.length === 0) {
+      findBarCount.textContent = findBarInput && findBarInput.value ? '0 results' : '';
+    } else {
+      findBarCount.textContent = (findCurrentIndex + 1) + ' of ' + findMatches.length;
+    }
+  }
+
+  function navigateMatch(direction) {
+    if (findMatches.length === 0) return;
+    if (findCurrentIndex < 0) findCurrentIndex = 0;
+    findMatches[findCurrentIndex].classList.remove('active');
+    findCurrentIndex = (findCurrentIndex + direction + findMatches.length) % findMatches.length;
+    findMatches[findCurrentIndex].classList.add('active');
+    findMatches[findCurrentIndex].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    updateFindCount();
+  }
+
+  function openFindBar() {
+    if (!findBar) return;
+    findBar.classList.add('open');
+    findBarInput.focus();
+    findBarInput.select();
+  }
+
+  function closeFindBar() {
+    if (!findBar) return;
+    findBar.classList.remove('open');
+    clearHighlights();
+    if (findBarInput) findBarInput.value = '';
+    if (findBarCount) findBarCount.textContent = '';
   }
 
   // ── Alert metadata ─────────────────────────────
@@ -253,6 +429,7 @@
           ctn.innerHTML = parsed.html;
           renderMermaid();
           updateDocNav(parsed.headings || [], parsed.alerts || []);
+          reapplyFindHighlights();
           return;
         }
       } catch(e) {
@@ -260,12 +437,14 @@
       }
       ctn.innerHTML = data;
       renderMermaid();
+      reapplyFindHighlights();
       return;
     }
     // Object with html/headings/alerts
     ctn.innerHTML = data.html;
     renderMermaid();
     updateDocNav(data.headings || [], data.alerts || []);
+    reapplyFindHighlights();
   }
 
   // ── Picker ────────────────────────────────────
@@ -649,6 +828,10 @@
 
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
+      if (findBar && findBar.classList.contains('open')) {
+        closeFindBar();
+        return;
+      }
       if (docMapSheet && docMapSheet.classList.contains('open')) {
         closeDocMapSheet();
         return;
@@ -671,8 +854,15 @@
       toggleTheme();
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      if (!findBar) return; // no find bar on empty/browse pages — let native handle it
       e.preventDefault();
-      window.find();
+      if (findBar.classList.contains('open')) {
+        findBarInput.focus();
+        findBarInput.select();
+      } else {
+        openFindBar();
+      }
+      return;
     }
   });
 
