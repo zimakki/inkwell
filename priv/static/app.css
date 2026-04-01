@@ -542,3 +542,34 @@ body:has([data-theme="dark"]).drag-over::after {
   background: rgba(22, 22, 30, 0.8);
   border-color: #f0c674;
 }
+
+/* ── Find-in-document bar ── */
+#find-bar {
+  display: none; position: absolute; top: 8px; right: 16px; z-index: 999;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 8px; align-items: center; gap: 6px;
+  box-shadow: var(--shadow); font-family: 'SF Mono', monospace; font-size: 13px;
+  min-width: 320px;
+}
+#find-bar.open { display: flex; }
+#find-bar-icon { color: var(--text-muted); flex-shrink: 0; }
+#find-bar-input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+  padding: 4px 8px; color: var(--text); font-size: 13px; font-family: inherit;
+  outline: none; min-width: 0;
+}
+#find-bar-input::placeholder { color: var(--text-muted); }
+#find-bar-input:focus { border-color: var(--link); }
+#find-bar-count { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.find-bar-btn {
+  width: 24px; height: 24px; border-radius: 4px; border: none;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); cursor: pointer; background: var(--bg-hover);
+  padding: 0;
+}
+.find-bar-btn:hover { background: var(--border); color: var(--text); }
+#find-bar-close { background: transparent; color: var(--text-muted); }
+#find-bar-close:hover { color: var(--text); }
+
+.find-match { background: var(--mark-bg); color: var(--mark-text); border-radius: 2px; padding: 0 1px; }
+.find-match.active { background: var(--selection); outline: 2px solid var(--link); }
