@@ -32,7 +32,7 @@ fn inkwell_dir() -> PathBuf {
         .join(".inkwell")
 }
 
-fn read_port() -> Option<u16> {
+pub fn read_port() -> Option<u16> {
     let port_file = inkwell_dir().join("port");
     fs::read_to_string(port_file)
         .ok()
@@ -64,7 +64,7 @@ fn daemon_version(port: u16) -> Option<String> {
     json.get("version")?.as_str().map(String::from)
 }
 
-fn stop_daemon(port: u16) {
+pub fn stop_daemon(port: u16) {
     let _ = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(2))
         .build()

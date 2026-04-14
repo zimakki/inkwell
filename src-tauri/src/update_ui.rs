@@ -2,6 +2,8 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_updater::Update;
 
+use crate::{read_port, stop_daemon};
+
 #[derive(Clone)]
 pub enum UpdateBannerState {
     None,
@@ -90,7 +92,7 @@ fn banner_js_available(version: &str, current_version: &str) -> String {
   var b=document.createElement('div');
   b.id='inkwell-update-banner';
   b.setAttribute('style','{bs}');
-  b.innerHTML='<span>Update available: <strong>{v}</strong> <span style="color:var(--text-muted);font-size:11px;">(current: {cv})</span></span>'
+  b.innerHTML='<span style="flex:1">Update available: <strong>{v}</strong> <span style="color:var(--text-muted);font-size:11px;">(current: {cv})</span></span>'
     +'<button style="{abs}" onclick="window.__TAURI_INTERNALS__.invoke(\'accept_update\')">Update</button>'
     +'<button style="{tbs}" onclick="window.__TAURI_INTERNALS__.invoke(\'dismiss_update\')">Later</button>';
   document.body.insertBefore(b,document.body.firstChild);
@@ -138,10 +140,21 @@ fn banner_js_downloading(downloaded: u64, total: Option<u64>) -> String {
   var b=document.createElement('div');
   b.id='inkwell-update-banner';
   b.setAttribute('style','{bs}');
-  b.innerHTML='<span>Downloading update\u2026</span>'
+  b.innerHTML='<span style="flex:1">Downloading update\u2026</span>'
     +'<span data-pct style="color:var(--text-muted);font-size:12px;">{pct}</span>'
     +'<div data-progress style="{pbs}width:{bw};"></div>';
   document.body.insertBefore(b,document.body.firstChild);
+  window.__inkwell_update_progress=function(downloaded,total){{
+    var b=document.getElementById('inkwell-update-banner');
+    if(!b)return;
+    var bar=b.querySelector('[data-progress]');
+    if(!bar)return;
+    if(total&&total>0){{
+      bar.style.width=(downloaded/total*100).toFixed(1)+'%';
+      var pct=b.querySelector('[data-pct]');
+      if(pct)pct.textContent=(downloaded/total*100).toFixed(0)+'%';
+    }}
+  }};
 }})();"#,
         kf = keyframes_css(),
         bs = BANNER_STYLE,
@@ -166,7 +179,7 @@ fn banner_js_ready() -> String {
   var b=document.createElement('div');
   b.id='inkwell-update-banner';
   b.setAttribute('style','{bs}');
-  b.innerHTML='<span>Update downloaded and ready to install.</span>'
+  b.innerHTML='<span style="flex:1">Update downloaded and ready to install.</span>'
     +'<button style="{abs}" onclick="window.__TAURI_INTERNALS__.invoke(\'restart_after_update\')">Restart Now</button>';
   document.body.insertBefore(b,document.body.firstChild);
 }})();"#,
@@ -192,7 +205,7 @@ fn banner_js_error(msg: &str) -> String {
   var b=document.createElement('div');
   b.id='inkwell-update-banner';
   b.setAttribute('style','{bs}');
-  b.innerHTML='<span style="color:#f38ba8;">Update failed: {m}</span>'
+  b.innerHTML='<span style="flex:1;color:#f38ba8;">Update failed: {m}</span>'
     +'<button style="{abs}" onclick="window.__TAURI_INTERNALS__.invoke(\'accept_update\')">Retry</button>'
     +'<button style="{tbs}" onclick="window.__TAURI_INTERNALS__.invoke(\'dismiss_update\')">Dismiss</button>';
   document.body.insertBefore(b,document.body.firstChild);
@@ -211,6 +224,8 @@ fn js_escape(s: &str) -> String {
         .replace('"', "\\\"")
         .replace('\n', "\\n")
         .replace('\r', "\\r")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
 }
 
 // ── Banner injection ─────────────────────────────────────────────────────────
@@ -280,6 +295,13 @@ pub async fn accept_update(
     app: AppHandle,
     state: State<'_, PendingUpdate>,
 ) -> Result<(), String> {
+    {
+        let banner = state.banner_state.lock().unwrap();
+        if matches!(*banner, UpdateBannerState::Downloading { .. }) {
+            return Ok(());
+        }
+    }
+
     let update = state
         .update
         .lock()
@@ -305,7 +327,7 @@ pub async fn accept_update(
                 move |chunk_len, content_length| {
                     downloaded += chunk_len as u64;
                     if let Some(wv) = app_progress.get_webview_window("main") {
-                        let _ = wv.eval(&format!(
+                        let _ = wv.eval(format!(
                             "if(window.__inkwell_update_progress)window.__inkwell_update_progress({},{})",
                             downloaded,
                             content_length.map_or("null".to_string(), |v| v.to_string()),
@@ -355,6 +377,10 @@ pub async fn restart_after_update(app: AppHandle) -> Result<(), String> {
             .name
             .clone();
         std::thread::spawn(move || {
+            // Stop the daemon before exiting so it is not orphaned.
+            if let Some(port) = read_port() {
+                stop_daemon(port);
+            }
             std::thread::sleep(std::time::Duration::from_millis(500));
             let _ = std::process::Command::new("open")
                 .args(["-a", &app_name])
