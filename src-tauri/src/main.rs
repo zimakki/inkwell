@@ -10,6 +10,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tauri::menu::{AboutMetadataBuilder, MenuBuilder, SubmenuBuilder};
 use tauri::{AppHandle, Manager, Runtime};
+use update_ui::{inject_toast, PendingUpdate, UpdateBannerState};
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
@@ -310,7 +311,20 @@ fn update_prompt_message(update: &Update) -> String {
 
 static UPDATE_CHECK_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
-fn trigger_update_check<R: Runtime>(app: AppHandle<R>, mode: UpdateCheckMode) {
+fn notify_update_available(app: &AppHandle, update: Update) {
+    let pending = app.state::<PendingUpdate>();
+    let version = update.version.clone();
+    let current_version = update.current_version.clone();
+    *pending.update.lock().unwrap() = Some(update);
+    let state = UpdateBannerState::Available {
+        version,
+        current_version,
+    };
+    *pending.banner_state.lock().unwrap() = state.clone();
+    update_ui::inject_update_banner(app, &state);
+}
+
+fn trigger_update_check(app: AppHandle, mode: UpdateCheckMode) {
     if UPDATE_CHECK_IN_PROGRESS.swap(true, Ordering::SeqCst) {
         return;
     }
@@ -318,7 +332,7 @@ fn trigger_update_check<R: Runtime>(app: AppHandle<R>, mode: UpdateCheckMode) {
     tauri::async_runtime::spawn(async move {
         if let Err(error) = run_update_check(&app, mode).await {
             if mode == UpdateCheckMode::Manual {
-                show_error_dialog(&app, "Update Check Failed", &error);
+                inject_toast(&app, &format!("Could not check for updates: {}", error));
             } else {
                 eprintln!("Startup update check failed: {error}");
             }
@@ -327,8 +341,8 @@ fn trigger_update_check<R: Runtime>(app: AppHandle<R>, mode: UpdateCheckMode) {
     });
 }
 
-async fn run_update_check<R: Runtime + 'static>(
-    app: &AppHandle<R>,
+async fn run_update_check(
+    app: &AppHandle,
     mode: UpdateCheckMode,
 ) -> Result<(), String> {
     if mode == UpdateCheckMode::Startup {
@@ -339,60 +353,17 @@ async fn run_update_check<R: Runtime + 'static>(
     let maybe_update = updater.check().await.map_err(|error| error.to_string())?;
 
     match maybe_update {
-        Some(update) => install_update(app, update, mode).await,
+        Some(update) => {
+            notify_update_available(app, update);
+            Ok(())
+        }
         None => {
             if mode == UpdateCheckMode::Manual {
-                let app = app.clone();
-                tauri::async_runtime::spawn_blocking(move || {
-                    show_info_dialog(
-                        &app,
-                        "No Updates Available",
-                        "You’re already running the latest version of Inkwell.",
-                    );
-                })
-                .await
-                .map_err(|error| error.to_string())?;
+                inject_toast(app, "You’re on the latest version");
             }
-
             Ok(())
         }
     }
-}
-
-async fn install_update<R: Runtime + 'static>(
-    app: &AppHandle<R>,
-    update: Update,
-    mode: UpdateCheckMode,
-) -> Result<(), String> {
-    let message = update_prompt_message(&update);
-    let app_clone = app.clone();
-    let should_install = tauri::async_runtime::spawn_blocking(move || {
-        ask_to_install_update(&app_clone, "Update Available", &message)
-    })
-    .await
-    .map_err(|error| error.to_string())?;
-
-    if !should_install {
-        return Ok(());
-    }
-
-    if mode == UpdateCheckMode::Manual {
-        let app_clone = app.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            show_info_dialog(
-                &app_clone,
-                "Installing Update",
-                "Inkwell is downloading the update and will close when installation begins.",
-            );
-        })
-        .await
-        .map_err(|error| error.to_string())?;
-    }
-
-    update
-        .download_and_install(|_, _| {}, || {})
-        .await
-        .map_err(|error| error.to_string())
 }
 
 fn stop_owned_daemon(owns_sidecar: &AtomicBool) {
