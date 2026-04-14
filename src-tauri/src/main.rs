@@ -140,6 +140,19 @@ fn navigate_to_url(app: &tauri::AppHandle, url: String) -> Result<(), String> {
             .navigate(url.parse::<tauri::Url>().map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
         let _ = window.set_focus();
+
+        let app_clone = app.clone();
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            let pending = app_clone.state::<PendingUpdate>();
+            let banner_state = pending.banner_state.lock().unwrap().clone();
+            match banner_state {
+                update_ui::UpdateBannerState::None
+                | update_ui::UpdateBannerState::Dismissed => {}
+                _ => update_ui::inject_update_banner(&app_clone, &banner_state),
+            }
+        });
+
         return Ok(());
     }
 
