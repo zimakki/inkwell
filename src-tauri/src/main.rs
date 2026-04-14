@@ -49,6 +49,49 @@ fn find_running_daemon() -> Option<u16> {
     read_port().filter(|&port| daemon_healthy(port))
 }
 
+fn daemon_version(port: u16) -> Option<String> {
+    let body = reqwest::blocking::Client::new()
+        .get(format!("http://localhost:{}/health", port))
+        .timeout(Duration::from_secs(2))
+        .send()
+        .ok()
+        .and_then(|r| r.text().ok())?;
+
+    let json: serde_json::Value = serde_json::from_str(&body).ok()?;
+    json.get("version")?.as_str().map(String::from)
+}
+
+fn stop_daemon(port: u16) {
+    let _ = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .ok()
+        .and_then(|client| {
+            client
+                .post(format!("http://localhost:{}/stop", port))
+                .send()
+                .ok()
+        });
+}
+
+fn find_compatible_daemon() -> Option<u16> {
+    let port = find_running_daemon()?;
+    let expected = env!("CARGO_PKG_VERSION");
+
+    match daemon_version(port) {
+        Some(v) if v == expected => Some(port),
+        _ => {
+            eprintln!(
+                "Stopping stale daemon on port {} (expected version {})",
+                port, expected
+            );
+            stop_daemon(port);
+            thread::sleep(Duration::from_millis(500));
+            None
+        }
+    }
+}
+
 fn wait_for_daemon(timeout: Duration) -> Result<u16, String> {
     let start = Instant::now();
 
@@ -340,16 +383,7 @@ async fn install_update<R: Runtime + 'static>(
 fn stop_owned_daemon(owns_sidecar: &AtomicBool) {
     if owns_sidecar.swap(false, Ordering::SeqCst) {
         if let Some(port) = read_port() {
-            let _ = reqwest::blocking::Client::builder()
-                .timeout(Duration::from_secs(2))
-                .build()
-                .ok()
-                .and_then(|client| {
-                    client
-                        .post(format!("http://localhost:{}/stop", port))
-                        .send()
-                        .ok()
-                });
+            stop_daemon(port);
         }
     }
 }
@@ -382,7 +416,7 @@ fn main() {
                 app_handle.set_menu(menu)?;
             }
 
-            let port = if let Some(port) = find_running_daemon() {
+            let port = if let Some(port) = find_compatible_daemon() {
                 port
             } else {
                 let (rx, _child) = match shell

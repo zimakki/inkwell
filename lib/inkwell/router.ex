@@ -56,9 +56,11 @@ defmodule Inkwell.Router do
   end
 
   get "/health" do
+    version = Application.spec(:inkwell, :vsn) |> to_string()
+
     conn
     |> put_resp_content_type("application/json")
-    |> send_resp(200, Jason.encode!(%{ok: true}))
+    |> send_resp(200, Jason.encode!(%{ok: true, version: version}))
   end
 
   get "/status" do
