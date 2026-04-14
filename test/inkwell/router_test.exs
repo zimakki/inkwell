@@ -16,11 +16,13 @@ defmodule Inkwell.RouterTest do
     {:ok, %{test_file: test_file, base: base}}
   end
 
-  test "GET /health returns 200 with ok: true" do
+  test "GET /health returns 200 with ok and version" do
     conn = conn(:get, "/health") |> Inkwell.Router.call(Inkwell.Router.init([]))
 
     assert conn.status == 200
-    assert Jason.decode!(conn.resp_body) == %{"ok" => true}
+    body = Jason.decode!(conn.resp_body)
+    assert body["ok"] == true
+    assert body["version"] == to_string(Application.spec(:inkwell, :vsn))
   end
 
   test "GET /status returns daemon info" do
