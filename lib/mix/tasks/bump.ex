@@ -2,8 +2,9 @@ defmodule Mix.Tasks.Bump do
   @moduledoc """
   Reads the version from the VERSION file and patches it into all release metadata files.
 
+  mix.exs is not patched because it reads VERSION at compile time via a module attribute.
+
   Updates:
-    - mix.exs
     - src-tauri/Cargo.toml
     - src-tauri/tauri.conf.json
     - src-tauri/Cargo.lock (via `cargo check`)
@@ -15,7 +16,7 @@ defmodule Mix.Tasks.Bump do
 
   use Mix.Task
 
-  @shortdoc "Sync VERSION file into mix.exs, Cargo.toml, tauri.conf.json, and Cargo.lock"
+  @shortdoc "Sync VERSION file into Cargo.toml, tauri.conf.json, and Cargo.lock"
 
   @impl Mix.Task
   def run(_args) do
@@ -30,7 +31,6 @@ defmodule Mix.Tasks.Bump do
       )
     end
 
-    patch_file("mix.exs", ~r/version: "[\d.]+"/, ~s(version: "#{version}"))
     patch_file("src-tauri/Cargo.toml", ~r/^version = "[\d.]+"$/m, ~s(version = "#{version}"))
     patch_file("src-tauri/tauri.conf.json", ~r/"version": "[\d.]+"/, ~s("version": "#{version}"))
 
