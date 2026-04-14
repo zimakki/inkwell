@@ -182,6 +182,12 @@ fn build_app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
         .separator()
         .text(CHECK_FOR_UPDATES_MENU_ID, "Check for Updates...")
         .separator()
+        .services()
+        .separator()
+        .hide()
+        .hide_others()
+        .show_all()
+        .separator()
         .quit()
         .build()?;
 
@@ -195,9 +201,16 @@ fn build_app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::
         .select_all()
         .build()?;
 
+    let window_menu = SubmenuBuilder::new(app, "Window")
+        .minimize()
+        .separator()
+        .close_window()
+        .build()?;
+
     MenuBuilder::new(app)
         .item(&app_menu)
         .item(&edit_menu)
+        .item(&window_menu)
         .build()
 }
 
