@@ -15,6 +15,8 @@ use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_updater::{Update, UpdaterExt};
 
+mod update_ui;
+
 const CHECK_FOR_UPDATES_MENU_ID: &str = "check-for-updates";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
