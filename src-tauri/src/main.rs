@@ -247,22 +247,6 @@ fn run_osascript(script: &str, args: &[&str]) -> Result<String, String> {
 }
 
 #[cfg(target_os = "macos")]
-fn show_info_dialog<R: Runtime>(_app: &AppHandle<R>, title: &str, message: &str) {
-    let _ = run_osascript(
-        r#"on run argv
-set dialogMessage to item 1 of argv
-set dialogTitle to item 2 of argv
-display dialog dialogMessage with title dialogTitle buttons {"OK"} default button "OK" with icon note
-return "OK"
-end run"#,
-        &[message, title],
-    );
-}
-
-#[cfg(not(target_os = "macos"))]
-fn show_info_dialog<R: Runtime>(_app: &AppHandle<R>, _title: &str, _message: &str) {}
-
-#[cfg(target_os = "macos")]
 fn show_error_dialog<R: Runtime>(_app: &AppHandle<R>, title: &str, message: &str) {
     let _ = run_osascript(
         r#"on run argv
@@ -278,48 +262,6 @@ end run"#,
 #[cfg(not(target_os = "macos"))]
 fn show_error_dialog<R: Runtime>(_app: &AppHandle<R>, title: &str, message: &str) {
     eprintln!("{title}: {message}");
-}
-
-#[cfg(target_os = "macos")]
-fn ask_to_install_update<R: Runtime>(_app: &AppHandle<R>, title: &str, message: &str) -> bool {
-    run_osascript(
-        r#"on run argv
-set dialogMessage to item 1 of argv
-set dialogTitle to item 2 of argv
-set buttonName to button returned of (display dialog dialogMessage with title dialogTitle buttons {"Later", "Install"} default button "Install" cancel button "Later" with icon note)
-return buttonName
-end run"#,
-        &[message, title],
-    )
-    .map(|button| button == "Install")
-    .unwrap_or(false)
-}
-
-// Non-macOS: no native dialog available, so updates are never auto-installed.
-// To support Linux/Windows in the future, implement platform-specific dialogs here.
-#[cfg(not(target_os = "macos"))]
-fn ask_to_install_update<R: Runtime>(_app: &AppHandle<R>, _title: &str, _message: &str) -> bool {
-    false
-}
-
-fn update_prompt_message(update: &Update) -> String {
-    let mut message = format!(
-        "Inkwell {} is available. You’re currently on {}.",
-        update.version, update.current_version
-    );
-
-    if let Some(body) = update
-        .body
-        .as_deref()
-        .map(str::trim)
-        .filter(|body| !body.is_empty())
-    {
-        message.push_str("\n\nRelease notes:\n");
-        message.push_str(body);
-    }
-
-    message.push_str("\n\nInstall the update now?");
-    message
 }
 
 static UPDATE_CHECK_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
