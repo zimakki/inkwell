@@ -416,6 +416,13 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
+        .manage(update_ui::PendingUpdate::new())
+        .invoke_handler(tauri::generate_handler![
+            update_ui::accept_update,
+            update_ui::dismiss_update,
+            update_ui::restart_after_update,
+        ])
         .on_menu_event(|app, event| {
             if event.id() == CHECK_FOR_UPDATES_MENU_ID {
                 trigger_update_check(app.clone(), UpdateCheckMode::Manual);

@@ -270,3 +270,103 @@ pub fn inject_toast(app: &AppHandle, message: &str) {
 
     let _ = wv.eval(&js);
 }
+
+// ── Tauri commands ───────────────────────────────────────────────────────────
+
+use tauri::State;
+
+#[tauri::command]
+pub async fn accept_update(
+    app: AppHandle,
+    state: State<'_, PendingUpdate>,
+) -> Result<(), String> {
+    let update = state
+        .update
+        .lock()
+        .unwrap()
+        .take()
+        .ok_or_else(|| "No pending update".to_string())?;
+
+    {
+        let mut banner = state.banner_state.lock().unwrap();
+        *banner = UpdateBannerState::Downloading {
+            downloaded: 0,
+            total: None,
+        };
+        inject_update_banner(&app, &banner);
+    }
+
+    let app_clone = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let app_progress = app_clone.clone();
+        let mut downloaded: u64 = 0;
+        let result = update
+            .download_and_install(
+                move |chunk_len, content_length| {
+                    downloaded += chunk_len as u64;
+                    if let Some(wv) = app_progress.get_webview_window("main") {
+                        let _ = wv.eval(&format!(
+                            "if(window.__inkwell_update_progress)window.__inkwell_update_progress({},{})",
+                            downloaded,
+                            content_length.map_or("null".to_string(), |v| v.to_string()),
+                        ));
+                    }
+                },
+                || {},
+            )
+            .await;
+
+        let pending = app_clone.state::<PendingUpdate>();
+        match result {
+            Ok(()) => {
+                let mut banner = pending.banner_state.lock().unwrap();
+                *banner = UpdateBannerState::ReadyToRestart;
+                inject_update_banner(&app_clone, &banner);
+            }
+            Err(e) => {
+                *pending.update.lock().unwrap() = Some(update);
+                let mut banner = pending.banner_state.lock().unwrap();
+                *banner = UpdateBannerState::Error(e.to_string());
+                inject_update_banner(&app_clone, &banner);
+            }
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn dismiss_update(
+    app: AppHandle,
+    state: State<'_, PendingUpdate>,
+) -> Result<(), String> {
+    let mut banner = state.banner_state.lock().unwrap();
+    *banner = UpdateBannerState::Dismissed;
+    inject_update_banner(&app, &banner);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn restart_after_update(app: AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let app_name = app
+            .package_info()
+            .name
+            .clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            let _ = std::process::Command::new("open")
+                .args(["-a", &app_name])
+                .spawn();
+            std::process::exit(0);
+        });
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        app.restart();
+    }
+
+    Ok(())
+}
