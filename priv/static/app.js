@@ -37,7 +37,51 @@
   var findCurrentIndex = -1;
   var findDebounceTimer = null;
 
+  // ── View mode state ──
+  var currentMode = (function() {
+    var dataMode = document.body.dataset.mode;
+    if (dataMode && (dataMode === 'diff' || dataMode === 'live' || dataMode === 'static')) {
+      return dataMode;
+    }
+    var stored = localStorage.getItem('inkwell-mode');
+    if (stored && (stored === 'diff' || stored === 'live' || stored === 'static')) {
+      return stored;
+    }
+    return 'diff';
+  })();
+  var baselineBlocks = [];
+  var pendingHtml = null;
+  var pendingHeadings = null;
+  var pendingAlerts = null;
+  var diffDebounceTimer = null;
+  var isFirstWsMessage = true;
+
   mermaid.initialize({ startOnLoad: false, theme: currentTheme === 'dark' ? 'dark' : 'default' });
+
+  // ── Build mode toggle ──
+  var modeToggle = document.createElement('div');
+  modeToggle.id = 'mode-toggle';
+  ['static', 'live', 'diff'].forEach(function(mode) {
+    var btn = document.createElement('button');
+    btn.className = 'mode-btn' + (mode === currentMode ? ' mode-btn--active' : '');
+    btn.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+    btn.dataset.mode = mode;
+    btn.addEventListener('click', function() { switchMode(mode); });
+    modeToggle.appendChild(btn);
+  });
+  var headerActions = document.getElementById('header-actions');
+  if (headerActions && currentPath) {
+    headerActions.insertBefore(modeToggle, headerActions.firstChild);
+  }
+
+  // ── Build global accept FAB ──
+  var diffFab = document.createElement('div');
+  diffFab.id = 'diff-accept-fab';
+  diffFab.innerHTML = '<div class="diff-summary"></div><div class="diff-separator"></div><button class="accept-all-btn"><span>\u2713 Accept</span> <span class="shortcut">\u2318\u23CE</span></button>';
+  document.body.appendChild(diffFab);
+  diffFab.querySelector('.accept-all-btn').addEventListener('click', function() {
+    acceptAll();
+  });
 
   function renderMermaid() {
     var blocks = ctn.querySelectorAll('pre.mermaid');
@@ -419,32 +463,408 @@
     });
   }
 
-  // ── Handle content updates with nav data ───────
-  function handleContentUpdate(data) {
+  // ── Diff helpers ──
+  function extractBlocks(container) {
+    var blocks = [];
+    var children = container.children;
+    for (var i = 0; i < children.length; i++) {
+      var el = children[i];
+      blocks.push({
+        tag: el.tagName.toLowerCase(),
+        textContent: el.textContent.replace(/\s+/g, ' ').trim(),
+        outerHTML: el.outerHTML
+      });
+    }
+    return blocks;
+  }
+
+  function lcs(a, b, eq) {
+    var m = a.length, n = b.length;
+    var dp = [];
+    for (var i = 0; i <= m; i++) {
+      dp[i] = [];
+      for (var j = 0; j <= n; j++) {
+        if (i === 0 || j === 0) {
+          dp[i][j] = 0;
+        } else if (eq(a[i - 1], b[j - 1])) {
+          dp[i][j] = dp[i - 1][j - 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+      }
+    }
+    var result = [];
+    var i = m, j = n;
+    while (i > 0 && j > 0) {
+      if (eq(a[i - 1], b[j - 1])) {
+        result.unshift({ ai: i - 1, bi: j - 1 });
+        i--; j--;
+      } else if (dp[i - 1][j] > dp[i][j - 1]) {
+        i--;
+      } else {
+        j--;
+      }
+    }
+    return result;
+  }
+
+  function computeBlockDiff(oldBlocks, newBlocks) {
+    var matched = lcs(oldBlocks, newBlocks, function(a, b) {
+      return a.tag === b.tag && a.textContent === b.textContent;
+    });
+
+    var result = [];
+    var oi = 0, ni = 0, mi = 0;
+
+    while (oi < oldBlocks.length || ni < newBlocks.length) {
+      if (mi < matched.length && matched[mi].ai === oi && matched[mi].bi === ni) {
+        result.push({ type: 'unchanged', oldBlock: oldBlocks[oi], newBlock: newBlocks[ni], oldIndex: oi, newIndex: ni });
+        oi++; ni++; mi++;
+      } else if (mi < matched.length && oi < matched[mi].ai && ni < matched[mi].bi) {
+        var oldEnd = matched[mi].ai;
+        var newEnd = matched[mi].bi;
+        while (oi < oldEnd && ni < newEnd) {
+          if (oldBlocks[oi].tag === newBlocks[ni].tag) {
+            result.push({ type: 'modified', oldBlock: oldBlocks[oi], newBlock: newBlocks[ni], oldIndex: oi, newIndex: ni });
+          } else {
+            result.push({ type: 'removed', oldBlock: oldBlocks[oi], oldIndex: oi });
+            result.push({ type: 'added', newBlock: newBlocks[ni], newIndex: ni });
+          }
+          oi++; ni++;
+        }
+        while (oi < oldEnd) {
+          result.push({ type: 'removed', oldBlock: oldBlocks[oi], oldIndex: oi });
+          oi++;
+        }
+        while (ni < newEnd) {
+          result.push({ type: 'added', newBlock: newBlocks[ni], newIndex: ni });
+          ni++;
+        }
+      } else if (mi >= matched.length || oi < matched[mi].ai) {
+        result.push({ type: 'removed', oldBlock: oldBlocks[oi], oldIndex: oi });
+        oi++;
+      } else {
+        result.push({ type: 'added', newBlock: newBlocks[ni], newIndex: ni });
+        ni++;
+      }
+    }
+
+    return result;
+  }
+
+  function computeWordDiff(oldText, newText) {
+    var oldWords = oldText.split(/(\s+)/);
+    var newWords = newText.split(/(\s+)/);
+
+    var matched = lcs(oldWords, newWords, function(a, b) { return a === b; });
+
+    var spans = [];
+    var oi = 0, ni = 0, mi = 0;
+
+    while (oi < oldWords.length || ni < newWords.length) {
+      if (mi < matched.length && matched[mi].ai === oi && matched[mi].bi === ni) {
+        spans.push({ type: 'same', text: newWords[ni] });
+        oi++; ni++; mi++;
+      } else {
+        var removedStart = oi;
+        while (oi < oldWords.length && (mi >= matched.length || oi < matched[mi].ai)) {
+          oi++;
+        }
+        if (oi > removedStart) {
+          spans.push({ type: 'removed', text: oldWords.slice(removedStart, oi).join('') });
+        }
+        var addedStart = ni;
+        while (ni < newWords.length && (mi >= matched.length || ni < matched[mi].bi)) {
+          ni++;
+        }
+        if (ni > addedStart) {
+          spans.push({ type: 'added', text: newWords.slice(addedStart, ni).join('') });
+        }
+      }
+    }
+
+    return spans;
+  }
+
+  function buildWordDiffHTML(oldText, newText) {
+    var spans = computeWordDiff(oldText, newText);
+    var html = '';
+    spans.forEach(function(span) {
+      var escaped = span.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      if (span.type === 'same') {
+        html += escaped;
+      } else if (span.type === 'added') {
+        html += '<span class="inkwell-diff-word-added">' + escaped + '</span>';
+      } else if (span.type === 'removed') {
+        html += '<span class="inkwell-diff-word-removed">' + escaped + '</span>';
+      }
+    });
+    return html;
+  }
+
+  function createElementFromHTML(htmlString) {
+    var temp = document.createElement('div');
+    temp.innerHTML = htmlString;
+    return temp.firstElementChild;
+  }
+
+  function addPerBlockAcceptBtn(el, diffIndex) {
+    var btn = document.createElement('button');
+    btn.className = 'inkwell-diff-accept-btn';
+    btn.innerHTML = '\u2713';
+    btn.title = 'Accept this change';
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      acceptBlock(el, diffIndex);
+    });
+    el.appendChild(btn);
+  }
+
+  function parseContentPayload(data) {
     if (typeof data === 'string') {
-      // Try to parse as JSON (new format)
       try {
         var parsed = JSON.parse(data);
         if (parsed.html !== undefined) {
-          ctn.innerHTML = parsed.html;
-          renderMermaid();
-          updateDocNav(parsed.headings || [], parsed.alerts || []);
-          reapplyFindHighlights();
-          return;
+          return { html: parsed.html, headings: parsed.headings || [], alerts: parsed.alerts || [] };
         }
-      } catch(e) {
-        // Not JSON, treat as raw HTML (legacy)
+      } catch(e) {}
+      return { html: data, headings: [], alerts: [] };
+    }
+    return { html: data.html, headings: data.headings || [], alerts: data.alerts || [] };
+  }
+
+  function applyDiff(html, headings, alerts) {
+    var tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    var newBlocks = extractBlocks(tempDiv);
+
+    var diff = computeBlockDiff(baselineBlocks, newBlocks);
+
+    var scrollEl = ctn.parentElement || document.documentElement;
+    var scrollPos = scrollEl.scrollTop;
+
+    ctn.innerHTML = '';
+    diff.forEach(function(entry, idx) {
+      var el;
+      if (entry.type === 'unchanged') {
+        el = createElementFromHTML(entry.newBlock.outerHTML);
+        ctn.appendChild(el);
+      } else if (entry.type === 'added') {
+        el = createElementFromHTML(entry.newBlock.outerHTML);
+        el.classList.add('inkwell-diff-added');
+        el.dataset.diffIndex = idx;
+        addPerBlockAcceptBtn(el, idx);
+        ctn.appendChild(el);
+      } else if (entry.type === 'removed') {
+        el = createElementFromHTML(entry.oldBlock.outerHTML);
+        el.classList.add('inkwell-diff-removed');
+        el.dataset.diffIndex = idx;
+        addPerBlockAcceptBtn(el, idx);
+        ctn.appendChild(el);
+      } else if (entry.type === 'modified') {
+        el = createElementFromHTML(entry.newBlock.outerHTML);
+        el.classList.add('inkwell-diff-modified');
+        el.dataset.diffIndex = idx;
+        var oldText = entry.oldBlock.textContent;
+        var newText = entry.newBlock.textContent;
+        el.innerHTML = buildWordDiffHTML(oldText, newText);
+        addPerBlockAcceptBtn(el, idx);
+        ctn.appendChild(el);
       }
-      ctn.innerHTML = data;
-      renderMermaid();
-      reapplyFindHighlights();
+    });
+
+    renderMermaid();
+    updateDocNav(headings, alerts);
+    reapplyFindHighlights();
+    updateFab();
+
+    scrollEl.scrollTop = scrollPos;
+  }
+
+  function clearDiffHighlights() {
+    var highlighted = ctn.querySelectorAll('.inkwell-diff-added, .inkwell-diff-removed, .inkwell-diff-modified');
+    highlighted.forEach(function(el) {
+      if (el.classList.contains('inkwell-diff-removed')) {
+        el.remove();
+      } else {
+        el.classList.remove('inkwell-diff-added', 'inkwell-diff-modified');
+        el.style.borderLeft = '';
+        el.style.background = '';
+        el.style.paddingLeft = '';
+        var btn = el.querySelector('.inkwell-diff-accept-btn');
+        if (btn) btn.remove();
+        var wordSpans = el.querySelectorAll('.inkwell-diff-word-added, .inkwell-diff-word-removed');
+        wordSpans.forEach(function(span) {
+          if (span.classList.contains('inkwell-diff-word-removed')) {
+            span.remove();
+          } else {
+            span.replaceWith(document.createTextNode(span.textContent));
+          }
+        });
+      }
+    });
+  }
+
+  function acceptBlock(el, diffIndex) {
+    if (el.classList.contains('inkwell-diff-removed')) {
+      el.style.transition = 'opacity 0.2s ease';
+      el.style.opacity = '0';
+      setTimeout(function() { el.remove(); updateFab(); }, 200);
+    } else {
+      var btn = el.querySelector('.inkwell-diff-accept-btn');
+      if (btn) btn.remove();
+      var wordSpans = el.querySelectorAll('.inkwell-diff-word-removed');
+      wordSpans.forEach(function(span) { span.remove(); });
+      var addedSpans = el.querySelectorAll('.inkwell-diff-word-added');
+      addedSpans.forEach(function(span) {
+        span.replaceWith(document.createTextNode(span.textContent));
+      });
+      el.classList.add('inkwell-diff-fade-out');
+      setTimeout(function() {
+        el.classList.remove('inkwell-diff-added', 'inkwell-diff-modified', 'inkwell-diff-fade-out');
+        el.style.borderLeft = '';
+        el.style.background = '';
+        el.style.paddingLeft = '';
+        el.removeAttribute('data-diff-index');
+        updateFab();
+      }, 200);
+    }
+    setTimeout(function() {
+      baselineBlocks = extractBlocks(ctn);
+    }, 250);
+  }
+
+  function acceptAll() {
+    var highlighted = ctn.querySelectorAll('.inkwell-diff-added, .inkwell-diff-removed, .inkwell-diff-modified');
+    highlighted.forEach(function(el) {
+      if (el.classList.contains('inkwell-diff-removed')) {
+        el.remove();
+      } else {
+        var btn = el.querySelector('.inkwell-diff-accept-btn');
+        if (btn) btn.remove();
+        var wordSpans = el.querySelectorAll('.inkwell-diff-word-removed');
+        wordSpans.forEach(function(span) { span.remove(); });
+        var addedSpans = el.querySelectorAll('.inkwell-diff-word-added');
+        addedSpans.forEach(function(span) {
+          span.replaceWith(document.createTextNode(span.textContent));
+        });
+        el.classList.remove('inkwell-diff-added', 'inkwell-diff-modified');
+        el.style.borderLeft = '';
+        el.style.background = '';
+        el.style.paddingLeft = '';
+        el.removeAttribute('data-diff-index');
+      }
+    });
+    baselineBlocks = extractBlocks(ctn);
+    updateFab();
+  }
+
+  function updateFab() {
+    var added = ctn.querySelectorAll('.inkwell-diff-added').length;
+    var modified = ctn.querySelectorAll('.inkwell-diff-modified').length;
+    var removed = ctn.querySelectorAll('.inkwell-diff-removed').length;
+    var total = added + modified + removed;
+
+    if (total === 0 || currentMode !== 'diff') {
+      diffFab.classList.remove('visible');
       return;
     }
-    // Object with html/headings/alerts
-    ctn.innerHTML = data.html;
-    renderMermaid();
-    updateDocNav(data.headings || [], data.alerts || []);
-    reapplyFindHighlights();
+
+    var summaryParts = [];
+    if (added > 0) summaryParts.push('<span class="added">+' + added + '</span>');
+    if (modified > 0) summaryParts.push('<span class="modified">~' + modified + '</span>');
+    if (removed > 0) summaryParts.push('<span class="removed">-' + removed + '</span>');
+
+    diffFab.querySelector('.diff-summary').innerHTML = summaryParts.join(' ');
+    diffFab.classList.add('visible');
+  }
+
+  function switchMode(newMode) {
+    var oldMode = currentMode;
+    currentMode = newMode;
+    localStorage.setItem('inkwell-mode', newMode);
+
+    var btns = modeToggle.querySelectorAll('.mode-btn');
+    btns.forEach(function(btn) {
+      if (btn.dataset.mode === newMode) {
+        btn.classList.add('mode-btn--active');
+      } else {
+        btn.classList.remove('mode-btn--active');
+      }
+    });
+
+    if (newMode === 'live') {
+      clearDiffHighlights();
+      if (pendingHtml !== null) {
+        ctn.innerHTML = pendingHtml;
+        renderMermaid();
+        updateDocNav(pendingHeadings || [], pendingAlerts || []);
+        reapplyFindHighlights();
+        pendingHtml = null;
+        pendingHeadings = null;
+        pendingAlerts = null;
+      }
+      baselineBlocks = extractBlocks(ctn);
+      updateFab();
+    } else if (newMode === 'static') {
+      // Freeze — keep current DOM as-is
+    } else if (newMode === 'diff') {
+      baselineBlocks = extractBlocks(ctn);
+      if (pendingHtml !== null && oldMode === 'static') {
+        applyDiff(pendingHtml, pendingHeadings, pendingAlerts);
+        pendingHtml = null;
+        pendingHeadings = null;
+        pendingAlerts = null;
+      }
+      updateFab();
+    }
+  }
+
+  // ── Handle content updates with nav data ───────
+  function handleContentUpdate(data) {
+    var payload = parseContentPayload(data);
+
+    // First message after connect/reconnect — always set as baseline (handles file switching)
+    if (isFirstWsMessage) {
+      isFirstWsMessage = false;
+      ctn.innerHTML = payload.html;
+      renderMermaid();
+      updateDocNav(payload.headings, payload.alerts);
+      reapplyFindHighlights();
+      baselineBlocks = extractBlocks(ctn);
+      clearDiffHighlights();
+      updateFab();
+      return;
+    }
+
+    if (currentMode === 'static') {
+      pendingHtml = payload.html;
+      pendingHeadings = payload.headings;
+      pendingAlerts = payload.alerts;
+      return;
+    }
+
+    if (currentMode === 'live') {
+      ctn.innerHTML = payload.html;
+      renderMermaid();
+      updateDocNav(payload.headings, payload.alerts);
+      reapplyFindHighlights();
+      baselineBlocks = extractBlocks(ctn);
+      return;
+    }
+
+    // Diff mode — debounce rapid saves
+    pendingHtml = payload.html;
+    pendingHeadings = payload.headings;
+    pendingAlerts = payload.alerts;
+    if (diffDebounceTimer) clearTimeout(diffDebounceTimer);
+    diffDebounceTimer = setTimeout(function() {
+      applyDiff(pendingHtml, pendingHeadings, pendingAlerts);
+      pendingHtml = null;
+      pendingHeadings = null;
+      pendingAlerts = null;
+      diffDebounceTimer = null;
+    }, 300);
   }
 
   // ── Picker ────────────────────────────────────
@@ -827,6 +1247,13 @@
   }
 
   document.addEventListener('keydown', function(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      if (currentMode === 'diff' && diffFab.classList.contains('visible')) {
+        e.preventDefault();
+        acceptAll();
+        return;
+      }
+    }
     if (e.key === 'Escape') {
       if (findBar && findBar.classList.contains('open')) {
         closeFindBar();
@@ -874,6 +1301,7 @@
       reconnectTimer = null;
     }
     if (ws) ws.close();
+    isFirstWsMessage = true;
     connect();
   }
 
@@ -928,4 +1356,9 @@
     connect();
   }
   renderMermaid();
+
+  // Initialize baseline for diff mode
+  if (currentPath && ctn) {
+    baselineBlocks = extractBlocks(ctn);
+  }
 })();
