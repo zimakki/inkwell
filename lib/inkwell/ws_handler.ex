@@ -5,7 +5,7 @@ defmodule Inkwell.WsHandler do
 
   @impl true
   def init(opts) do
-    path = Keyword.fetch!(opts, :path) |> Path.expand()
+    path = Keyword.fetch!(opts, :path) |> Inkwell.Watcher.resolve_path()
     Registry.register(Inkwell.Registry, {:ws_clients, path}, [])
     Inkwell.Watcher.ensure_file(path)
     Inkwell.Daemon.client_connected()
