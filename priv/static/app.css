@@ -577,6 +577,7 @@ body:has([data-theme="dark"]).drag-over::after {
 #mode-toggle {
   display: flex; align-items: center; gap: 2px;
   margin-right: 8px;
+  position: relative;
 }
 .mode-btn {
   padding: 3px 10px;
@@ -607,8 +608,8 @@ body:has([data-theme="dark"]).drag-over::after {
 .mode-info-btn:hover { background: var(--bg-hover); color: var(--text-secondary); }
 #mode-welcome-card {
   position: absolute;
-  top: 100%; left: 0;
-  margin-top: 6px;
+  top: calc(100% + 4px);
+  left: 0;
   z-index: 200;
 }
 .welcome-inner {
@@ -636,6 +637,17 @@ body:has([data-theme="dark"]).drag-over::after {
   font-size: 11px; cursor: pointer;
 }
 .welcome-dismiss:hover { background: var(--border, #45475a); }
+[data-theme="light"] .welcome-inner {
+  background: #fff;
+  border-color: #dce0e8;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+[data-theme="light"] .welcome-title { color: #4c4f69; }
+[data-theme="light"] .welcome-modes { color: #6c6f85; }
+[data-theme="light"] .welcome-modes strong { color: #4c4f69; }
+[data-theme="light"] .welcome-dismiss { background: #e6e9ef; color: #4c4f69; }
+[data-theme="light"] .welcome-dismiss:hover { background: #dce0e8; }
+[data-theme="light"] .mode-info-btn { border-color: #dce0e8; }
 .mode-btn--active {
   background: var(--accent, #cba6f7);
   color: var(--bg, #1e1e2e);

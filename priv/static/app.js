@@ -113,7 +113,7 @@
       localStorage.setItem('inkwell-mode-welcomed', 'true');
     });
     modeWelcomeCard = card;
-    modeToggle.parentElement.appendChild(card);
+    modeToggle.appendChild(card);
   }
 
   modeInfoBtn.addEventListener('click', function(e) {
