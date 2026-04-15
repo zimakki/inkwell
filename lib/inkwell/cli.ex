@@ -5,7 +5,13 @@ defmodule Inkwell.CLI do
   def main(args) do
     {opts, rest, _invalid} =
       OptionParser.parse(args,
-        strict: [theme: :string, mode: :string, help: :boolean, version: :boolean, check: :boolean],
+        strict: [
+          theme: :string,
+          mode: :string,
+          help: :boolean,
+          version: :boolean,
+          check: :boolean
+        ],
         aliases: [h: :help, v: :version]
       )
 
