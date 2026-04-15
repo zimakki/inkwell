@@ -5,7 +5,7 @@ defmodule Inkwell.CLI do
   def main(args) do
     {opts, rest, _invalid} =
       OptionParser.parse(args,
-        strict: [theme: :string, help: :boolean, version: :boolean, check: :boolean],
+        strict: [theme: :string, mode: :string, help: :boolean, version: :boolean, check: :boolean],
         aliases: [h: :help, v: :version]
       )
 
@@ -178,8 +178,10 @@ defmodule Inkwell.CLI do
           {:error, "failed to start inkwell daemon (#{inspect(reason)})"}
 
         {:ok, port} ->
+          mode = Keyword.get(opts, :mode, "diff")
+
           case http_get_json(
-                 "http://localhost:#{port}/open?path=#{URI.encode_www_form(file)}&theme=#{URI.encode_www_form(theme)}"
+                 "http://localhost:#{port}/open?path=#{URI.encode_www_form(file)}&theme=#{URI.encode_www_form(theme)}&mode=#{URI.encode_www_form(mode)}"
                ) do
             {:ok, payload} -> {:ok, payload["url"], file}
             {:error, reason} -> {:error, "failed to open preview: #{inspect(reason)}"}
