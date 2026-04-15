@@ -1,11 +1,11 @@
 <svg viewBox="0 0 1024 1024" width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Background gradient: dark theme --bg-surface → --bg -->
+    <!-- Background gradient: dark theme bg-surface to bg -->
     <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
       <stop stop-color="#1f2335"/><stop offset="1" stop-color="#16161e"/>
     </linearGradient>
 
-    <!-- Nib body: gold gradient from light tint → --h1 → --light-FAB → derived shadow -->
+    <!-- Nib body: gold gradient from light tint to h1 to light-FAB to derived shadow -->
     <linearGradient id="nib" x1="384" y1="112" x2="640" y2="912" gradientUnits="userSpaceOnUse">
       <stop stop-color="#fde68a"/>
       <stop offset="0.15" stop-color="#f5d978"/>
