@@ -540,10 +540,10 @@
           result.push({ type: 'added', newBlock: newBlocks[ni], newIndex: ni });
           ni++;
         }
-      } else if (mi >= matched.length || oi < matched[mi].ai) {
+      } else if (oi < oldBlocks.length && (mi >= matched.length || oi < matched[mi].ai)) {
         result.push({ type: 'removed', oldBlock: oldBlocks[oi], oldIndex: oi });
         oi++;
-      } else {
+      } else if (ni < newBlocks.length) {
         result.push({ type: 'added', newBlock: newBlocks[ni], newIndex: ni });
         ni++;
       }
