@@ -9,12 +9,41 @@ defmodule Inkwell.Watcher do
   end
 
   def resolve_path(path) do
-    expanded = Path.expand(path)
+    path
+    |> Path.expand()
+    |> resolve_symlinks()
+  end
 
-    case :file.read_link_all(String.to_charlist(expanded)) do
-      {:ok, resolved} -> List.to_string(resolved)
-      {:error, _} -> expanded
-    end
+  defp resolve_symlinks(path) do
+    parts = Path.split(path)
+
+    {init, rest} =
+      case parts do
+        ["/" | tail] -> {"/", tail}
+        other -> {"", other}
+      end
+
+    Enum.reduce(rest, init, fn part, acc ->
+      current = Path.join(acc, part)
+
+      case :file.read_link(String.to_charlist(current)) do
+        {:ok, target} ->
+          target = List.to_string(target)
+
+          full_target =
+            if Path.type(target) == :absolute do
+              target
+            else
+              Path.expand(target, acc)
+            end
+
+          # Recursively resolve — the target path may itself contain symlinks
+          resolve_symlinks(full_target)
+
+        {:error, _} ->
+          current
+      end
+    end)
   end
 
   def ensure_file(path) do

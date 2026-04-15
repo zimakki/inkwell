@@ -14,7 +14,8 @@ defmodule Inkwell.WatcherTest do
 
   test "ensure_file registers a file for watching", %{test_file: test_file} do
     :ok = Inkwell.Watcher.ensure_file(test_file)
-    assert test_file in Inkwell.Watcher.watched_files()
+    resolved = Inkwell.Watcher.resolve_path(test_file)
+    assert resolved in Inkwell.Watcher.watched_files()
   end
 
   test "watched_files returns all registered files", %{base: base} do
@@ -27,13 +28,13 @@ defmodule Inkwell.WatcherTest do
     Inkwell.Watcher.ensure_file(file2)
 
     watched = Inkwell.Watcher.watched_files()
-    assert file1 in watched
-    assert file2 in watched
+    assert Inkwell.Watcher.resolve_path(file1) in watched
+    assert Inkwell.Watcher.resolve_path(file2) in watched
   end
 
   test "broadcast_nav dispatches JSON to registered clients", %{test_file: test_file} do
     Inkwell.Watcher.ensure_file(test_file)
-    expanded = Path.expand(test_file)
+    expanded = Inkwell.Watcher.resolve_path(test_file)
     Registry.register(Inkwell.Registry, {:ws_clients, expanded}, [])
 
     Inkwell.Watcher.broadcast_nav("<p>Hi</p>", [%{level: 2, text: "Hi", id: "hi"}], [], expanded)
