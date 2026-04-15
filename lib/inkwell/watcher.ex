@@ -100,7 +100,8 @@ defmodule Inkwell.Watcher do
   def handle_info({:file_event, _pid, {changed_path, events}}, state) do
     expanded = resolve_path(changed_path)
 
-    if MapSet.member?(state.files, expanded) and :modified in events do
+    if MapSet.member?(state.files, expanded) and
+         Enum.any?(events, &(&1 in [:modified, :renamed, :created])) do
       Logger.debug("File changed: #{expanded}")
 
       case File.read(expanded) do
