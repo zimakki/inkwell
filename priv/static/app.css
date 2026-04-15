@@ -587,7 +587,55 @@ body:has([data-theme="dark"]).drag-over::after {
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
+.mode-btn .mode-icon { font-size: 10px; }
+.mode-btn .header-tooltip {
+  top: 100%; bottom: auto; margin-top: 6px;
+}
 .mode-btn:hover { background: var(--border); color: var(--text-secondary); }
+.mode-info-btn {
+  width: 18px; height: 18px;
+  border: 1px solid var(--border, #45475a);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10px; font-style: italic; font-family: Georgia, serif;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  margin-left: 4px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.mode-info-btn:hover { background: var(--bg-hover); color: var(--text-secondary); }
+#mode-welcome-card {
+  position: absolute;
+  top: 100%; left: 0;
+  margin-top: 6px;
+  z-index: 200;
+}
+.welcome-inner {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--bg-secondary, #313244);
+  border: 1px solid var(--border, #45475a);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  min-width: 260px;
+}
+.welcome-wave { font-size: 14px; margin-top: 1px; }
+.welcome-body { flex: 1; }
+.welcome-title { font-weight: 600; color: var(--text-primary, #cdd6f4); margin-bottom: 6px; }
+.welcome-modes { display: flex; flex-direction: column; gap: 4px; color: var(--text-muted, #a6adc8); }
+.welcome-modes strong { color: var(--text-primary, #cdd6f4); }
+.welcome-default { opacity: 0.6; }
+.welcome-actions { margin-top: 8px; display: flex; justify-content: flex-end; }
+.welcome-dismiss {
+  padding: 4px 12px;
+  background: var(--bg-hover, #585b70);
+  color: var(--text-primary, #cdd6f4);
+  border: none; border-radius: 4px;
+  font-size: 11px; cursor: pointer;
+}
+.welcome-dismiss:hover { background: var(--border, #45475a); }
 .mode-btn--active {
   background: var(--accent, #cba6f7);
   color: var(--bg, #1e1e2e);

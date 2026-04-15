@@ -59,19 +59,71 @@
   mermaid.initialize({ startOnLoad: false, theme: currentTheme === 'dark' ? 'dark' : 'default' });
 
   // ── Build mode toggle ──
+  var modeIcons = { static: '\u23F8', live: '\u21BB', diff: '\u25D1' };
   var modeToggle = document.createElement('div');
   modeToggle.id = 'mode-toggle';
   ['static', 'live', 'diff'].forEach(function(mode) {
     var btn = document.createElement('button');
     btn.className = 'mode-btn' + (mode === currentMode ? ' mode-btn--active' : '');
-    btn.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+    btn.innerHTML = '<span class="mode-icon">' + modeIcons[mode] + '</span> ' + mode.charAt(0).toUpperCase() + mode.slice(1);
     btn.dataset.mode = mode;
     btn.addEventListener('click', function() { switchMode(mode); });
+    var tip = document.createElement('span');
+    tip.className = 'header-tooltip';
+    tip.textContent = mode === 'static' ? 'Freeze view' : mode === 'live' ? 'Auto-update on save' : 'Highlight changes';
+    btn.appendChild(tip);
     modeToggle.appendChild(btn);
   });
+
+  // Info button to show/re-show welcome card
+  var modeInfoBtn = document.createElement('button');
+  modeInfoBtn.className = 'mode-info-btn';
+  modeInfoBtn.innerHTML = 'i';
+  modeInfoBtn.title = 'About view modes';
+  modeToggle.appendChild(modeInfoBtn);
+
   var headerActions = document.getElementById('header-actions');
   if (headerActions && currentPath) {
     headerActions.insertBefore(modeToggle, headerActions.firstChild);
+  }
+
+  // ── Welcome card ──
+  var modeWelcomeCard = null;
+
+  function buildWelcomeCard() {
+    if (modeWelcomeCard) { modeWelcomeCard.remove(); modeWelcomeCard = null; return; }
+    var card = document.createElement('div');
+    card.id = 'mode-welcome-card';
+    card.innerHTML =
+      '<div class="welcome-inner">' +
+        '<span class="welcome-wave">\uD83D\uDC4B</span>' +
+        '<div class="welcome-body">' +
+          '<div class="welcome-title">View Modes</div>' +
+          '<div class="welcome-modes">' +
+            '<div><strong>' + modeIcons.static + ' Static</strong> \u2014 Freeze the current view</div>' +
+            '<div><strong>' + modeIcons.live + ' Live</strong> \u2014 Auto-update when the file changes</div>' +
+            '<div><strong style="color:#a6e3a1;">' + modeIcons.diff + ' Diff</strong> \u2014 Highlight what changed <span class="welcome-default">(default)</span></div>' +
+          '</div>' +
+          '<div class="welcome-actions"><button class="welcome-dismiss">Got it</button></div>' +
+        '</div>' +
+      '</div>';
+    card.querySelector('.welcome-dismiss').addEventListener('click', function() {
+      card.remove();
+      modeWelcomeCard = null;
+      localStorage.setItem('inkwell-mode-welcomed', 'true');
+    });
+    modeWelcomeCard = card;
+    modeToggle.parentElement.appendChild(card);
+  }
+
+  modeInfoBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    buildWelcomeCard();
+  });
+
+  // Show on first visit
+  if (currentPath && !localStorage.getItem('inkwell-mode-welcomed')) {
+    setTimeout(buildWelcomeCard, 300);
   }
 
   // ── Build global accept FAB ──
