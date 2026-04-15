@@ -10,11 +10,11 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tauri::menu::{AboutMetadataBuilder, MenuBuilder, SubmenuBuilder};
 use tauri::{AppHandle, Manager, Runtime};
-use update_ui::{inject_toast, PendingUpdate, UpdateBannerState};
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_updater::{Update, UpdaterExt};
+use update_ui::{inject_toast, PendingUpdate, UpdateBannerState};
 
 mod update_ui;
 
@@ -147,8 +147,7 @@ fn navigate_to_url(app: &tauri::AppHandle, url: String) -> Result<(), String> {
             let pending = app_clone.state::<PendingUpdate>();
             let banner_state = pending.banner_state.lock().unwrap().clone();
             match banner_state {
-                update_ui::UpdateBannerState::None
-                | update_ui::UpdateBannerState::Dismissed => {}
+                update_ui::UpdateBannerState::None | update_ui::UpdateBannerState::Dismissed => {}
                 _ => update_ui::inject_update_banner(&app_clone, &banner_state),
             }
         });
@@ -296,10 +295,7 @@ fn trigger_update_check(app: AppHandle, mode: UpdateCheckMode) {
     });
 }
 
-async fn run_update_check(
-    app: &AppHandle,
-    mode: UpdateCheckMode,
-) -> Result<(), String> {
+async fn run_update_check(app: &AppHandle, mode: UpdateCheckMode) -> Result<(), String> {
     if mode == UpdateCheckMode::Startup {
         tokio::time::sleep(Duration::from_secs(10)).await;
     }

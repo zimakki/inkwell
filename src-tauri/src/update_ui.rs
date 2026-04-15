@@ -291,10 +291,7 @@ pub fn inject_toast(app: &AppHandle, message: &str) {
 use tauri::State;
 
 #[tauri::command]
-pub async fn accept_update(
-    app: AppHandle,
-    state: State<'_, PendingUpdate>,
-) -> Result<(), String> {
+pub async fn accept_update(app: AppHandle, state: State<'_, PendingUpdate>) -> Result<(), String> {
     {
         let banner = state.banner_state.lock().unwrap();
         if matches!(*banner, UpdateBannerState::Downloading { .. }) {
@@ -358,10 +355,7 @@ pub async fn accept_update(
 }
 
 #[tauri::command]
-pub async fn dismiss_update(
-    app: AppHandle,
-    state: State<'_, PendingUpdate>,
-) -> Result<(), String> {
+pub async fn dismiss_update(app: AppHandle, state: State<'_, PendingUpdate>) -> Result<(), String> {
     let mut banner = state.banner_state.lock().unwrap();
     *banner = UpdateBannerState::Dismissed;
     inject_update_banner(&app, &banner);
@@ -372,10 +366,7 @@ pub async fn dismiss_update(
 pub async fn restart_after_update(app: AppHandle) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        let app_name = app
-            .package_info()
-            .name
-            .clone();
+        let app_name = app.package_info().name.clone();
         std::thread::spawn(move || {
             // Stop the daemon before exiting so it is not orphaned.
             if let Some(port) = read_port() {
