@@ -1,0 +1,129 @@
+<svg viewBox="0 0 1024 1024" width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background gradient: dark theme --bg-surface → --bg -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1f2335"/><stop offset="1" stop-color="#16161e"/>
+    </linearGradient>
+
+    <!-- Nib body: gold gradient from light tint → --h1 → --light-FAB → derived shadow -->
+    <linearGradient id="nib" x1="384" y1="112" x2="640" y2="912" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fde68a"/>
+      <stop offset="0.15" stop-color="#f5d978"/>
+      <stop offset="0.35" stop-color="#f0c674"/>
+      <stop offset="0.6" stop-color="#d4a84a"/>
+      <stop offset="0.85" stop-color="#b8892e"/>
+      <stop offset="1" stop-color="#8f6e39"/>
+    </linearGradient>
+
+    <!-- Left face specular highlight -->
+    <linearGradient id="hl" x1="384" y1="144" x2="544" y2="800" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity="0.4"/>
+      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.15"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Right face shadow -->
+    <linearGradient id="rs" x1="560" y1="432" x2="640" y2="896" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6d4f10" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#4a3508" stop-opacity="0.5"/>
+    </linearGradient>
+
+    <!-- Shoulder highlight -->
+    <linearGradient id="shoulder" x1="336" y1="400" x2="688" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fde68a" stop-opacity="0.3"/>
+      <stop offset="0.5" stop-color="#f0c674" stop-opacity="0.15"/>
+      <stop offset="1" stop-color="#d4a84a" stop-opacity="0.3"/>
+    </linearGradient>
+
+    <!-- Ambient glow -->
+    <radialGradient id="glow" cx="512" cy="512" r="320" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f0c674" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#f0c674" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Center slit gradient -->
+    <linearGradient id="slit" x1="512" y1="528" x2="512" y2="888" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6d4f10" stop-opacity="0.4"/>
+      <stop offset="0.5" stop-color="#4a3508" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#2a1f05" stop-opacity="0.8"/>
+    </linearGradient>
+
+    <!-- Drop glow -->
+    <radialGradient id="dropglow" cx="512" cy="912" r="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f0c674" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#f0c674" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Filters -->
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="nibglow" x="-20%" y="-10%" width="140%" height="120%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="24" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="0.9 0.2 0 0 0  0.7 0.5 0 0 0  0 0 0 0 0  0 0 0 0.15 0" result="glow"/>
+      <feComposite in="SourceGraphic" in2="glow" operator="over"/>
+    </filter>
+    <filter id="dropshadow">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#f0c674" flood-opacity="0.35"/>
+    </filter>
+
+    <clipPath id="clip">
+      <rect x="64" y="64" width="896" height="896" rx="200"/>
+    </clipPath>
+  </defs>
+
+  <!-- macOS rounded rect background -->
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <!-- Background inner edge -->
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="none" stroke="#0a0c14" stroke-width="2" opacity="0.5"/>
+
+  <!-- Ambient glow behind nib -->
+  <ellipse cx="512" cy="512" rx="320" ry="320" fill="url(#glow)" clip-path="url(#clip)"/>
+
+  <g filter="url(#nibglow)" clip-path="url(#clip)">
+    <g filter="url(#shadow)">
+      <!-- Main nib body -->
+      <path d="M512 120 L656 432 L624 488 L568 536 L512 904 L456 536 L400 488 L368 432 Z" fill="url(#nib)"/>
+
+      <!-- Left face highlight -->
+      <path d="M512 120 L368 432 L400 488 L456 536 L512 904 L488 536 L432 488 L408 432 Z" fill="url(#hl)"/>
+
+      <!-- Right face shadow -->
+      <path d="M656 432 L624 488 L568 536 L512 904 L544 536 L592 488 L616 432 Z" fill="url(#rs)"/>
+
+      <!-- Shoulder band -->
+      <path d="M368 432 L328 412 L512 120 L696 412 L656 432 Z" fill="url(#shoulder)"/>
+      <line x1="368" y1="432" x2="656" y2="432" stroke="#b8892e" stroke-width="4.8" opacity="0.4"/>
+
+      <!-- Shoulder top edge highlight -->
+      <path d="M512 120 L328 412 L336 420 L512 136 L688 420 L696 412 Z" fill="#fde68a" opacity="0.1"/>
+
+      <!-- Center slit -->
+      <line x1="512" y1="544" x2="512" y2="896" stroke="url(#slit)" stroke-width="10"/>
+
+      <!-- Breather hole -->
+      <circle cx="512" cy="520" r="20" fill="#2f334d" opacity="0.7"/>
+      <circle cx="512" cy="520" r="14" fill="#1a1e30" opacity="0.6"/>
+      <circle cx="508" cy="516" r="6" fill="#3b4261" opacity="0.3"/>
+
+      <!-- Fine engrave lines on nib face -->
+      <line x1="472" y1="560" x2="480" y2="720" stroke="#d4a84a" stroke-width="2" opacity="0.15"/>
+      <line x1="552" y1="560" x2="544" y2="720" stroke="#8f6e39" stroke-width="2" opacity="0.15"/>
+
+      <!-- Tip tines -->
+      <path d="M504 840 L512 904 L496 872 Z" fill="#8f6e39" opacity="0.3"/>
+      <path d="M520 840 L512 904 L528 872 Z" fill="#fde68a" opacity="0.1"/>
+    </g>
+  </g>
+
+  <!-- Ink drop at tip -->
+  <g filter="url(#dropshadow)" clip-path="url(#clip)">
+    <circle cx="512" cy="912" r="32" fill="url(#dropglow)"/>
+    <ellipse cx="512" cy="916" rx="22" ry="16" fill="#f0c674" opacity="0.75"/>
+    <ellipse cx="504" cy="908" rx="8" ry="6" fill="#fde68a" opacity="0.5"/>
+  </g>
+
+  <!-- Top edge highlight on rounded rect -->
+  <rect x="68" y="68" width="888" height="4" rx="2" fill="#ffffff" opacity="0.05" clip-path="url(#clip)"/>
+</svg>
