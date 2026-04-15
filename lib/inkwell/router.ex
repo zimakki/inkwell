@@ -24,10 +24,11 @@ defmodule Inkwell.Router do
           Inkwell.History.push(file_path)
 
           theme = :persistent_term.get(:inkwell_theme, "dark")
+          mode = conn.query_params["mode"] || "diff"
           markdown = File.read!(file_path)
           {html, headings, alerts} = Inkwell.Renderer.render_with_nav(markdown)
           filename = Path.basename(file_path)
-          page = html_page(html, headings, alerts, filename, theme, file_path)
+          page = html_page(html, headings, alerts, filename, theme, file_path, mode)
 
           conn
           |> put_resp_content_type("text/html")
@@ -84,6 +85,7 @@ defmodule Inkwell.Router do
     conn = Plug.Conn.fetch_query_params(conn)
     path = conn.query_params["path"]
     theme = conn.query_params["theme"]
+    mode = conn.query_params["mode"] || "diff"
 
     Logger.debug("Opening file: #{path}")
 
@@ -91,7 +93,7 @@ defmodule Inkwell.Router do
       {:ok, payload} ->
         conn
         |> put_resp_content_type("application/json")
-        |> send_resp(200, Jason.encode!(payload))
+        |> send_resp(200, Jason.encode!(Map.put(payload, :mode, mode)))
 
       {:error, {status, message}} ->
         send_resp(conn, status, message)
@@ -439,7 +441,7 @@ defmodule Inkwell.Router do
     """
   end
 
-  defp html_page(content, headings, alerts, filename, theme, current_path) do
+  defp html_page(content, headings, alerts, filename, theme, current_path, mode) do
     safe_filename = Plug.HTML.html_escape(filename)
     safe_current_path = Plug.HTML.html_escape(current_path)
 
@@ -470,7 +472,7 @@ defmodule Inkwell.Router do
       <link rel="stylesheet" href="/static/app.css">
       <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     </head>
-    <body data-current-path="#{safe_current_path}" data-rel-dir="#{safe_rel_dir}" data-nav="#{nav_data_json}">
+    <body data-current-path="#{safe_current_path}" data-rel-dir="#{safe_rel_dir}" data-nav="#{nav_data_json}" data-mode="#{Plug.HTML.html_escape(mode)}">
       <div data-theme="#{theme}">
         <div id="page-header">
           <div id="header-actions">

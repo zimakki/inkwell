@@ -25,7 +25,7 @@ defmodule Inkwell.WsHandlerTest do
   test "init expands the path in state", %{test_file: test_file} do
     {:push, _, state} = Inkwell.WsHandler.init(path: test_file)
 
-    assert state.path == Path.expand(test_file)
+    assert state.path == Inkwell.Watcher.resolve_path(test_file)
   end
 
   test "init registers client in Registry", %{test_file: test_file} do

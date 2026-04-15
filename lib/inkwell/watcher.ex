@@ -8,8 +8,46 @@ defmodule Inkwell.Watcher do
     GenServer.start_link(__MODULE__, dir)
   end
 
+  def resolve_path(path) do
+    path
+    |> Path.expand()
+    |> resolve_symlinks()
+  end
+
+  defp resolve_symlinks(path) do
+    parts = Path.split(path)
+
+    {init, rest} =
+      case parts do
+        ["/" | tail] -> {"/", tail}
+        other -> {"", other}
+      end
+
+    Enum.reduce(rest, init, fn part, acc ->
+      current = Path.join(acc, part)
+
+      case :file.read_link(String.to_charlist(current)) do
+        {:ok, target} ->
+          target = List.to_string(target)
+
+          full_target =
+            if Path.type(target) == :absolute do
+              target
+            else
+              Path.expand(target, acc)
+            end
+
+          # Recursively resolve — the target path may itself contain symlinks
+          resolve_symlinks(full_target)
+
+        {:error, _} ->
+          current
+      end
+    end)
+  end
+
   def ensure_file(path) do
-    path = Path.expand(path)
+    path = resolve_path(path)
     dir = Path.dirname(path)
 
     case Registry.lookup(Inkwell.Registry, {:watcher, dir}) do
@@ -89,9 +127,10 @@ defmodule Inkwell.Watcher do
 
   @impl true
   def handle_info({:file_event, _pid, {changed_path, events}}, state) do
-    expanded = Path.expand(changed_path)
+    expanded = resolve_path(changed_path)
 
-    if MapSet.member?(state.files, expanded) and :modified in events do
+    if MapSet.member?(state.files, expanded) and
+         Enum.any?(events, &(&1 in [:modified, :renamed, :created])) do
       Logger.debug("File changed: #{expanded}")
 
       case File.read(expanded) do
