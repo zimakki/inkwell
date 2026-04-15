@@ -705,6 +705,9 @@ body:has([data-theme="dark"]).drag-over::after {
 #diff-accept-fab .accept-all-btn .shortcut {
   font-size: 10px; opacity: 0.6;
 }
+@media (max-width: 1023px) {
+  #diff-accept-fab { bottom: 70px; }
+}
 
 /* ── Diff block fade-out animation ── */
 .inkwell-diff-fade-out {
