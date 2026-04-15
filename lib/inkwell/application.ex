@@ -9,7 +9,7 @@ defmodule Inkwell.Application do
   def parse_mode(args) do
     {opts, rest, _invalid} =
       OptionParser.parse(args,
-        strict: [theme: :string, help: :boolean, version: :boolean, check: :boolean],
+        strict: [theme: :string, help: :boolean, version: :boolean],
         aliases: [h: :help, v: :version]
       )
 
@@ -35,9 +35,6 @@ defmodule Inkwell.Application do
 
           ["status"] ->
             {:client, %{command: :status}}
-
-          ["update"] ->
-            {:client, %{command: :update, check_only: Keyword.get(opts, :check, false)}}
 
           [dir] ->
             {:client, %{command: :browse, dir: dir, theme: theme}}
@@ -76,7 +73,6 @@ defmodule Inkwell.Application do
             {Registry, keys: :duplicate, name: Inkwell.Registry},
             {Inkwell.History, []},
             {Inkwell.Daemon, []},
-            {Inkwell.UpdateChecker, []},
             {DynamicSupervisor, strategy: :one_for_one, name: Inkwell.WatcherSupervisor},
             Supervisor.child_spec({Bandit, plug: Inkwell.Router, port: 0},
               id: Inkwell.BanditServer

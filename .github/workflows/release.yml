@@ -44,72 +44,6 @@ jobs:
             echo "created=true" >> "$GITHUB_OUTPUT"
           fi
 
-  build-cli:
-    name: Build CLI (${{ matrix.target }})
-    needs: [tag]
-    if: |
-      always() &&
-      (github.ref_type == 'tag' || needs.tag.outputs.tag_created == 'true')
-    strategy:
-      matrix:
-        include:
-          - os: macos-14
-            target: darwin_arm64
-          - os: macos-15-intel
-            target: darwin_amd64
-          - os: ubuntu-latest
-            target: linux_amd64
-    runs-on: ${{ matrix.os }}
-
-    env:
-      MIX_ENV: prod
-      MIX_HOME: ${{ github.workspace }}/.mix
-      HEX_HOME: ${{ github.workspace }}/.hex
-      BURRITO_TARGET: ${{ matrix.target }}
-
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.ref_type == 'tag' && github.ref || format('v{0}', needs.tag.outputs.version) }}
-
-      - name: Set up Elixir
-        uses: erlef/setup-beam@v1
-        with:
-          elixir-version: "1.19"
-          otp-version: "27.3.4.8"
-
-      - name: Install Zig
-        uses: goto-bus-stop/setup-zig@v2
-        with:
-          version: 0.15.2
-
-      - name: Install xz (macOS)
-        if: runner.os == 'macOS'
-        run: brew install xz
-
-      - name: Cache Mix deps
-        uses: actions/cache@v5
-        with:
-          path: |
-            ${{ github.workspace }}/.mix
-            ${{ github.workspace }}/.hex
-            deps
-            _build
-          key: cli-mix-${{ matrix.target }}-${{ hashFiles('mix.lock') }}
-          restore-keys: cli-mix-${{ matrix.target }}-
-
-      - name: Install dependencies
-        run: mix deps.get --only prod
-
-      - name: Build release
-        run: mix release
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: inkwell_${{ matrix.target }}
-          path: burrito_out/inkwell_${{ matrix.target }}
-
   build-desktop:
     name: Build Desktop (${{ matrix.target }})
     needs: [tag]
@@ -207,13 +141,10 @@ jobs:
 
   release:
     name: Create GitHub Release
-    needs: [tag, build-cli, build-desktop]
+    needs: [tag, build-desktop]
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
-      sha256_darwin_arm64: ${{ steps.sha.outputs.sha256_darwin_arm64 }}
-      sha256_darwin_amd64: ${{ steps.sha.outputs.sha256_darwin_amd64 }}
-      sha256_linux_amd64: ${{ steps.sha.outputs.sha256_linux_amd64 }}
       sha256_darwin_arm64_dmg: ${{ steps.sha.outputs.sha256_darwin_arm64_dmg }}
       sha256_darwin_amd64_dmg: ${{ steps.sha.outputs.sha256_darwin_amd64_dmg }}
 
@@ -232,23 +163,10 @@ jobs:
       - name: Compute SHA256s
         id: sha
         run: |
-          for target in darwin_arm64 darwin_amd64 linux_amd64; do
-            sha=$(sha256sum "inkwell_${target}/inkwell_${target}" | awk '{print $1}')
-            echo "sha256_${target}=$sha" >> "$GITHUB_OUTPUT"
-            echo "$target: $sha"
-          done
-
           for target in darwin_arm64 darwin_amd64; do
             sha=$(sha256sum "inkwell_desktop_${target}/Inkwell_${target}.dmg" | awk '{print $1}')
             echo "sha256_${target}_dmg=$sha" >> "$GITHUB_OUTPUT"
             echo "${target}_dmg: $sha"
-          done
-
-      - name: Create checksums.txt
-        run: |
-          : > checksums.txt
-          for target in darwin_arm64 darwin_amd64 linux_amd64; do
-            (cd "inkwell_${target}" && sha256sum "inkwell_${target}") >> checksums.txt
           done
 
       - name: Generate latest.json
@@ -282,39 +200,22 @@ jobs:
               }
             }' > latest.json
 
-      - name: Make binaries executable
-        run: chmod +x inkwell_*/inkwell_*
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           files: |
-            inkwell_*/inkwell_*
             inkwell_desktop_*/*.dmg
             inkwell_desktop_*/*.app.tar.gz
             inkwell_desktop_*/*.app.tar.gz.sig
             latest.json
-            checksums.txt
           body: |
             ## Install
 
-            ### Desktop App + CLI (macOS)
             ```bash
             brew tap zimakki/tap
             brew install --cask inkwell
             ```
-
-            ### CLI only
-            ```bash
-            brew tap zimakki/tap
-            brew install inkwell-cli
-            ```
-
-            ### Manual
-            - Desktop app: download the macOS `.dmg` below.
-            - CLI: download the binary for your platform below and place it in your `$PATH`.
-            - No Erlang runtime required — it's bundled.
 
   update-tap:
     name: Update Homebrew Tap
@@ -336,11 +237,7 @@ jobs:
 
       - name: Update formula
         run: |
-          rm -f homebrew-tap/Formula/inkwell.rb
           sed -e 's/__VERSION__/${{ needs.release.outputs.version }}/g' \
-              -e 's/__SHA256_DARWIN_ARM64__/${{ needs.release.outputs.sha256_darwin_arm64 }}/g' \
-              -e 's/__SHA256_DARWIN_AMD64__/${{ needs.release.outputs.sha256_darwin_amd64 }}/g' \
-              -e 's/__SHA256_LINUX_AMD64__/${{ needs.release.outputs.sha256_linux_amd64 }}/g' \
               inkwell/.github/formula-template.rb \
               > homebrew-tap/Formula/inkwell-cli.rb
 

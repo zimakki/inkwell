@@ -9,8 +9,7 @@ defmodule Inkwell.CLI do
           theme: :string,
           mode: :string,
           help: :boolean,
-          version: :boolean,
-          check: :boolean
+          version: :boolean
         ],
         aliases: [h: :help, v: :version]
       )
@@ -39,9 +38,6 @@ defmodule Inkwell.CLI do
           ["status"] ->
             run_status()
 
-          ["update"] ->
-            run_update_command(Keyword.get(opts, :check, false))
-
           [] ->
             IO.puts(help_text())
 
@@ -64,7 +60,6 @@ defmodule Inkwell.CLI do
       {:ok, url, path} ->
         open_file(url, path)
         IO.puts(url)
-        maybe_print_update_notice()
         System.halt(0)
 
       {:error, msg} ->
@@ -97,7 +92,6 @@ defmodule Inkwell.CLI do
       {:ok, url} ->
         system_open(url)
         IO.puts(url)
-        maybe_print_update_notice()
         System.halt(0)
 
       {:error, msg} ->
@@ -116,11 +110,6 @@ defmodule Inkwell.CLI do
     System.halt(0)
   end
 
-  def run_client_command(%{command: :update, check_only: check_only}) do
-    run_update_command(check_only)
-    System.halt(0)
-  end
-
   def run_client_command(%{command: :usage}) do
     IO.puts(help_text())
     System.halt(0)
@@ -135,7 +124,6 @@ defmodule Inkwell.CLI do
       {:ok, url, path} ->
         open_file(url, path)
         IO.puts(url)
-        maybe_print_update_notice()
 
       {:error, msg} ->
         IO.puts("Error: #{msg}")
@@ -257,21 +245,18 @@ defmodule Inkwell.CLI do
     Usage:
       inkwell <directory>            Open file picker for a directory
       inkwell preview <file.md>      Preview a specific markdown file
-      inkwell update [--check]       Check for updates or self-update
       inkwell stop                   Stop the daemon
       inkwell status                 Show daemon status
 
     Options:
       --theme dark|light             Set the theme (default: dark)
-      --check                        Check for updates without installing
       --help, -h                     Show this help message
       --version, -v                  Show the version
 
     Examples:
       inkwell .                      Browse current directory
       inkwell ~/Documents            Browse a specific directory
-      inkwell preview README.md      Preview README.md
-      inkwell update --check         Check for a newer version\
+      inkwell preview README.md      Preview README.md\
     """
   end
 
@@ -285,65 +270,6 @@ defmodule Inkwell.CLI do
     IO.puts(help_text())
     System.halt(exit_code)
   end
-
-  defp run_update_command(check_only) do
-    result =
-      if check_only do
-        Inkwell.Updater.check()
-      else
-        Inkwell.Updater.update()
-      end
-
-    case result do
-      {:update_available, %{current: current, latest: latest, install_method: :homebrew}} ->
-        IO.puts("A new version of inkwell is available (#{current} -> #{latest}).")
-        IO.puts("Run `#{Inkwell.Updater.brew_upgrade_command()}` to upgrade.")
-
-      {:update_available, %{current: current, latest: latest}} ->
-        IO.puts("A new version of inkwell is available (#{current} -> #{latest}).")
-
-      {:up_to_date, %{current: current}} ->
-        IO.puts("inkwell #{current} is already up to date.")
-
-      {:homebrew, command} ->
-        IO.puts("inkwell was installed with Homebrew.")
-        IO.puts("Run `#{command}` to upgrade.")
-
-      {:updated, %{current: current, latest: latest}} ->
-        IO.puts("Updated inkwell from #{current} to #{latest}.")
-
-      {:error, reason} ->
-        IO.puts(:stderr, "Update failed: #{format_update_error(reason)}")
-        System.halt(1)
-    end
-  end
-
-  defp maybe_print_update_notice do
-    with {:ok, %{latest: latest}} <- Inkwell.UpdateChecker.cached_info(),
-         current <- Application.spec(:inkwell, :vsn) |> to_string(),
-         :gt <- Version.compare(latest, current),
-         {:ok, executable} <- Inkwell.Updater.current_executable() do
-      message =
-        case Inkwell.Updater.install_method(executable) do
-          :homebrew ->
-            "A new version of inkwell is available (#{current} -> #{latest}). Run '#{Inkwell.Updater.brew_upgrade_command()}' to upgrade."
-
-          :direct ->
-            "A new version of inkwell is available (#{current} -> #{latest}). Run `inkwell update` to upgrade."
-        end
-
-      IO.puts(:stderr, message)
-    else
-      _ -> :ok
-    end
-  end
-
-  defp format_update_error({:missing_asset, name}), do: "release asset not found: #{name}"
-  defp format_update_error({:missing_checksum, name}), do: "checksum not found for #{name}"
-  defp format_update_error(:checksum_mismatch), do: "download checksum mismatch"
-  defp format_update_error(:unsupported_platform), do: "unsupported platform"
-  defp format_update_error(:missing_tag_name), do: "release metadata is missing tag_name"
-  defp format_update_error(other), do: inspect(other)
 
   defp http_get_json(url) do
     :inets.start()
