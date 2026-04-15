@@ -8,8 +8,17 @@ defmodule Inkwell.Watcher do
     GenServer.start_link(__MODULE__, dir)
   end
 
+  def resolve_path(path) do
+    expanded = Path.expand(path)
+
+    case :file.read_link_all(String.to_charlist(expanded)) do
+      {:ok, resolved} -> List.to_string(resolved)
+      {:error, _} -> expanded
+    end
+  end
+
   def ensure_file(path) do
-    path = Path.expand(path)
+    path = resolve_path(path)
     dir = Path.dirname(path)
 
     case Registry.lookup(Inkwell.Registry, {:watcher, dir}) do
@@ -89,7 +98,7 @@ defmodule Inkwell.Watcher do
 
   @impl true
   def handle_info({:file_event, _pid, {changed_path, events}}, state) do
-    expanded = Path.expand(changed_path)
+    expanded = resolve_path(changed_path)
 
     if MapSet.member?(state.files, expanded) and :modified in events do
       Logger.debug("File changed: #{expanded}")
