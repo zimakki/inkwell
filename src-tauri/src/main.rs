@@ -14,6 +14,9 @@ use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_updater::{Update, UpdaterExt};
+use update_ui::{inject_toast, PendingUpdate, UpdateBannerState};
+
+mod update_ui;
 
 const CHECK_FOR_UPDATES_MENU_ID: &str = "check-for-updates";
 
@@ -29,7 +32,7 @@ fn inkwell_dir() -> PathBuf {
         .join(".inkwell")
 }
 
-fn read_port() -> Option<u16> {
+pub fn read_port() -> Option<u16> {
     let port_file = inkwell_dir().join("port");
     fs::read_to_string(port_file)
         .ok()
@@ -61,7 +64,7 @@ fn daemon_version(port: u16) -> Option<String> {
     json.get("version")?.as_str().map(String::from)
 }
 
-fn stop_daemon(port: u16) {
+pub fn stop_daemon(port: u16) {
     let _ = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(2))
         .build()
@@ -137,6 +140,18 @@ fn navigate_to_url(app: &tauri::AppHandle, url: String) -> Result<(), String> {
             .navigate(url.parse::<tauri::Url>().map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
         let _ = window.set_focus();
+
+        let app_clone = app.clone();
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            let pending = app_clone.state::<PendingUpdate>();
+            let banner_state = pending.banner_state.lock().unwrap().clone();
+            match banner_state {
+                update_ui::UpdateBannerState::None | update_ui::UpdateBannerState::Dismissed => {}
+                _ => update_ui::inject_update_banner(&app_clone, &banner_state),
+            }
+        });
+
         return Ok(());
     }
 
@@ -231,22 +246,6 @@ fn run_osascript(script: &str, args: &[&str]) -> Result<String, String> {
 }
 
 #[cfg(target_os = "macos")]
-fn show_info_dialog<R: Runtime>(_app: &AppHandle<R>, title: &str, message: &str) {
-    let _ = run_osascript(
-        r#"on run argv
-set dialogMessage to item 1 of argv
-set dialogTitle to item 2 of argv
-display dialog dialogMessage with title dialogTitle buttons {"OK"} default button "OK" with icon note
-return "OK"
-end run"#,
-        &[message, title],
-    );
-}
-
-#[cfg(not(target_os = "macos"))]
-fn show_info_dialog<R: Runtime>(_app: &AppHandle<R>, _title: &str, _message: &str) {}
-
-#[cfg(target_os = "macos")]
 fn show_error_dialog<R: Runtime>(_app: &AppHandle<R>, title: &str, message: &str) {
     let _ = run_osascript(
         r#"on run argv
@@ -264,51 +263,22 @@ fn show_error_dialog<R: Runtime>(_app: &AppHandle<R>, title: &str, message: &str
     eprintln!("{title}: {message}");
 }
 
-#[cfg(target_os = "macos")]
-fn ask_to_install_update<R: Runtime>(_app: &AppHandle<R>, title: &str, message: &str) -> bool {
-    run_osascript(
-        r#"on run argv
-set dialogMessage to item 1 of argv
-set dialogTitle to item 2 of argv
-set buttonName to button returned of (display dialog dialogMessage with title dialogTitle buttons {"Later", "Install"} default button "Install" cancel button "Later" with icon note)
-return buttonName
-end run"#,
-        &[message, title],
-    )
-    .map(|button| button == "Install")
-    .unwrap_or(false)
-}
-
-// Non-macOS: no native dialog available, so updates are never auto-installed.
-// To support Linux/Windows in the future, implement platform-specific dialogs here.
-#[cfg(not(target_os = "macos"))]
-fn ask_to_install_update<R: Runtime>(_app: &AppHandle<R>, _title: &str, _message: &str) -> bool {
-    false
-}
-
-fn update_prompt_message(update: &Update) -> String {
-    let mut message = format!(
-        "Inkwell {} is available. You’re currently on {}.",
-        update.version, update.current_version
-    );
-
-    if let Some(body) = update
-        .body
-        .as_deref()
-        .map(str::trim)
-        .filter(|body| !body.is_empty())
-    {
-        message.push_str("\n\nRelease notes:\n");
-        message.push_str(body);
-    }
-
-    message.push_str("\n\nInstall the update now?");
-    message
-}
-
 static UPDATE_CHECK_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
-fn trigger_update_check<R: Runtime>(app: AppHandle<R>, mode: UpdateCheckMode) {
+fn notify_update_available(app: &AppHandle, update: Update) {
+    let pending = app.state::<PendingUpdate>();
+    let version = update.version.clone();
+    let current_version = update.current_version.clone();
+    *pending.update.lock().unwrap() = Some(update);
+    let state = UpdateBannerState::Available {
+        version,
+        current_version,
+    };
+    *pending.banner_state.lock().unwrap() = state.clone();
+    update_ui::inject_update_banner(app, &state);
+}
+
+fn trigger_update_check(app: AppHandle, mode: UpdateCheckMode) {
     if UPDATE_CHECK_IN_PROGRESS.swap(true, Ordering::SeqCst) {
         return;
     }
@@ -316,7 +286,7 @@ fn trigger_update_check<R: Runtime>(app: AppHandle<R>, mode: UpdateCheckMode) {
     tauri::async_runtime::spawn(async move {
         if let Err(error) = run_update_check(&app, mode).await {
             if mode == UpdateCheckMode::Manual {
-                show_error_dialog(&app, "Update Check Failed", &error);
+                inject_toast(&app, &format!("Could not check for updates: {}", error));
             } else {
                 eprintln!("Startup update check failed: {error}");
             }
@@ -325,10 +295,7 @@ fn trigger_update_check<R: Runtime>(app: AppHandle<R>, mode: UpdateCheckMode) {
     });
 }
 
-async fn run_update_check<R: Runtime + 'static>(
-    app: &AppHandle<R>,
-    mode: UpdateCheckMode,
-) -> Result<(), String> {
+async fn run_update_check(app: &AppHandle, mode: UpdateCheckMode) -> Result<(), String> {
     if mode == UpdateCheckMode::Startup {
         tokio::time::sleep(Duration::from_secs(10)).await;
     }
@@ -337,60 +304,17 @@ async fn run_update_check<R: Runtime + 'static>(
     let maybe_update = updater.check().await.map_err(|error| error.to_string())?;
 
     match maybe_update {
-        Some(update) => install_update(app, update, mode).await,
+        Some(update) => {
+            notify_update_available(app, update);
+            Ok(())
+        }
         None => {
             if mode == UpdateCheckMode::Manual {
-                let app = app.clone();
-                tauri::async_runtime::spawn_blocking(move || {
-                    show_info_dialog(
-                        &app,
-                        "No Updates Available",
-                        "You’re already running the latest version of Inkwell.",
-                    );
-                })
-                .await
-                .map_err(|error| error.to_string())?;
+                inject_toast(app, "You’re on the latest version");
             }
-
             Ok(())
         }
     }
-}
-
-async fn install_update<R: Runtime + 'static>(
-    app: &AppHandle<R>,
-    update: Update,
-    mode: UpdateCheckMode,
-) -> Result<(), String> {
-    let message = update_prompt_message(&update);
-    let app_clone = app.clone();
-    let should_install = tauri::async_runtime::spawn_blocking(move || {
-        ask_to_install_update(&app_clone, "Update Available", &message)
-    })
-    .await
-    .map_err(|error| error.to_string())?;
-
-    if !should_install {
-        return Ok(());
-    }
-
-    if mode == UpdateCheckMode::Manual {
-        let app_clone = app.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            show_info_dialog(
-                &app_clone,
-                "Installing Update",
-                "Inkwell is downloading the update and will close when installation begins.",
-            );
-        })
-        .await
-        .map_err(|error| error.to_string())?;
-    }
-
-    update
-        .download_and_install(|_, _| {}, || {})
-        .await
-        .map_err(|error| error.to_string())
 }
 
 fn stop_owned_daemon(owns_sidecar: &AtomicBool) {
@@ -414,6 +338,13 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
+        .manage(update_ui::PendingUpdate::new())
+        .invoke_handler(tauri::generate_handler![
+            update_ui::accept_update,
+            update_ui::dismiss_update,
+            update_ui::restart_after_update,
+        ])
         .on_menu_event(|app, event| {
             if event.id() == CHECK_FOR_UPDATES_MENU_ID {
                 trigger_update_check(app.clone(), UpdateCheckMode::Manual);
