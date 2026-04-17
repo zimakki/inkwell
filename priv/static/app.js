@@ -37,6 +37,30 @@
   var findCurrentIndex = -1;
   var findDebounceTimer = null;
 
+  // ── Document zoom (Cmd+/-/0) ──
+  var ZOOM_MIN = 0.5;
+  var ZOOM_MAX = 3.0;
+  var ZOOM_STEP = 1.2;
+  var currentZoom = (function() {
+    var stored = parseFloat(localStorage.getItem('inkwell-zoom'));
+    if (!isFinite(stored) || stored < ZOOM_MIN || stored > ZOOM_MAX) return 1.0;
+    return stored;
+  })();
+
+  function applyZoom() {
+    if (ctn) ctn.style.zoom = String(currentZoom);
+  }
+
+  function setZoom(next) {
+    var clamped = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, next));
+    if (clamped === currentZoom) return;
+    currentZoom = clamped;
+    localStorage.setItem('inkwell-zoom', String(currentZoom));
+    applyZoom();
+  }
+
+  applyZoom();
+
   // ── View mode state ──
   var currentMode = (function() {
     var dataMode = document.body.dataset.mode;
@@ -1341,6 +1365,15 @@
       } else {
         openFindBar();
       }
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+' || e.key === '-' || e.key === '0')) {
+      var active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+      e.preventDefault();
+      if (e.key === '0') setZoom(1.0);
+      else if (e.key === '-') setZoom(currentZoom / ZOOM_STEP);
+      else setZoom(currentZoom * ZOOM_STEP);
       return;
     }
   });
