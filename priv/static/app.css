@@ -88,6 +88,159 @@
 }
 #picker-overlay.open { display: flex; }
 
+body.zoom-modal-open {
+  overflow: hidden;
+}
+
+#zoom-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: none;
+}
+
+#zoom-modal.open {
+  display: block;
+}
+
+#zoom-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 18, 28, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+#zoom-modal-dialog {
+  position: absolute;
+  inset: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+#zoom-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem 0;
+}
+
+#zoom-modal-title {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-family: "Outfit", system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#zoom-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.zoom-modal-btn {
+  min-width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--text);
+  font-family: "Outfit", system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.zoom-modal-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.zoom-modal-btn:active {
+  transform: scale(0.96);
+}
+
+.zoom-modal-btn-reset {
+  padding: 0 1rem;
+}
+
+.zoom-modal-btn-close {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+#zoom-modal-viewport {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  margin: 0 1rem 1rem;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at top, var(--bg-hover), transparent 48%),
+    var(--bg-surface);
+  cursor: grab;
+  touch-action: none;
+}
+
+#zoom-modal-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+#zoom-modal-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+#zoom-modal-canvas svg,
+#zoom-modal-canvas img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 720px) {
+  #zoom-modal-dialog {
+    inset: 0.75rem;
+  }
+
+  #zoom-modal-toolbar {
+    flex-wrap: wrap;
+    padding-top: 0.75rem;
+  }
+
+  #zoom-modal-title {
+    width: 100%;
+  }
+
+  #zoom-modal-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  #zoom-modal-viewport {
+    margin: 0 0.75rem 0.75rem;
+  }
+}
+
 #picker {
   width: 90vw; height: 85vh; max-width: 1400px;
   background: var(--bg); border-radius: 8px;

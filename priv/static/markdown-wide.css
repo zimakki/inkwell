@@ -473,6 +473,15 @@ pre code {
   line-height: 1.6;
 }
 
+pre.mermaid {
+  cursor: zoom-in;
+}
+
+pre.mermaid svg {
+  display: block;
+  margin: 0 auto;
+}
+
 /* ── Tables ───────────────────────────────────────────── */
 
 table {
@@ -537,6 +546,7 @@ img {
   border-radius: 8px;
   box-shadow: var(--shadow);
   margin: 1em 0;
+  cursor: zoom-in;
 }
 
 /* ── Definition lists ─────────────────────────────────── */

@@ -36,6 +36,30 @@
   var findMatches = [];
   var findCurrentIndex = -1;
   var findDebounceTimer = null;
+  var zoomModal = null;
+  var zoomModalBackdrop = null;
+  var zoomModalViewport = null;
+  var zoomModalCanvas = null;
+  var zoomModalTitle = null;
+  var zoomModalState = {
+    isOpen: false,
+    type: null,
+    source: null,
+    scale: 1,
+    fitScale: 1,
+    minScale: 0.2,
+    maxScale: 12,
+    x: 0,
+    y: 0,
+    width: 1,
+    height: 1,
+    pointerId: null,
+    dragStartX: 0,
+    dragStartY: 0,
+    startX: 0,
+    startY: 0,
+    scrollTop: 0
+  };
 
   // ── Document zoom (Cmd+/-/0) ──
   var ZOOM_MIN = 0.5;
@@ -166,6 +190,293 @@
       mermaid.run({ nodes: blocks });
     }
   }
+
+  function buildZoomModal() {
+    if (zoomModal) return;
+
+    zoomModal = document.createElement('div');
+    zoomModal.id = 'zoom-modal';
+    zoomModal.setAttribute('aria-hidden', 'true');
+    zoomModal.innerHTML =
+      '<div id="zoom-modal-backdrop"></div>' +
+      '<div id="zoom-modal-dialog" role="dialog" aria-modal="true" aria-label="Zoomed content">' +
+        '<div id="zoom-modal-toolbar">' +
+          '<div id="zoom-modal-title"></div>' +
+          '<div id="zoom-modal-actions">' +
+            '<button type="button" class="zoom-modal-btn" data-action="zoom-in" aria-label="Zoom in">+</button>' +
+            '<button type="button" class="zoom-modal-btn" data-action="zoom-out" aria-label="Zoom out">\u2212</button>' +
+            '<button type="button" class="zoom-modal-btn zoom-modal-btn-reset" data-action="reset">Reset</button>' +
+            '<button type="button" class="zoom-modal-btn zoom-modal-btn-close" data-action="close" aria-label="Close">\u00D7</button>' +
+          '</div>' +
+        '</div>' +
+        '<div id="zoom-modal-viewport">' +
+          '<div id="zoom-modal-canvas"></div>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(zoomModal);
+
+    zoomModalBackdrop = document.getElementById('zoom-modal-backdrop');
+    zoomModalViewport = document.getElementById('zoom-modal-viewport');
+    zoomModalCanvas = document.getElementById('zoom-modal-canvas');
+    zoomModalTitle = document.getElementById('zoom-modal-title');
+
+    zoomModalBackdrop.addEventListener('click', function() {
+      closeZoomModal();
+    });
+
+    zoomModal.addEventListener('click', function(e) {
+      var actionEl = e.target.closest('[data-action]');
+      if (!actionEl) return;
+      e.preventDefault();
+      var action = actionEl.dataset.action;
+      if (action === 'zoom-in') {
+        stepZoom(1.25);
+      } else if (action === 'zoom-out') {
+        stepZoom(0.8);
+      } else if (action === 'reset') {
+        resetZoomModal();
+      } else if (action === 'close') {
+        closeZoomModal();
+      }
+    });
+
+    zoomModalViewport.addEventListener('wheel', function(e) {
+      if (!zoomModalState.isOpen) return;
+      e.preventDefault();
+
+      var delta = e.deltaY;
+      var multiplier = delta < 0 ? 1.1 : 0.9;
+      if (e.ctrlKey) multiplier = delta < 0 ? 1.08 : 0.92;
+      zoomAroundPoint(e.clientX, e.clientY, zoomModalState.scale * multiplier);
+    }, { passive: false });
+
+    zoomModalViewport.addEventListener('pointerdown', function(e) {
+      if (!zoomModalState.isOpen || e.button !== 0) return;
+      if (!zoomModalCanvas.firstElementChild) return;
+      e.preventDefault();
+      zoomModalState.pointerId = e.pointerId;
+      zoomModalState.dragStartX = e.clientX;
+      zoomModalState.dragStartY = e.clientY;
+      zoomModalState.startX = zoomModalState.x;
+      zoomModalState.startY = zoomModalState.y;
+      zoomModalViewport.classList.add('is-dragging');
+      zoomModalViewport.setPointerCapture(e.pointerId);
+    });
+
+    zoomModalViewport.addEventListener('pointermove', function(e) {
+      if (zoomModalState.pointerId !== e.pointerId) return;
+      zoomModalState.x = zoomModalState.startX + (e.clientX - zoomModalState.dragStartX);
+      zoomModalState.y = zoomModalState.startY + (e.clientY - zoomModalState.dragStartY);
+      applyZoomModalTransform();
+    });
+
+    function stopDragging(e) {
+      if (zoomModalState.pointerId !== e.pointerId) return;
+      zoomModalState.pointerId = null;
+      zoomModalViewport.classList.remove('is-dragging');
+      if (zoomModalViewport.hasPointerCapture(e.pointerId)) {
+        zoomModalViewport.releasePointerCapture(e.pointerId);
+      }
+    }
+
+    zoomModalViewport.addEventListener('pointerup', stopDragging);
+    zoomModalViewport.addEventListener('pointercancel', stopDragging);
+
+    window.addEventListener('resize', function() {
+      if (!zoomModalState.isOpen) return;
+      fitZoomModalContent();
+    });
+  }
+
+  function clampZoomScale(scale) {
+    return Math.min(zoomModalState.maxScale, Math.max(zoomModalState.minScale, scale));
+  }
+
+  function applyZoomModalTransform() {
+    zoomModalCanvas.style.width = zoomModalState.width + 'px';
+    zoomModalCanvas.style.height = zoomModalState.height + 'px';
+    zoomModalCanvas.style.transform =
+      'translate(' + zoomModalState.x + 'px, ' + zoomModalState.y + 'px) scale(' + zoomModalState.scale + ')';
+  }
+
+  function fitZoomModalContent() {
+    if (!zoomModalViewport || !zoomModalCanvas.firstElementChild) return;
+
+    var rect = zoomModalViewport.getBoundingClientRect();
+    var padding = 40;
+    var availableWidth = Math.max(rect.width - padding * 2, 120);
+    var availableHeight = Math.max(rect.height - padding * 2, 120);
+
+    zoomModalState.fitScale = Math.min(
+      availableWidth / zoomModalState.width,
+      availableHeight / zoomModalState.height
+    );
+
+    if (!isFinite(zoomModalState.fitScale) || zoomModalState.fitScale <= 0) {
+      zoomModalState.fitScale = 1;
+    }
+
+    zoomModalState.minScale = Math.min(0.2, zoomModalState.fitScale);
+
+    resetZoomModal();
+  }
+
+  function resetZoomModal() {
+    if (!zoomModalState.isOpen) return;
+    var rect = zoomModalViewport.getBoundingClientRect();
+    zoomModalState.scale = zoomModalState.fitScale;
+    zoomModalState.x = (rect.width - zoomModalState.width * zoomModalState.scale) / 2;
+    zoomModalState.y = (rect.height - zoomModalState.height * zoomModalState.scale) / 2;
+    applyZoomModalTransform();
+  }
+
+  function zoomAroundPoint(clientX, clientY, nextScale) {
+    if (!zoomModalState.isOpen) return;
+
+    var rect = zoomModalViewport.getBoundingClientRect();
+    var pointX = clientX - rect.left;
+    var pointY = clientY - rect.top;
+    var clampedScale = clampZoomScale(nextScale);
+    var contentX = (pointX - zoomModalState.x) / zoomModalState.scale;
+    var contentY = (pointY - zoomModalState.y) / zoomModalState.scale;
+
+    zoomModalState.scale = clampedScale;
+    zoomModalState.x = pointX - contentX * clampedScale;
+    zoomModalState.y = pointY - contentY * clampedScale;
+    applyZoomModalTransform();
+  }
+
+  function stepZoom(multiplier) {
+    if (!zoomModalState.isOpen) return;
+    var rect = zoomModalViewport.getBoundingClientRect();
+    zoomAroundPoint(rect.left + rect.width / 2, rect.top + rect.height / 2, zoomModalState.scale * multiplier);
+  }
+
+  function getMermaidDimensions(svg, fallbackRect) {
+    var viewBox = svg.viewBox && svg.viewBox.baseVal;
+    if (viewBox && viewBox.width > 0 && viewBox.height > 0) {
+      return { width: viewBox.width, height: viewBox.height };
+    }
+
+    var width = svg.width && svg.width.baseVal ? svg.width.baseVal.value : 0;
+    var height = svg.height && svg.height.baseVal ? svg.height.baseVal.value : 0;
+    if (width > 0 && height > 0) {
+      return { width: width, height: height };
+    }
+
+    return {
+      width: Math.max(fallbackRect.width, 1),
+      height: Math.max(fallbackRect.height, 1)
+    };
+  }
+
+  function openZoomModalForMermaid(preEl) {
+    var svg = preEl.querySelector('svg');
+    if (!svg) return;
+
+    var clone = svg.cloneNode(true);
+    var sourceRect = svg.getBoundingClientRect();
+    var size = getMermaidDimensions(svg, sourceRect);
+
+    clone.removeAttribute('width');
+    clone.removeAttribute('height');
+    clone.style.width = '100%';
+    clone.style.height = '100%';
+    clone.style.display = 'block';
+
+    openZoomModal({
+      type: 'mermaid',
+      title: 'Diagram',
+      source: preEl,
+      node: clone,
+      width: size.width,
+      height: size.height
+    });
+  }
+
+  function openZoomModalForImage(imgEl) {
+    var clone = document.createElement('img');
+    clone.src = imgEl.currentSrc || imgEl.src;
+    clone.alt = imgEl.alt || '';
+    clone.decoding = 'async';
+    clone.style.width = '100%';
+    clone.style.height = '100%';
+    clone.style.display = 'block';
+    clone.style.objectFit = 'contain';
+
+    function finishOpen() {
+      openZoomModal({
+        type: 'image',
+        title: imgEl.alt ? imgEl.alt : 'Image',
+        source: imgEl,
+        node: clone,
+        width: clone.naturalWidth || imgEl.naturalWidth || imgEl.width || 1,
+        height: clone.naturalHeight || imgEl.naturalHeight || imgEl.height || 1
+      });
+    }
+
+    if (imgEl.complete && imgEl.naturalWidth > 0) {
+      finishOpen();
+      return;
+    }
+
+    clone.addEventListener('load', finishOpen, { once: true });
+  }
+
+  function openZoomModal(config) {
+    buildZoomModal();
+
+    zoomModalCanvas.innerHTML = '';
+    zoomModalCanvas.appendChild(config.node);
+    zoomModalTitle.textContent = config.title;
+
+    zoomModalState.isOpen = true;
+    zoomModalState.type = config.type;
+    zoomModalState.source = config.source;
+    zoomModalState.width = Math.max(config.width, 1);
+    zoomModalState.height = Math.max(config.height, 1);
+    zoomModalState.scale = 1;
+    zoomModalState.x = 0;
+    zoomModalState.y = 0;
+    zoomModalState.scrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+
+    zoomModal.classList.add('open');
+    zoomModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('zoom-modal-open');
+
+    fitZoomModalContent();
+  }
+
+  function closeZoomModal() {
+    if (!zoomModalState.isOpen || !zoomModal) return;
+
+    zoomModalState.isOpen = false;
+    zoomModalState.type = null;
+    zoomModalState.source = null;
+    zoomModalState.pointerId = null;
+    zoomModal.classList.remove('open');
+    zoomModal.setAttribute('aria-hidden', 'true');
+    zoomModalViewport.classList.remove('is-dragging');
+    document.body.classList.remove('zoom-modal-open');
+    zoomModalCanvas.innerHTML = '';
+    window.scrollTo(0, zoomModalState.scrollTop);
+  }
+
+  ctn.addEventListener('click', function(e) {
+    var image = e.target.closest('img');
+    if (image && ctn.contains(image)) {
+      e.preventDefault();
+      openZoomModalForImage(image);
+      return;
+    }
+
+    var mermaidPre = e.target.closest('pre.mermaid');
+    if (mermaidPre && ctn.contains(mermaidPre) && mermaidPre.querySelector('svg')) {
+      e.preventDefault();
+      openZoomModalForMermaid(mermaidPre);
+    }
+  });
 
   // ── Find-in-document bar ────────────────────────
   function buildFindBar() {
@@ -1300,6 +1611,7 @@
   // ── Global keyboard & header actions ──────────
 
   function toggleTheme() {
+    if (zoomModalState.isOpen) closeZoomModal();
     fetch('/toggle-theme').then(function(r) { return r.json(); }).then(function(data) {
       var el = document.querySelector('[data-theme]');
       el.dataset.theme = data.theme;
@@ -1336,6 +1648,19 @@
   }
 
   document.addEventListener('keydown', function(e) {
+    if (zoomModalState.isOpen) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeZoomModal();
+        return;
+      }
+      if (e.key === '0' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        resetZoomModal();
+        return;
+      }
+    }
+
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       if (currentMode === 'diff' && diffFab.classList.contains('visible')) {
         e.preventDefault();
