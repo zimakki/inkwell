@@ -6,7 +6,8 @@ defmodule Inkwell.Router do
   plug(Plug.Static,
     at: "/static",
     from: {:inkwell, "priv/static"},
-    cache_control_for_etags: "public, no-cache"
+    cache_control_for_etags: "public, no-cache",
+    cache_control_for_vsn_requests: "public, max-age=31536000, immutable"
   )
 
   plug(:match)
@@ -31,6 +32,7 @@ defmodule Inkwell.Router do
           page = html_page(html, headings, alerts, filename, theme, file_path, mode)
 
           conn
+          |> put_resp_header("cache-control", "no-store")
           |> put_resp_content_type("text/html")
           |> send_resp(200, page)
         else
@@ -43,6 +45,7 @@ defmodule Inkwell.Router do
         page = browse_page(theme, dir)
 
         conn
+        |> put_resp_header("cache-control", "no-store")
         |> put_resp_content_type("text/html")
         |> send_resp(200, page)
 
@@ -51,6 +54,7 @@ defmodule Inkwell.Router do
         page = empty_page(theme)
 
         conn
+        |> put_resp_header("cache-control", "no-store")
         |> put_resp_content_type("text/html")
         |> send_resp(200, page)
     end
@@ -309,6 +313,10 @@ defmodule Inkwell.Router do
 
   defp browse_page(theme, browse_dir) do
     safe_dir = Plug.HTML.html_escape(browse_dir)
+    favicon = Inkwell.StaticAssets.path("favicon.svg")
+    markdown_css = Inkwell.StaticAssets.path("markdown-wide.css")
+    app_css = Inkwell.StaticAssets.path("app.css")
+    app_js = Inkwell.StaticAssets.path("app.js")
 
     """
     <!DOCTYPE html>
@@ -316,10 +324,10 @@ defmodule Inkwell.Router do
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+      <link rel="icon" type="image/svg+xml" href="#{favicon}">
       <title>Inkwell</title>
-      <link rel="stylesheet" href="/static/markdown-wide.css">
-      <link rel="stylesheet" href="/static/app.css">
+      <link rel="stylesheet" href="#{markdown_css}">
+      <link rel="stylesheet" href="#{app_css}">
       <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     </head>
     <body data-browse-dir="#{safe_dir}">
@@ -367,23 +375,28 @@ defmodule Inkwell.Router do
         </div>
       </div>
 
-      <script src="/static/app.js"></script>
+      <script src="#{app_js}"></script>
     </body>
     </html>
     """
   end
 
   defp empty_page(theme) do
+    favicon = Inkwell.StaticAssets.path("favicon.svg")
+    markdown_css = Inkwell.StaticAssets.path("markdown-wide.css")
+    app_css = Inkwell.StaticAssets.path("app.css")
+    app_js = Inkwell.StaticAssets.path("app.js")
+
     """
     <!DOCTYPE html>
     <html lang="en">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+      <link rel="icon" type="image/svg+xml" href="#{favicon}">
       <title>Inkwell</title>
-      <link rel="stylesheet" href="/static/markdown-wide.css">
-      <link rel="stylesheet" href="/static/app.css">
+      <link rel="stylesheet" href="#{markdown_css}">
+      <link rel="stylesheet" href="#{app_css}">
       <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     </head>
     <body data-no-file="true">
@@ -435,7 +448,7 @@ defmodule Inkwell.Router do
         </div>
       </div>
 
-      <script src="/static/app.js"></script>
+      <script src="#{app_js}"></script>
     </body>
     </html>
     """
@@ -460,16 +473,21 @@ defmodule Inkwell.Router do
       Jason.encode!(%{headings: headings, alerts: alerts})
       |> Plug.HTML.html_escape()
 
+    favicon = Inkwell.StaticAssets.path("favicon.svg")
+    markdown_css = Inkwell.StaticAssets.path("markdown-wide.css")
+    app_css = Inkwell.StaticAssets.path("app.css")
+    app_js = Inkwell.StaticAssets.path("app.js")
+
     """
     <!DOCTYPE html>
     <html lang="en">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+      <link rel="icon" type="image/svg+xml" href="#{favicon}">
       <title>#{safe_filename}</title>
-      <link rel="stylesheet" href="/static/markdown-wide.css">
-      <link rel="stylesheet" href="/static/app.css">
+      <link rel="stylesheet" href="#{markdown_css}">
+      <link rel="stylesheet" href="#{app_css}">
       <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     </head>
     <body data-current-path="#{safe_current_path}" data-rel-dir="#{safe_rel_dir}" data-nav="#{nav_data_json}" data-mode="#{Plug.HTML.html_escape(mode)}">
@@ -532,7 +550,7 @@ defmodule Inkwell.Router do
         </div>
       </div>
 
-      <script src="/static/app.js"></script>
+      <script src="#{app_js}"></script>
     </body>
     </html>
     """

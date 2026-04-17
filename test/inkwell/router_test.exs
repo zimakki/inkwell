@@ -1,5 +1,6 @@
 defmodule Inkwell.RouterTest do
   use ExUnit.Case, async: false
+  import Plug.Conn
   import Plug.Test
 
   setup do
@@ -39,8 +40,10 @@ defmodule Inkwell.RouterTest do
       |> Inkwell.Router.call(Inkwell.Router.init([]))
 
     assert conn.status == 200
+    assert get_resp_header(conn, "cache-control") == ["no-store"]
     assert conn.resp_body =~ "Test"
     assert conn.resp_body =~ "Hello world"
+    assert conn.resp_body =~ ~r|/static/app\.js\?vsn=|
   end
 
   test "GET / with missing file returns 404" do
@@ -55,8 +58,9 @@ defmodule Inkwell.RouterTest do
     conn = conn(:get, "/") |> Inkwell.Router.call(Inkwell.Router.init([]))
 
     assert conn.status == 200
+    assert get_resp_header(conn, "cache-control") == ["no-store"]
     assert conn.resp_body =~ "data-no-file"
-    assert conn.resp_body =~ "app.js"
+    assert conn.resp_body =~ ~r|/static/app\.js\?vsn=|
   end
 
   test "GET / with dir param returns browse page HTML", %{base: base} do
@@ -65,8 +69,20 @@ defmodule Inkwell.RouterTest do
       |> Inkwell.Router.call(Inkwell.Router.init([]))
 
     assert conn.status == 200
+    assert get_resp_header(conn, "cache-control") == ["no-store"]
     assert conn.resp_body =~ "data-browse-dir=\"#{base}\""
-    assert conn.resp_body =~ "app.js"
+    assert conn.resp_body =~ ~r|/static/app\.js\?vsn=|
+  end
+
+  test "GET versioned static asset returns immutable cache headers" do
+    vsn = Inkwell.StaticAssets.path("app.js") |> URI.parse() |> Map.fetch!(:query)
+
+    conn =
+      conn(:get, "/static/app.js?#{vsn}")
+      |> Inkwell.Router.call(Inkwell.Router.init([]))
+
+    assert conn.status == 200
+    assert get_resp_header(conn, "cache-control") == ["public, max-age=31536000, immutable"]
   end
 
   test "GET /open with valid file returns JSON with url", %{test_file: test_file} do
