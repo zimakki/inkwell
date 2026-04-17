@@ -329,6 +329,18 @@
     findBarInput.select();
   }
 
+  function getFindBarSelectionSeed() {
+    if (!window.getSelection || document.activeElement === findBarInput) return '';
+
+    var selection = window.getSelection();
+    if (!selection || selection.isCollapsed) return '';
+
+    var seed = selection.toString().trim();
+    if (!seed || seed.indexOf('\n') !== -1 || seed.indexOf('\r') !== -1) return '';
+
+    return seed;
+  }
+
   function closeFindBar() {
     if (!findBar) return;
     findBar.classList.remove('open');
@@ -1359,7 +1371,15 @@
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
       if (!findBar) return; // no find bar on empty/browse pages — let native handle it
       e.preventDefault();
-      if (findBar.classList.contains('open')) {
+      var seed = getFindBarSelectionSeed();
+      if (seed) {
+        findBarInput.value = seed;
+        if (!findBar.classList.contains('open')) openFindBar();
+        findBarInput.focus();
+        findBarInput.select();
+        clearTimeout(findDebounceTimer);
+        performSearch();
+      } else if (findBar.classList.contains('open')) {
         findBarInput.focus();
         findBarInput.select();
       } else {
