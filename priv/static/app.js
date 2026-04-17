@@ -336,7 +336,8 @@
     if (!selection || selection.isCollapsed) return '';
 
     var seed = selection.toString().trim();
-    if (!seed || seed.indexOf('\n') !== -1 || seed.indexOf('\r') !== -1) return '';
+    if (!seed || seed.length > 200) return '';
+    if (seed.indexOf('\n') !== -1 || seed.indexOf('\r') !== -1) return '';
 
     return seed;
   }
