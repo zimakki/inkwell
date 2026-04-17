@@ -58,7 +58,8 @@
     dragStartY: 0,
     startX: 0,
     startY: 0,
-    scrollTop: 0
+    scrollTop: 0,
+    triggerElement: null
   };
 
   // ── Document zoom (Cmd+/-/0) ──
@@ -422,6 +423,7 @@
     }
 
     clone.addEventListener('load', finishOpen, { once: true });
+    clone.addEventListener('error', finishOpen, { once: true });
   }
 
   function openZoomModal(config) {
@@ -440,16 +442,26 @@
     zoomModalState.x = 0;
     zoomModalState.y = 0;
     zoomModalState.scrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    zoomModalState.triggerElement = (document.activeElement instanceof HTMLElement) ? document.activeElement : null;
 
     zoomModal.classList.add('open');
     zoomModal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('zoom-modal-open');
 
     fitZoomModalContent();
+
+    var closeBtn = zoomModal.querySelector('[data-action="close"]');
+    if (closeBtn) closeBtn.focus();
   }
 
   function closeZoomModal() {
     if (!zoomModalState.isOpen || !zoomModal) return;
+
+    if (zoomModalState.pointerId !== null &&
+        zoomModalViewport.hasPointerCapture &&
+        zoomModalViewport.hasPointerCapture(zoomModalState.pointerId)) {
+      zoomModalViewport.releasePointerCapture(zoomModalState.pointerId);
+    }
 
     zoomModalState.isOpen = false;
     zoomModalState.type = null;
@@ -461,11 +473,18 @@
     document.body.classList.remove('zoom-modal-open');
     zoomModalCanvas.innerHTML = '';
     window.scrollTo(0, zoomModalState.scrollTop);
+
+    var trigger = zoomModalState.triggerElement;
+    zoomModalState.triggerElement = null;
+    if (trigger && typeof trigger.focus === 'function' && document.contains(trigger)) {
+      trigger.focus();
+    }
   }
 
   ctn.addEventListener('click', function(e) {
     var image = e.target.closest('img');
     if (image && ctn.contains(image)) {
+      if (image.closest('a[href]')) return;
       e.preventDefault();
       openZoomModalForImage(image);
       return;
@@ -1657,6 +1676,23 @@
       if (e.key === '0' && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         resetZoomModal();
+        return;
+      }
+      if (e.key === 'Tab') {
+        var focusables = zoomModal.querySelectorAll('[data-action]');
+        if (focusables.length === 0) return;
+        var first = focusables[0];
+        var last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        } else if (!zoomModal.contains(document.activeElement)) {
+          e.preventDefault();
+          first.focus();
+        }
         return;
       }
     }
