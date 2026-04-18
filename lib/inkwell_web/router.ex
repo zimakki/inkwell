@@ -16,6 +16,10 @@ defmodule InkwellWeb.Router do
 
   scope "/", InkwellWeb do
     pipe_through :browser
+
+    live_session :shell, layout: {InkwellWeb.Layouts, :app} do
+      live "/", EmptyLive, :index
+    end
   end
 
   scope "/", InkwellWeb do
