@@ -44,12 +44,6 @@ defmodule InkwellWeb.FileLive do
   end
 
   @impl true
-  def terminate(_reason, socket) do
-    if connected?(socket), do: Inkwell.Daemon.client_disconnected()
-    :ok
-  end
-
-  @impl true
   def handle_info({:reload, payload}, socket) do
     {:noreply,
      socket

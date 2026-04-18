@@ -9,8 +9,12 @@ defmodule Inkwell.Daemon do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
-  def client_connected, do: GenServer.cast(__MODULE__, :client_connected)
-  def client_disconnected, do: GenServer.cast(__MODULE__, :client_disconnected)
+  @doc """
+  Register the calling process as a connected client. The Daemon monitors
+  the caller and automatically removes it when the process exits (covers
+  both graceful LiveView terminate AND abrupt browser-close disconnects).
+  """
+  def client_connected, do: GenServer.call(__MODULE__, {:client_connected, self()})
 
   def status_info do
     GenServer.call(__MODULE__, :status_info)
@@ -82,7 +86,7 @@ defmodule Inkwell.Daemon do
     Process.flag(:trap_exit, true)
     Process.send_after(self(), :refresh_port_info, 100)
     Logger.info("Daemon started (pid=#{System.pid()})")
-    {:ok, %{port: nil, ws_count: 0, idle_timer: nil, port_deadline: nil}}
+    {:ok, %{port: nil, clients: %{}, idle_timer: nil, port_deadline: nil}}
   end
 
   @impl true
@@ -91,7 +95,7 @@ defmodule Inkwell.Daemon do
       running: true,
       pid: System.pid(),
       port: state.port,
-      websocket_clients: state.ws_count,
+      websocket_clients: map_size(state.clients),
       watched_files: Inkwell.Watcher.watched_files()
     }
 
@@ -99,27 +103,10 @@ defmodule Inkwell.Daemon do
   end
 
   @impl true
-  def handle_cast(:client_connected, state) do
+  def handle_call({:client_connected, pid}, _from, state) do
     if state.idle_timer, do: Process.cancel_timer(state.idle_timer)
-    {:noreply, %{state | ws_count: state.ws_count + 1, idle_timer: nil}}
-  end
-
-  @impl true
-  def handle_cast(:client_disconnected, state) do
-    ws_count = max(state.ws_count - 1, 0)
-
-    state =
-      if ws_count == 0 do
-        %{
-          state
-          | ws_count: ws_count,
-            idle_timer: Process.send_after(self(), :idle_shutdown, @idle_timeout)
-        }
-      else
-        %{state | ws_count: ws_count}
-      end
-
-    {:noreply, state}
+    ref = Process.monitor(pid)
+    {:reply, :ok, %{state | clients: Map.put(state.clients, ref, pid), idle_timer: nil}}
   end
 
   @impl true
@@ -139,15 +126,37 @@ defmodule Inkwell.Daemon do
 
   @impl true
   def handle_info(:idle_shutdown, state) do
-    if state.ws_count == 0 do
+    if map_size(state.clients) == 0 do
       Logger.info(
-        "Idle shutdown triggered (no WebSocket clients for #{div(@idle_timeout, 60_000)} minutes)"
+        "Idle shutdown triggered (no live clients for #{div(@idle_timeout, 60_000)} minutes)"
       )
 
       System.stop(0)
     end
 
     {:noreply, %{state | idle_timer: nil}}
+  end
+
+  @impl true
+  def handle_info({:DOWN, ref, :process, _pid, _reason}, state) do
+    case Map.pop(state.clients, ref) do
+      {nil, _} ->
+        {:noreply, state}
+
+      {_pid, clients} ->
+        state =
+          if map_size(clients) == 0 do
+            %{
+              state
+              | clients: clients,
+                idle_timer: Process.send_after(self(), :idle_shutdown, @idle_timeout)
+            }
+          else
+            %{state | clients: clients}
+          end
+
+        {:noreply, state}
+    end
   end
 
   @impl true
