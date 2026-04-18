@@ -34,7 +34,9 @@ defmodule Inkwell.Daemon do
   end
 
   def ensure_started(opts \\ []) do
-    theme = Keyword.get(opts, :theme, "dark")
+    # nil = caller didn't explicitly request a theme; let the spawned daemon
+    # fall back to its persisted preference.
+    theme = Keyword.get(opts, :theme)
 
     if alive?() do
       {:ok, read_port!()}
@@ -232,18 +234,20 @@ defmodule Inkwell.Daemon do
 
   defp daemon_command(theme) do
     exec = current_executable()
+    theme_flag = if theme, do: " --theme #{shell_escape(theme)}", else: ""
+    mix_theme_arg = if theme, do: ~s|"#{theme}"|, else: "nil"
 
     cond do
       burrito?() or escript?() ->
-        "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >>#{shell_escape(logfile())} 2>&1 &"
+        "nohup #{shell_escape(exec)} daemon#{theme_flag} >>#{shell_escape(logfile())} 2>&1 &"
 
       match?({:ok, _}, project_root(exec)) ->
         {:ok, root} = project_root(exec)
 
-        "cd #{shell_escape(root)} && nohup mix run --no-halt -e 'Inkwell.CLI.run_daemon(\"#{theme}\")' >>#{shell_escape(logfile())} 2>&1 &"
+        "cd #{shell_escape(root)} && nohup mix run --no-halt -e 'Inkwell.CLI.run_daemon(#{mix_theme_arg})' >>#{shell_escape(logfile())} 2>&1 &"
 
       true ->
-        "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >>#{shell_escape(logfile())} 2>&1 &"
+        "nohup #{shell_escape(exec)} daemon#{theme_flag} >>#{shell_escape(logfile())} 2>&1 &"
     end
   end
 

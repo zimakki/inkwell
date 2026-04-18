@@ -20,7 +20,6 @@ defmodule Inkwell.MixProject do
       docs: [main: "readme", extras: ["README.md"]],
       package: package(),
       aliases: aliases(),
-      preferred_cli_env: [precommit: :test],
       usage_rules: [
         file: "CLAUDE.md",
         usage_rules: :all
@@ -33,6 +32,10 @@ defmodule Inkwell.MixProject do
       extra_applications: [:logger, :inets, :ssl, :runtime_tools],
       mod: {Inkwell.Application, []}
     ]
+  end
+
+  def cli do
+    [preferred_envs: [precommit: :test]]
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]

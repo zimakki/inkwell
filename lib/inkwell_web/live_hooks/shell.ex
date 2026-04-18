@@ -24,6 +24,7 @@ defmodule InkwellWeb.LiveHooks.Shell do
     new = if current == "dark", do: "light", else: "dark"
 
     :persistent_term.put(:inkwell_theme, new)
+    Inkwell.Settings.write_theme(new)
     Phoenix.PubSub.broadcast(Inkwell.PubSub, "theme", {:theme_changed, new})
     Inkwell.Watcher.rebroadcast_all()
 

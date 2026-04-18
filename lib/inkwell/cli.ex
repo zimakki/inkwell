@@ -24,7 +24,7 @@ defmodule Inkwell.CLI do
       true ->
         case rest do
           ["daemon"] ->
-            run_daemon(Keyword.get(opts, :theme, "dark"))
+            run_daemon(opts[:theme])
 
           ["preview", file] ->
             run_preview(file, opts)
@@ -48,8 +48,15 @@ defmodule Inkwell.CLI do
   end
 
   def run_daemon(theme) do
-    Logger.info("Starting daemon with theme=#{theme}")
-    :persistent_term.put(:inkwell_theme, theme)
+    # Pre-seed :persistent_term so anything reading before the supervision
+    # tree finishes booting sees a value. Application.start/2 will overwrite
+    # this with the resolved theme (explicit > persisted > "dark").
+    if theme do
+      :persistent_term.put(:inkwell_theme, theme)
+      Inkwell.Settings.write_theme(theme)
+    end
+
+    Logger.info("Starting daemon with theme=#{theme || "(persisted)"}")
     Application.ensure_all_started(:inkwell)
     Process.sleep(:infinity)
   end
@@ -143,15 +150,17 @@ defmodule Inkwell.CLI do
         {:error, "not a directory: #{dir}"}
 
       true ->
-        theme = Keyword.get(opts, :theme, "dark")
+        theme = opts[:theme]
 
         case start_daemon.(theme: theme) do
           {:error, reason} ->
             {:error, "failed to start inkwell daemon (#{inspect(reason)})"}
 
           {:ok, port} ->
+            effective_theme = theme || Inkwell.Settings.read_theme() || "dark"
+
             url =
-              "http://localhost:#{port}/?dir=#{URI.encode_www_form(dir)}&theme=#{URI.encode_www_form(theme)}"
+              "http://localhost:#{port}/?dir=#{URI.encode_www_form(dir)}&theme=#{URI.encode_www_form(effective_theme)}"
 
             {:ok, url}
         end
@@ -163,7 +172,8 @@ defmodule Inkwell.CLI do
     file = Path.expand(file)
 
     if File.exists?(file) do
-      theme = Keyword.get(opts, :theme, "dark")
+      # nil = use the daemon's persisted theme; only forward an explicit value.
+      theme = opts[:theme]
 
       case start_daemon.(theme: theme) do
         {:error, reason} ->
@@ -171,9 +181,12 @@ defmodule Inkwell.CLI do
 
         {:ok, port} ->
           mode = Keyword.get(opts, :mode, "diff")
+          # If the caller didn't specify a theme, fall back to whatever the
+          # daemon last persisted so the URL we open matches its current state.
+          effective_theme = theme || Inkwell.Settings.read_theme() || "dark"
 
           case http_get_json(
-                 "http://localhost:#{port}/open?path=#{URI.encode_www_form(file)}&theme=#{URI.encode_www_form(theme)}&mode=#{URI.encode_www_form(mode)}"
+                 "http://localhost:#{port}/open?path=#{URI.encode_www_form(file)}&theme=#{URI.encode_www_form(effective_theme)}&mode=#{URI.encode_www_form(mode)}"
                ) do
             {:ok, payload} -> {:ok, payload["url"], file}
             {:error, reason} -> {:error, "failed to open preview: #{inspect(reason)}"}
