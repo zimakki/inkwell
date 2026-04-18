@@ -20,18 +20,32 @@ mix compile --warnings-as-errors
 
 ## Architecture
 
-OTP supervision tree (`Inkwell.Application`):
-- `Registry` (`:duplicate` keys) — pub/sub for per-file WebSocket clients
+Phoenix + LiveView application. Domain code lives under `lib/inkwell/`; the web layer under `lib/inkwell_web/`.
+
+OTP supervision tree (`Inkwell.Application`, daemon mode):
+- `Phoenix.PubSub` (name `Inkwell.PubSub`) — broadcasts file-change events on `"file:#{path}"` and theme changes on `"theme"`
 - `Inkwell.History` (Agent) — recent files list (max 20)
-- `Inkwell.Daemon` (GenServer) — daemon lifecycle, PID/port files in `~/.inkwell/`, idle shutdown
+- `Inkwell.Daemon` (GenServer) — daemon lifecycle, PID/port files in `~/.inkwell/`, idle shutdown after 10 min with no live clients
 - `DynamicSupervisor` (`Inkwell.WatcherSupervisor`) — one `Inkwell.Watcher` GenServer per watched directory
-- `Bandit` HTTP server (dynamic port) — serves `Inkwell.Router` (Plug)
+- `InkwellWeb.Telemetry`
+- `InkwellWeb.Endpoint` — Phoenix Endpoint on Bandit (dynamic port 0)
+
+Web layer (`lib/inkwell_web/`):
+- Controllers: `HealthController` (/health, /status), `StopController` (/stop), `FileDialogController` (/pick-file, /pick-directory)
+- LiveViews under `live_session :shell` with `on_mount InkwellWeb.LiveHooks.Shell`:
+  - `EmptyLive` (`/`) — empty state
+  - `BrowseLive` (`/browse?dir=`) — folder browse
+  - `FileLive` (`/files?path=`) — single-file preview; subscribes to `"file:#{path}"` for live reload
+- LiveComponent: `InkwellWeb.PickerComponent` — file picker overlay rendered in the app layout
+- Shared shell hook (`InkwellWeb.LiveHooks.Shell`) — theme + picker_open assigns, `toggle_theme`/`open_picker`/`close_picker` events, `{:theme_changed, _}`/`{:picker_selected, _}` info handlers
+- Front-end JS in `assets/js/` (bundled by `esbuild` Hex package, no Node): `Mermaid`, `Zoom`, `Scrollspy` hooks attached in `FileLive`
 
 Key patterns:
-- Registry with `:duplicate` keys for broadcasting file changes to WebSocket clients
+- `Phoenix.PubSub` for broadcasting file changes to LiveView sessions
 - DynamicSupervisor spawns one filesystem watcher per unique directory
 - Theme stored in `:persistent_term` (shared across processes)
 - IPC via `~/.inkwell/pid` and `~/.inkwell/port` files
+- `secret_key_base` generated and cached at `~/.inkwell/secret` on first prod boot
 
 ## Conventions
 

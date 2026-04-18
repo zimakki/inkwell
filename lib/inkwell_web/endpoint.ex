@@ -24,7 +24,7 @@ defmodule InkwellWeb.Endpoint do
     at: "/",
     from: {:inkwell, "priv/static"},
     gzip: not code_reloading?,
-    only: InkwellWeb.static_paths() ++ ~w(app.css markdown-wide.css favicon.svg)
+    only: InkwellWeb.static_paths()
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
