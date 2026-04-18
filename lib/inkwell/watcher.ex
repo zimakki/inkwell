@@ -50,15 +50,27 @@ defmodule Inkwell.Watcher do
     path = resolve_path(path)
     dir = Path.dirname(path)
 
-    case Registry.lookup(Inkwell.Registry, {:watcher, dir}) do
-      [{pid, _}] ->
+    case find_watcher(dir) do
+      {:ok, pid} ->
         GenServer.call(pid, {:watch_file, path})
 
-      [] ->
+      :not_found ->
         spec = {__MODULE__, dir: dir}
         {:ok, pid} = DynamicSupervisor.start_child(Inkwell.WatcherSupervisor, spec)
         GenServer.call(pid, {:watch_file, path})
     end
+  end
+
+  defp find_watcher(dir) do
+    Inkwell.WatcherSupervisor
+    |> DynamicSupervisor.which_children()
+    |> Enum.find_value(:not_found, fn
+      {_, pid, _, _} when is_pid(pid) ->
+        if GenServer.call(pid, :get_dir) == dir, do: {:ok, pid}, else: nil
+
+      _ ->
+        nil
+    end)
   end
 
   def watched_files do
@@ -88,14 +100,7 @@ defmodule Inkwell.Watcher do
 
   def broadcast_nav(html, headings, alerts, path) do
     payload_map = %{html: html, headings: headings, alerts: alerts}
-    payload_bin = Jason.encode!(payload_map)
 
-    # Legacy path — old WsHandler receives a binary payload
-    Registry.dispatch(Inkwell.Registry, {:ws_clients, path}, fn entries ->
-      for {pid, _} <- entries, do: send(pid, {:reload, payload_bin})
-    end)
-
-    # Phoenix.PubSub path — FileLive receives the map
     Phoenix.PubSub.broadcast(
       Inkwell.PubSub,
       "file:" <> path,
@@ -105,8 +110,6 @@ defmodule Inkwell.Watcher do
 
   @impl true
   def init(dir) do
-    Registry.register(Inkwell.Registry, {:watcher, dir}, [])
-
     case FileSystem.start_link(dirs: [dir]) do
       {:ok, watcher} ->
         FileSystem.subscribe(watcher)
@@ -132,6 +135,9 @@ defmodule Inkwell.Watcher do
   def handle_call(:watched_files, _from, state) do
     {:reply, MapSet.to_list(state.files), state}
   end
+
+  @impl true
+  def handle_call(:get_dir, _from, state), do: {:reply, state.dir, state}
 
   @impl true
   def handle_info({:file_event, _pid, {changed_path, events}}, state) do

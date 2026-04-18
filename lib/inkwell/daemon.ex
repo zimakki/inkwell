@@ -73,7 +73,6 @@ defmodule Inkwell.Daemon do
 
   def pidfile, do: Path.join(state_dir(), "pid")
   def portfile, do: Path.join(state_dir(), "port")
-  def portfile_phx, do: Path.join(state_dir(), "port_phx")
   def logfile, do: Path.join(state_dir(), "daemon.log")
 
   @impl true
@@ -83,16 +82,7 @@ defmodule Inkwell.Daemon do
     Process.flag(:trap_exit, true)
     Process.send_after(self(), :refresh_port_info, 100)
     Logger.info("Daemon started (pid=#{System.pid()})")
-
-    {:ok,
-     %{
-       port: nil,
-       phx_port: nil,
-       ws_count: 0,
-       idle_timer: nil,
-       port_deadline: nil,
-       phx_port_deadline: nil
-     }}
+    {:ok, %{port: nil, ws_count: 0, idle_timer: nil, port_deadline: nil}}
   end
 
   @impl true
@@ -136,35 +126,14 @@ defmodule Inkwell.Daemon do
   def handle_info(:refresh_port_info, state) do
     state = ensure_deadline(state, :port_deadline)
 
-    with pid when not is_nil(pid) <- bandit_pid(),
-         {:ok, {_, port}} <- ThousandIsland.listener_info(pid) do
-      File.write!(portfile(), Integer.to_string(port))
-      Logger.info("Listening (old) on port #{port}")
-      Process.send_after(self(), :refresh_phx_port_info, 100)
-      {:noreply, %{state | port: port, port_deadline: nil}}
-    else
-      _ ->
-        schedule_retry_or_give_up(state, :refresh_port_info, :port_deadline, "old Bandit router")
-    end
-  end
-
-  @impl true
-  def handle_info(:refresh_phx_port_info, state) do
-    state = ensure_deadline(state, :phx_port_deadline)
-
     case InkwellWeb.Endpoint.server_info(:http) do
       {:ok, {_ip, port}} when is_integer(port) and port > 0 ->
-        File.write!(portfile_phx(), Integer.to_string(port))
-        Logger.info("Listening (phx) on port #{port}")
-        {:noreply, %{state | phx_port: port, phx_port_deadline: nil}}
+        File.write!(portfile(), Integer.to_string(port))
+        Logger.info("Listening on port #{port}")
+        {:noreply, %{state | port: port, port_deadline: nil}}
 
       _ ->
-        schedule_retry_or_give_up(
-          state,
-          :refresh_phx_port_info,
-          :phx_port_deadline,
-          "Phoenix Endpoint"
-        )
+        schedule_retry_or_give_up(state, :refresh_port_info, :port_deadline, "Phoenix Endpoint")
     end
   end
 
@@ -189,7 +158,6 @@ defmodule Inkwell.Daemon do
     Logger.info("Daemon shutting down (reason=#{inspect(reason)})")
     File.rm(pidfile())
     File.rm(portfile())
-    File.rm(portfile_phx())
     :ok
   end
 
@@ -292,15 +260,6 @@ defmodule Inkwell.Daemon do
 
   defp shell_escape(value) do
     "'" <> String.replace(value, "'", "'\"'\"'") <> "'"
-  end
-
-  defp bandit_pid do
-    Inkwell.Supervisor
-    |> Supervisor.which_children()
-    |> Enum.find_value(fn
-      {Inkwell.BanditServer, pid, _type, _modules} -> pid
-      _ -> nil
-    end)
   end
 
   defp escript? do
