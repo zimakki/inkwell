@@ -24,5 +24,7 @@ defmodule InkwellWeb.Router do
     get "/health", HealthController, :show
     get "/status", HealthController, :status
     post "/stop", StopController, :stop
+    get "/pick-file", FileDialogController, :file
+    get "/pick-directory", FileDialogController, :directory
   end
 end

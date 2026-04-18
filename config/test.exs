@@ -3,6 +3,9 @@ import Config
 # Disable BEAM shutdown when /stop is hit during tests.
 config :inkwell, :shutdown_on_stop, false
 
+# Use a stub module for file dialogs in tests (avoids actual osascript calls).
+config :inkwell, :file_dialog_module, InkwellWeb.FileDialogControllerTest.Stub
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :inkwell, InkwellWeb.Endpoint,
