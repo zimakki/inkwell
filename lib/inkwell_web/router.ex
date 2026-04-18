@@ -17,7 +17,9 @@ defmodule InkwellWeb.Router do
   scope "/", InkwellWeb do
     pipe_through :browser
 
-    live_session :shell, layout: {InkwellWeb.Layouts, :app} do
+    live_session :shell,
+      layout: {InkwellWeb.Layouts, :app},
+      on_mount: InkwellWeb.LiveHooks.Shell do
       live "/", EmptyLive, :index
       live "/browse", BrowseLive, :index
       live "/files", FileLive, :show

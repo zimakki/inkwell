@@ -5,19 +5,16 @@ defmodule InkwellWeb.BrowseLive do
 
   @impl true
   def mount(%{"dir" => dir}, _session, socket) do
-    theme = :persistent_term.get(:inkwell_theme, "dark")
     dir = Path.expand(dir)
     files = Inkwell.Search.search_directory(dir, "")
 
     {:ok,
      socket
-     |> assign(theme: theme)
      |> assign(filename: nil)
      |> assign(rel_dir: dir)
      |> assign(dir: dir)
      |> assign(files: files)
      |> assign(query: "")
-     |> assign(picker_open: false)
      |> assign(page_title: "Browse #{Path.basename(dir)}")}
   end
 
@@ -29,14 +26,6 @@ defmodule InkwellWeb.BrowseLive do
   def handle_event("search", %{"q" => q}, socket) do
     files = Inkwell.Search.search_directory(socket.assigns.dir, q)
     {:noreply, assign(socket, files: files, query: q)}
-  end
-
-  def handle_event("open_picker", _, socket), do: {:noreply, assign(socket, picker_open: true)}
-  def handle_event("close_picker", _, socket), do: {:noreply, assign(socket, picker_open: false)}
-
-  @impl true
-  def handle_info({:picker_selected, path}, socket) do
-    {:noreply, push_navigate(socket, to: ~p"/files?#{[path: path]}")}
   end
 
   @impl true

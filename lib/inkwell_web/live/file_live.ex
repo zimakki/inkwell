@@ -14,7 +14,6 @@ defmodule InkwellWeb.FileLive do
 
       if connected?(socket) do
         Phoenix.PubSub.subscribe(Inkwell.PubSub, "file:" <> resolved)
-        Phoenix.PubSub.subscribe(Inkwell.PubSub, "theme")
         Inkwell.Daemon.client_connected()
       end
 
@@ -23,20 +22,17 @@ defmodule InkwellWeb.FileLive do
         |> File.read!()
         |> Inkwell.Renderer.render_with_nav()
 
-      theme = :persistent_term.get(:inkwell_theme, "dark")
       filename = Path.basename(resolved)
       rel_dir = compute_rel_dir(resolved)
 
       {:ok,
        socket
-       |> assign(theme: theme)
        |> assign(path: resolved)
        |> assign(filename: filename)
        |> assign(rel_dir: rel_dir)
        |> assign(html: html)
        |> assign(headings: headings)
        |> assign(alerts: alerts)
-       |> assign(picker_open: false)
        |> assign(page_title: filename)}
     else
       {:ok, push_navigate(socket, to: ~p"/")}
@@ -54,24 +50,12 @@ defmodule InkwellWeb.FileLive do
   end
 
   @impl true
-  def handle_event("open_picker", _, socket), do: {:noreply, assign(socket, picker_open: true)}
-  def handle_event("close_picker", _, socket), do: {:noreply, assign(socket, picker_open: false)}
-
-  @impl true
   def handle_info({:reload, payload}, socket) do
     {:noreply,
      socket
      |> assign(html: payload.html)
      |> assign(headings: payload.headings)
      |> assign(alerts: payload.alerts)}
-  end
-
-  def handle_info({:theme_changed, theme}, socket) do
-    {:noreply, assign(socket, theme: theme)}
-  end
-
-  def handle_info({:picker_selected, path}, socket) do
-    {:noreply, push_navigate(socket, to: ~p"/files?#{[path: path]}")}
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
