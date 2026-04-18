@@ -33,24 +33,26 @@ defmodule InkwellWeb.BrowseLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="browse-view">
-      <form phx-change="search">
-        <input
-          type="text"
-          name="q"
-          placeholder="Search files in this folder"
-          autocomplete="off"
-          phx-debounce="150"
-          value={@query}
-        />
-      </form>
-      <ul class="file-list">
-        <li :for={file <- @files} class="file-item">
-          <a href={"/files?path=#{URI.encode_www_form(file.path)}"}>
-            {file.filename}
-          </a>
-        </li>
-      </ul>
+    <div id="page-ctn">
+      <div class="browse-view">
+        <form phx-change="search">
+          <input
+            type="text"
+            name="q"
+            placeholder="Search files in this folder"
+            autocomplete="off"
+            phx-debounce="150"
+            value={@query}
+          />
+        </form>
+        <ul class="file-list">
+          <li :for={file <- @files} class="file-item">
+            <.link navigate={~p"/files?#{[path: file.path]}"}>
+              {file.filename}
+            </.link>
+          </li>
+        </ul>
+      </div>
     </div>
     """
   end

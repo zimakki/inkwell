@@ -87,12 +87,20 @@ defmodule Inkwell.Watcher do
   end
 
   def broadcast_nav(html, headings, alerts, path) do
-    payload =
-      Jason.encode!(%{html: html, headings: headings, alerts: alerts})
+    payload_map = %{html: html, headings: headings, alerts: alerts}
+    payload_bin = Jason.encode!(payload_map)
 
+    # Legacy path — old WsHandler receives a binary payload
     Registry.dispatch(Inkwell.Registry, {:ws_clients, path}, fn entries ->
-      for {pid, _} <- entries, do: send(pid, {:reload, payload})
+      for {pid, _} <- entries, do: send(pid, {:reload, payload_bin})
     end)
+
+    # Phoenix.PubSub path — FileLive receives the map
+    Phoenix.PubSub.broadcast(
+      Inkwell.PubSub,
+      "file:" <> path,
+      {:reload, payload_map}
+    )
   end
 
   @impl true

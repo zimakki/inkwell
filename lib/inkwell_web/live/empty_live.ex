@@ -18,8 +18,10 @@ defmodule InkwellWeb.EmptyLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="empty-state">
-      Open a file to get started
+    <div id="page-ctn">
+      <div class="empty-state">
+        Open a file to get started
+      </div>
     </div>
     """
   end
