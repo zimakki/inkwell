@@ -64,10 +64,12 @@ defmodule InkwellWeb.FileLive do
   def render(assigns) do
     ~H"""
     <div id="page-body">
-      <article id="page-ctn">
-        {Phoenix.HTML.raw(@html)}
+      <article id="page-ctn" phx-hook="Mermaid">
+        <div id="article-zoom" phx-hook="Zoom">
+          {Phoenix.HTML.raw(@html)}
+        </div>
       </article>
-      <aside id="doc-rail" class={doc_rail_class(@headings, @alerts)}>
+      <aside id="doc-rail" class={doc_rail_class(@headings, @alerts)} phx-hook="Scrollspy">
         <div :if={@headings != []} class="doc-rail-section">
           <div class="doc-rail-title">Contents</div>
           <a
