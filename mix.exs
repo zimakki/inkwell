@@ -72,6 +72,9 @@ defmodule Inkwell.MixProject do
         "credo --strict",
         "test"
       ],
+      "assets.setup": ["esbuild.install --if-missing"],
+      "assets.build": ["esbuild inkwell"],
+      "assets.deploy": ["esbuild inkwell --minify", "phx.digest"],
       tidewave:
         "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 4000) end)'"
     ]
