@@ -12,6 +12,7 @@ defmodule InkwellWeb.EmptyLive do
      |> assign(theme: theme)
      |> assign(filename: nil)
      |> assign(rel_dir: "")
+     |> assign(picker_open: false)
      |> assign(page_title: "Inkwell")}
   end
 
@@ -24,5 +25,14 @@ defmodule InkwellWeb.EmptyLive do
       </div>
     </div>
     """
+  end
+
+  @impl true
+  def handle_event("open_picker", _, socket), do: {:noreply, assign(socket, picker_open: true)}
+  def handle_event("close_picker", _, socket), do: {:noreply, assign(socket, picker_open: false)}
+
+  @impl true
+  def handle_info({:picker_selected, path}, socket) do
+    {:noreply, push_navigate(socket, to: ~p"/files?#{[path: path]}")}
   end
 end

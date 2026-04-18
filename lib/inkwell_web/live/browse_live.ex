@@ -17,6 +17,7 @@ defmodule InkwellWeb.BrowseLive do
      |> assign(dir: dir)
      |> assign(files: files)
      |> assign(query: "")
+     |> assign(picker_open: false)
      |> assign(page_title: "Browse #{Path.basename(dir)}")}
   end
 
@@ -28,6 +29,14 @@ defmodule InkwellWeb.BrowseLive do
   def handle_event("search", %{"q" => q}, socket) do
     files = Inkwell.Search.search_directory(socket.assigns.dir, q)
     {:noreply, assign(socket, files: files, query: q)}
+  end
+
+  def handle_event("open_picker", _, socket), do: {:noreply, assign(socket, picker_open: true)}
+  def handle_event("close_picker", _, socket), do: {:noreply, assign(socket, picker_open: false)}
+
+  @impl true
+  def handle_info({:picker_selected, path}, socket) do
+    {:noreply, push_navigate(socket, to: ~p"/files?#{[path: path]}")}
   end
 
   @impl true

@@ -68,5 +68,11 @@
       <div id="header-dir">{@rel_dir}</div>
     </div>
   </div>
+  <.live_component
+    module={InkwellWeb.PickerComponent}
+    id="picker"
+    open={@picker_open}
+    current_path={assigns[:path]}
+  />
   {@inner_content}
 </div>
