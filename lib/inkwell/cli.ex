@@ -162,9 +162,7 @@ defmodule Inkwell.CLI do
   def preview(file, opts, start_daemon \\ &Inkwell.Daemon.ensure_started/1) do
     file = Path.expand(file)
 
-    if not File.exists?(file) do
-      {:error, "file not found: #{file}"}
-    else
+    if File.exists?(file) do
       theme = Keyword.get(opts, :theme, "dark")
 
       case start_daemon.(theme: theme) do
@@ -181,6 +179,8 @@ defmodule Inkwell.CLI do
             {:error, reason} -> {:error, "failed to open preview: #{inspect(reason)}"}
           end
       end
+    else
+      {:error, "file not found: #{file}"}
     end
   end
 

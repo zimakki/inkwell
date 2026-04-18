@@ -20,6 +20,7 @@ defmodule Inkwell.MixProject do
       docs: [main: "readme", extras: ["README.md"]],
       package: package(),
       aliases: aliases(),
+      preferred_cli_env: [precommit: :test],
       usage_rules: [
         file: "CLAUDE.md",
         usage_rules: :all
@@ -57,12 +58,20 @@ defmodule Inkwell.MixProject do
       {:burrito, "~> 1.0", only: :prod},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:usage_rules, "~> 1.1", only: :dev},
-      {:tidewave, "~> 0.5", only: :dev}
+      {:tidewave, "~> 0.5", only: :dev},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 
   defp aliases do
     [
+      precommit: [
+        "format --check-formatted",
+        "deps.unlock --check-unused",
+        "compile --warnings-as-errors",
+        "credo --strict",
+        "test"
+      ],
       tidewave:
         "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 4000) end)'"
     ]
