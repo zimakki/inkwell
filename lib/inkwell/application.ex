@@ -70,13 +70,16 @@ defmodule Inkwell.Application do
           Inkwell.GitRepo.init_cache()
 
           [
+            {Phoenix.PubSub, name: Inkwell.PubSub},
             {Registry, keys: :duplicate, name: Inkwell.Registry},
             {Inkwell.History, []},
             {Inkwell.Daemon, []},
             {DynamicSupervisor, strategy: :one_for_one, name: Inkwell.WatcherSupervisor},
             Supervisor.child_spec({Bandit, plug: Inkwell.Router, port: 0},
               id: Inkwell.BanditServer
-            )
+            ),
+            InkwellWeb.Telemetry,
+            InkwellWeb.Endpoint
           ]
 
         :client ->

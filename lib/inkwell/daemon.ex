@@ -73,6 +73,7 @@ defmodule Inkwell.Daemon do
 
   def pidfile, do: Path.join(state_dir(), "pid")
   def portfile, do: Path.join(state_dir(), "port")
+  def portfile_phx, do: Path.join(state_dir(), "port_phx")
   def logfile, do: Path.join(state_dir(), "daemon.log")
 
   @impl true
@@ -82,7 +83,16 @@ defmodule Inkwell.Daemon do
     Process.flag(:trap_exit, true)
     Process.send_after(self(), :refresh_port_info, 100)
     Logger.info("Daemon started (pid=#{System.pid()})")
-    {:ok, %{port: nil, ws_count: 0, idle_timer: nil}}
+
+    {:ok,
+     %{
+       port: nil,
+       phx_port: nil,
+       ws_count: 0,
+       idle_timer: nil,
+       port_deadline: nil,
+       phx_port_deadline: nil
+     }}
   end
 
   @impl true
@@ -124,22 +134,37 @@ defmodule Inkwell.Daemon do
 
   @impl true
   def handle_info(:refresh_port_info, state) do
-    case bandit_pid() do
-      nil ->
-        Process.send_after(self(), :refresh_port_info, 100)
-        {:noreply, state}
+    state = ensure_deadline(state, :port_deadline)
 
-      pid ->
-        case ThousandIsland.listener_info(pid) do
-          {:ok, {_, port}} ->
-            File.write!(portfile(), Integer.to_string(port))
-            Logger.info("Listening on port #{port}")
-            {:noreply, %{state | port: port}}
+    with pid when not is_nil(pid) <- bandit_pid(),
+         {:ok, {_, port}} <- ThousandIsland.listener_info(pid) do
+      File.write!(portfile(), Integer.to_string(port))
+      Logger.info("Listening (old) on port #{port}")
+      Process.send_after(self(), :refresh_phx_port_info, 100)
+      {:noreply, %{state | port: port, port_deadline: nil}}
+    else
+      _ ->
+        schedule_retry_or_give_up(state, :refresh_port_info, :port_deadline, "old Bandit router")
+    end
+  end
 
-          _ ->
-            Process.send_after(self(), :refresh_port_info, 100)
-            {:noreply, state}
-        end
+  @impl true
+  def handle_info(:refresh_phx_port_info, state) do
+    state = ensure_deadline(state, :phx_port_deadline)
+
+    case InkwellWeb.Endpoint.server_info(:http) do
+      {:ok, {_ip, port}} when is_integer(port) and port > 0 ->
+        File.write!(portfile_phx(), Integer.to_string(port))
+        Logger.info("Listening (phx) on port #{port}")
+        {:noreply, %{state | phx_port: port, phx_port_deadline: nil}}
+
+      _ ->
+        schedule_retry_or_give_up(
+          state,
+          :refresh_phx_port_info,
+          :phx_port_deadline,
+          "Phoenix Endpoint"
+        )
     end
   end
 
@@ -164,7 +189,26 @@ defmodule Inkwell.Daemon do
     Logger.info("Daemon shutting down (reason=#{inspect(reason)})")
     File.rm(pidfile())
     File.rm(portfile())
+    File.rm(portfile_phx())
     :ok
+  end
+
+  defp ensure_deadline(state, key) do
+    if Map.get(state, key) do
+      state
+    else
+      Map.put(state, key, System.monotonic_time(:millisecond) + 30_000)
+    end
+  end
+
+  defp schedule_retry_or_give_up(state, message, deadline_key, label) do
+    if System.monotonic_time(:millisecond) > Map.fetch!(state, deadline_key) do
+      Logger.error("#{label} failed to bind within 30s; giving up port discovery")
+      {:noreply, Map.put(state, deadline_key, nil)}
+    else
+      Process.send_after(self(), message, 100)
+      {:noreply, state}
+    end
   end
 
   defp wait_until_alive(deadline \\ System.monotonic_time(:millisecond) + 30_000) do

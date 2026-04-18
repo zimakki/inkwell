@@ -43,3 +43,6 @@ src-tauri/binaries/
 src-tauri/gen/
 /.expert
 .gstack/
+
+# Phoenix esbuild build output
+/priv/phx_static/assets/

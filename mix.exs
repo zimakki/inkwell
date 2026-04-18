@@ -8,6 +8,9 @@ defmodule Inkwell.MixProject do
       app: :inkwell,
       version: @version,
       elixir: "~> 1.19",
+      elixirc_paths: elixirc_paths(Mix.env()),
+      compilers: [:phoenix_live_view] ++ Mix.compilers(),
+      listeners: [Phoenix.CodeReloader],
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       releases: releases(),
@@ -26,10 +29,13 @@ defmodule Inkwell.MixProject do
 
   def application do
     [
-      extra_applications: [:logger, :inets, :ssl],
+      extra_applications: [:logger, :inets, :ssl, :runtime_tools],
       mod: {Inkwell.Application, []}
     ]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   defp deps do
     [
@@ -39,6 +45,14 @@ defmodule Inkwell.MixProject do
       {:websock_adapter, "~> 0.5"},
       {:file_system, "~> 1.0"},
       {:jason, "~> 1.4"},
+      {:phoenix, "~> 1.8.5"},
+      {:phoenix_html, "~> 4.1"},
+      {:phoenix_live_reload, "~> 1.2", only: :dev},
+      {:phoenix_live_view, "~> 1.1.0"},
+      {:lazy_html, ">= 0.1.0", only: :test},
+      {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
       {:burrito, "~> 1.0", only: :prod},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:usage_rules, "~> 1.1", only: :dev},
