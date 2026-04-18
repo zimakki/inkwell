@@ -14,13 +14,13 @@ defmodule InkwellWeb.PickerComponent do
 
   @impl true
   def handle_event("search", %{"q" => q}, socket) do
-    raw =
+    results =
       case socket.assigns.current_path do
         nil -> Inkwell.Search.list_recent()
         current -> Inkwell.Search.search(current, q)
       end
 
-    {:noreply, assign(socket, query: q, results: flatten(raw))}
+    {:noreply, assign(socket, query: q, results: results)}
   end
 
   def handle_event("select", %{"path" => path}, socket) do
@@ -28,15 +28,8 @@ defmodule InkwellWeb.PickerComponent do
     {:noreply, socket}
   end
 
-  defp initial_results(nil), do: flatten(Inkwell.Search.list_recent())
-  defp initial_results(current), do: flatten(Inkwell.Search.search(current, ""))
-
-  defp flatten(%{recent: recent, siblings: siblings, repository: repo}) do
-    repo_files = if repo, do: repo.files, else: []
-    recent ++ siblings ++ repo_files
-  end
-
-  defp flatten(list) when is_list(list), do: list
+  defp initial_results(nil), do: Inkwell.Search.list_recent()
+  defp initial_results(current), do: Inkwell.Search.search(current, "")
 
   @impl true
   def render(assigns) do
@@ -58,19 +51,39 @@ defmodule InkwellWeb.PickerComponent do
         </form>
         <div id="picker-body">
           <div id="picker-list">
-            <div
-              :for={item <- @results}
-              class="picker-item"
-              data-path={item.path}
-              phx-click="select"
-              phx-value-path={item.path}
-              phx-target={@myself}
-            >
-              <div class="picker-filename">{item.filename}</div>
-              <div class="picker-path">{item.path}</div>
-            </div>
+            <.section title="Recent" items={@results.recent} myself={@myself} />
+            <.section title="In this folder" items={@results.siblings} myself={@myself} />
+            <.section
+              :if={@results.repository}
+              title={@results.repository.name}
+              items={@results.repository.files}
+              myself={@myself}
+            />
           </div>
         </div>
+      </div>
+    </div>
+    """
+  end
+
+  attr :title, :string, required: true
+  attr :items, :list, required: true
+  attr :myself, :any, required: true
+
+  defp section(assigns) do
+    ~H"""
+    <div :if={@items != []} class="picker-section">
+      <div class="picker-section-title">{@title}</div>
+      <div
+        :for={item <- @items}
+        class="picker-item"
+        data-path={item.path}
+        phx-click="select"
+        phx-value-path={item.path}
+        phx-target={@myself}
+      >
+        <div class="picker-filename">{item.filename}</div>
+        <div class="picker-path">{item[:rel_path] || item.path}</div>
       </div>
     </div>
     """
