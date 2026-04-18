@@ -19,6 +19,7 @@ defmodule InkwellWeb.Router do
 
     live_session :shell, layout: {InkwellWeb.Layouts, :app} do
       live "/", EmptyLive, :index
+      live "/browse", BrowseLive, :index
     end
   end
 
