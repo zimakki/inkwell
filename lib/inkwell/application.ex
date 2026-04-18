@@ -71,6 +71,7 @@ defmodule Inkwell.Application do
 
           [
             {Phoenix.PubSub, name: Inkwell.PubSub},
+            {Registry, keys: :unique, name: Inkwell.WatcherRegistry},
             {Inkwell.History, []},
             {Inkwell.Daemon, []},
             {DynamicSupervisor, strategy: :one_for_one, name: Inkwell.WatcherSupervisor},

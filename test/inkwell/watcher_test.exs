@@ -107,14 +107,9 @@ defmodule Inkwell.WatcherTest do
   end
 
   defp lookup_watcher!(dir) do
-    Inkwell.WatcherSupervisor
-    |> DynamicSupervisor.which_children()
-    |> Enum.find_value(fn
-      {_, pid, _, _} when is_pid(pid) ->
-        if GenServer.call(pid, :get_dir) == dir, do: pid, else: nil
-
-      _ ->
-        nil
-    end) || raise "no watcher for dir #{dir}"
+    case Registry.lookup(Inkwell.WatcherRegistry, dir) do
+      [{pid, _}] -> pid
+      [] -> raise "no watcher for dir #{dir}"
+    end
   end
 end

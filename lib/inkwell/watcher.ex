@@ -5,7 +5,7 @@ defmodule Inkwell.Watcher do
 
   def start_link(opts) do
     dir = Keyword.fetch!(opts, :dir)
-    GenServer.start_link(__MODULE__, dir)
+    GenServer.start_link(__MODULE__, dir, name: {:via, Registry, {Inkwell.WatcherRegistry, dir}})
   end
 
   def resolve_path(path) do
@@ -50,27 +50,21 @@ defmodule Inkwell.Watcher do
     path = resolve_path(path)
     dir = Path.dirname(path)
 
-    case find_watcher(dir) do
-      {:ok, pid} ->
-        GenServer.call(pid, {:watch_file, path})
+    pid =
+      case Registry.lookup(Inkwell.WatcherRegistry, dir) do
+        [{pid, _}] ->
+          pid
 
-      :not_found ->
-        spec = {__MODULE__, dir: dir}
-        {:ok, pid} = DynamicSupervisor.start_child(Inkwell.WatcherSupervisor, spec)
-        GenServer.call(pid, {:watch_file, path})
-    end
-  end
+        [] ->
+          spec = {__MODULE__, dir: dir}
 
-  defp find_watcher(dir) do
-    Inkwell.WatcherSupervisor
-    |> DynamicSupervisor.which_children()
-    |> Enum.find_value(:not_found, fn
-      {_, pid, _, _} when is_pid(pid) ->
-        if GenServer.call(pid, :get_dir) == dir, do: {:ok, pid}, else: nil
+          case DynamicSupervisor.start_child(Inkwell.WatcherSupervisor, spec) do
+            {:ok, pid} -> pid
+            {:error, {:already_started, pid}} -> pid
+          end
+      end
 
-      _ ->
-        nil
-    end)
+    GenServer.call(pid, {:watch_file, path})
   end
 
   def watched_files do
@@ -135,9 +129,6 @@ defmodule Inkwell.Watcher do
   def handle_call(:watched_files, _from, state) do
     {:reply, MapSet.to_list(state.files), state}
   end
-
-  @impl true
-  def handle_call(:get_dir, _from, state), do: {:reply, state.dir, state}
 
   @impl true
   def handle_info({:file_event, _pid, {changed_path, events}}, state) do
