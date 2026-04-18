@@ -18,8 +18,11 @@ defmodule InkwellWeb.Router do
     pipe_through :browser
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", InkwellWeb do
-  #   pipe_through :api
-  # end
+  scope "/", InkwellWeb do
+    pipe_through :api
+
+    get "/health", HealthController, :show
+    get "/status", HealthController, :status
+    post "/stop", StopController, :stop
+  end
 end
