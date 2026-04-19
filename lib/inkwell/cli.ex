@@ -180,17 +180,10 @@ defmodule Inkwell.CLI do
           {:error, "failed to start inkwell daemon (#{inspect(reason)})"}
 
         {:ok, port} ->
-          mode = Keyword.get(opts, :mode, "diff")
-          # If the caller didn't specify a theme, fall back to whatever the
-          # daemon last persisted so the URL we open matches its current state.
-          effective_theme = theme || Inkwell.Settings.read_theme() || "dark"
-
-          case http_get_json(
-                 "http://localhost:#{port}/open?path=#{URI.encode_www_form(file)}&theme=#{URI.encode_www_form(effective_theme)}&mode=#{URI.encode_www_form(mode)}"
-               ) do
-            {:ok, payload} -> {:ok, payload["url"], file}
-            {:error, reason} -> {:error, "failed to open preview: #{inspect(reason)}"}
-          end
+          # FileLive resolves the file, registers it with the watcher, and
+          # subscribes to PubSub on mount — no preflight HTTP call needed.
+          url = "http://localhost:#{port}/files?path=#{URI.encode_www_form(file)}"
+          {:ok, url, file}
       end
     else
       {:error, "file not found: #{file}"}

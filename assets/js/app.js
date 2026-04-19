@@ -3,11 +3,29 @@ import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import topbar from "../vendor/topbar";
 
+import DiffView from "./hooks/diff_view";
+import DocMap from "./hooks/doc_map";
+import DocRailNav from "./hooks/doc_rail_nav";
 import Mermaid from "./hooks/mermaid";
-import Zoom from "./hooks/zoom";
+import ModeToggle from "./hooks/mode_toggle";
+import PickerKeys from "./hooks/picker_keys";
+import PickerOverlay from "./hooks/picker_overlay";
 import Scrollspy from "./hooks/scrollspy";
+import Shortcuts from "./hooks/shortcuts";
+import Zoom from "./hooks/zoom";
 
-const Hooks = { Mermaid, Zoom, Scrollspy };
+const Hooks = {
+  DiffView,
+  DocMap,
+  DocRailNav,
+  Mermaid,
+  ModeToggle,
+  PickerKeys,
+  PickerOverlay,
+  Scrollspy,
+  Shortcuts,
+  Zoom,
+};
 
 const csrfToken = document
   .querySelector("meta[name='csrf-token']")
