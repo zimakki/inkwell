@@ -235,4 +235,11 @@ defmodule Inkwell.CLITest do
       refute stderr =~ "deprecated"
     end
   end
+
+  describe "format_path_not_found/1" do
+    test "formats a clear error message for the given path" do
+      assert Inkwell.CLI.format_path_not_found("/nope") ==
+               "Error: no such file or directory: /nope"
+    end
+  end
 end

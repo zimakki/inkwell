@@ -107,6 +107,11 @@ defmodule Inkwell.CLI do
     end
   end
 
+  def run_client_command(%{command: :path_not_found, path: path}) do
+    IO.puts(format_path_not_found(path))
+    System.halt(1)
+  end
+
   def run_client_command(%{command: :help}) do
     IO.puts(help_text())
     System.halt(0)
@@ -124,6 +129,11 @@ defmodule Inkwell.CLI do
 
   def run_client_command(_) do
     usage(1)
+  end
+
+  @doc false
+  def format_path_not_found(path) do
+    "Error: no such file or directory: #{path}"
   end
 
   @doc false
