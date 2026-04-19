@@ -32,7 +32,7 @@ defmodule Inkwell.Application do
             {:daemon, %{theme: theme}}
 
           ["preview", file] ->
-            {:client, %{command: :preview, file: file, theme: theme}}
+            {:client, %{command: :preview, file: file, theme: theme, deprecated: true}}
 
           ["stop"] ->
             {:client, %{command: :stop}}
@@ -40,8 +40,17 @@ defmodule Inkwell.Application do
           ["status"] ->
             {:client, %{command: :status}}
 
-          [dir] ->
-            {:client, %{command: :browse, dir: dir, theme: theme}}
+          [path] ->
+            case classify_path(path) do
+              :file ->
+                {:client, %{command: :preview, file: path, theme: theme}}
+
+              :directory ->
+                {:client, %{command: :browse, dir: path, theme: theme}}
+
+              :not_found ->
+                {:client, %{command: :path_not_found, path: path}}
+            end
 
           [] ->
             {:client, %{command: :usage}}
@@ -55,6 +64,22 @@ defmodule Inkwell.Application do
   @doc false
   def release? do
     not Code.ensure_loaded?(Mix)
+  end
+
+  @doc """
+  Classifies a path as `:file`, `:directory`, or `:not_found`.
+
+  Symlinks are followed (uses `File.stat/1`, not `File.lstat/1`).
+  Anything that isn't a regular file or directory — device nodes,
+  sockets, broken symlinks, stat errors — is reported as `:not_found`.
+  """
+  @spec classify_path(Path.t()) :: :file | :directory | :not_found
+  def classify_path(path) do
+    case File.stat(Path.expand(path)) do
+      {:ok, %File.Stat{type: :regular}} -> :file
+      {:ok, %File.Stat{type: :directory}} -> :directory
+      _ -> :not_found
+    end
   end
 
   defp resolve_theme(explicit) when explicit in ["dark", "light"], do: explicit

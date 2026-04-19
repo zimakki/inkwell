@@ -2,6 +2,15 @@
 
 All notable changes to Inkwell will be documented in this file.
 
+## [0.3.1] - 2026-04-19
+
+### Changed
+- `inkwell <path>` now classifies the argument at runtime: a file is previewed, a directory opens the picker. No more `preview` subcommand required for files.
+- `inkwell preview <file>` still works but now prints a deprecation warning to stderr; it will be removed in a future release.
+- Missing paths produce a single clear error ("no such file or directory") regardless of whether the user intended a file or a directory.
+- Symlinks are followed transparently.
+- Opening Inkwell with no file (the `/` route) now auto-opens the file picker instead of showing an "Open a file to get started" empty state.
+
 ## [0.3.0] - 2026-04-19
 
 ### Changed

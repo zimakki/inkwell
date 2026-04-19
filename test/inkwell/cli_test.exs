@@ -95,10 +95,11 @@ defmodule Inkwell.CLITest do
   test "help_text returns usage documentation" do
     text = Inkwell.CLI.help_text()
     assert text =~ "inkwell"
-    assert text =~ "preview"
+    assert text =~ "<path>"
     assert text =~ "--help"
     assert text =~ "--version"
     assert text =~ "--theme"
+    refute text =~ "preview"
   end
 
   test "version_string returns app name and version" do
@@ -194,6 +195,52 @@ defmodule Inkwell.CLITest do
       )
 
       assert_received {:opened, "http://localhost:4000/?path=/test.md"}
+    end
+  end
+
+  describe "preview_with_deprecation_notice/2" do
+    test "writes deprecation notice to stderr when :deprecated is true" do
+      tmp = Path.join(System.tmp_dir!(), "test-#{System.unique_integer([:positive])}.md")
+      File.write!(tmp, "# hi")
+      on_exit(fn -> File.rm(tmp) end)
+
+      start_fn = fn _opts -> {:error, :test_stub} end
+
+      stderr =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          Inkwell.CLI.preview_with_deprecation_notice(
+            %{file: tmp, theme: nil, deprecated: true},
+            start_fn
+          )
+        end)
+
+      assert stderr =~ "'preview' is deprecated"
+      assert stderr =~ "use 'inkwell <file>' instead"
+    end
+
+    test "does NOT write deprecation notice when :deprecated is absent" do
+      tmp = Path.join(System.tmp_dir!(), "test-#{System.unique_integer([:positive])}.md")
+      File.write!(tmp, "# hi")
+      on_exit(fn -> File.rm(tmp) end)
+
+      start_fn = fn _opts -> {:error, :test_stub} end
+
+      stderr =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          Inkwell.CLI.preview_with_deprecation_notice(
+            %{file: tmp, theme: nil},
+            start_fn
+          )
+        end)
+
+      refute stderr =~ "deprecated"
+    end
+  end
+
+  describe "format_path_not_found/1" do
+    test "formats a clear error message for the given path" do
+      assert Inkwell.CLI.format_path_not_found("/nope") ==
+               "Error: no such file or directory: /nope"
     end
   end
 end

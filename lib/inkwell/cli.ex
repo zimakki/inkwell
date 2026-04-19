@@ -27,6 +27,7 @@ defmodule Inkwell.CLI do
             run_daemon(opts[:theme])
 
           ["preview", file] ->
+            emit_preview_deprecation_notice()
             run_preview(file, opts)
 
           ["stop"] ->
@@ -37,6 +38,27 @@ defmodule Inkwell.CLI do
 
           ["status"] ->
             run_status()
+
+          [path] ->
+            case Inkwell.Application.classify_path(path) do
+              :file ->
+                run_preview(path, opts)
+
+              :directory ->
+                case browse(path, opts) do
+                  {:ok, url} ->
+                    system_open_for_main(url)
+                    IO.puts(url)
+
+                  {:error, msg} ->
+                    IO.puts("Error: #{msg}")
+                    System.halt(1)
+                end
+
+              :not_found ->
+                IO.puts(format_path_not_found(path))
+                System.halt(1)
+            end
 
           [] ->
             IO.puts(help_text())
@@ -62,8 +84,8 @@ defmodule Inkwell.CLI do
   end
 
   @doc "Called by Application.start/2 in client mode. Runs command and halts."
-  def run_client_command(%{command: :preview, file: file, theme: theme}) do
-    case preview(file, theme: theme) do
+  def run_client_command(%{command: :preview} = parsed) do
+    case preview_with_deprecation_notice(parsed) do
       {:ok, url, path} ->
         open_file(url, path)
         IO.puts(url)
@@ -107,6 +129,11 @@ defmodule Inkwell.CLI do
     end
   end
 
+  def run_client_command(%{command: :path_not_found, path: path}) do
+    IO.puts(format_path_not_found(path))
+    System.halt(1)
+  end
+
   def run_client_command(%{command: :help}) do
     IO.puts(help_text())
     System.halt(0)
@@ -126,6 +153,30 @@ defmodule Inkwell.CLI do
     usage(1)
   end
 
+  @doc false
+  def format_path_not_found(path) do
+    "Error: no such file or directory: #{path}"
+  end
+
+  @doc false
+  # Shared helper: writes the deprecation notice (if applicable) and delegates
+  # to preview/3. Extracted so the notice is testable without System.halt.
+  def preview_with_deprecation_notice(parsed, start_daemon \\ &Inkwell.Daemon.ensure_started/1) do
+    if Map.get(parsed, :deprecated, false) do
+      emit_preview_deprecation_notice()
+    end
+
+    preview(parsed.file, [theme: parsed.theme], start_daemon)
+  end
+
+  defp emit_preview_deprecation_notice do
+    IO.puts(
+      :stderr,
+      "warning: 'preview' is deprecated and will be removed in a future release; " <>
+        "use 'inkwell <file>' instead"
+    )
+  end
+
   defp run_preview(file, opts) do
     case preview(file, opts) do
       {:ok, url, path} ->
@@ -137,6 +188,8 @@ defmodule Inkwell.CLI do
         System.halt(1)
     end
   end
+
+  defp system_open_for_main(url), do: system_open(url)
 
   @doc false
   def browse(dir, opts, start_daemon \\ &Inkwell.Daemon.ensure_started/1) do
@@ -249,8 +302,7 @@ defmodule Inkwell.CLI do
   def help_text do
     """
     Usage:
-      inkwell <directory>            Open file picker for a directory
-      inkwell preview <file.md>      Preview a specific markdown file
+      inkwell <path>                 Preview a markdown file or open the picker for a directory
       inkwell stop                   Stop the daemon
       inkwell status                 Show daemon status
 
@@ -262,7 +314,7 @@ defmodule Inkwell.CLI do
     Examples:
       inkwell .                      Browse current directory
       inkwell ~/Documents            Browse a specific directory
-      inkwell preview README.md      Preview README.md\
+      inkwell README.md              Preview a markdown file\
     """
   end
 
