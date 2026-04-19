@@ -1,9 +1,7 @@
 defmodule Inkwell.SearchTest do
-  use ExUnit.Case, async: false
+  use Inkwell.DataCase, async: false
 
   setup do
-    Inkwell.History.reset()
-
     base = Path.join(System.tmp_dir!(), "inkwell-search-#{System.unique_integer([:positive])}")
     File.mkdir_p!(base)
 
@@ -15,7 +13,7 @@ defmodule Inkwell.SearchTest do
     File.write!(sibling, "# Beta Heading\n\nbody")
     File.write!(other, "ignore")
 
-    Inkwell.History.push(current)
+    Inkwell.Library.push_recent!(current)
 
     on_exit(fn -> File.rm_rf!(base) end)
 
