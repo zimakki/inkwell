@@ -16,18 +16,18 @@ defmodule Inkwell.Library.RecentFile do
     repo Inkwell.Repo
   end
 
+  actions do
+    defaults [:read]
+  end
+
   attributes do
     uuid_primary_key :id
-    attribute :path, :string, allow_nil?: false, public?: true
-    attribute :last_opened_at, :utc_datetime_usec, allow_nil?: false, public?: true
-    attribute :open_count, :integer, allow_nil?: false, default: 0, public?: true
+    attribute :path, :string, allow_nil?: false
+    attribute :last_opened_at, :utc_datetime_usec, allow_nil?: false
+    attribute :open_count, :integer, allow_nil?: false, default: 0
   end
 
   identities do
     identity :unique_path, [:path]
-  end
-
-  actions do
-    defaults [:read]
   end
 end
