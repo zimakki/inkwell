@@ -1,3 +1,5 @@
+# The Repo is started here once for the entire test run.
+# Tests must NOT restart it (use Inkwell.DataCase instead).
 Inkwell.GitRepo.init_cache()
 
 # Nuke any leftover test DB from a prior run, start the Repo, migrate fresh.
