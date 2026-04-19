@@ -1,5 +1,12 @@
 import Config
 
+config :inkwell, Inkwell.Repo,
+  database: "../path/to/your.db",
+  show_sensitive_data_on_connection_error: true,
+  pool_size: 10
+
+config :ash, policies: [show_policy_breakdowns?: true]
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #

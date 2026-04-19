@@ -23,7 +23,8 @@ defmodule Inkwell.MixProject do
       usage_rules: [
         file: "CLAUDE.md",
         usage_rules: :all
-      ]
+      ],
+      consolidate_protocols: Mix.env() != :dev
     ]
   end
 
@@ -43,6 +44,9 @@ defmodule Inkwell.MixProject do
 
   defp deps do
     [
+      {:sourceror, "~> 1.8", only: [:dev, :test]},
+      {:ash_sqlite, "~> 0.2"},
+      {:ash, "~> 3.0"},
       {:mdex, "~> 0.11"},
       {:bandit, "~> 1.10"},
       {:plug, "~> 1.19"},
@@ -79,7 +83,8 @@ defmodule Inkwell.MixProject do
       "assets.build": ["esbuild inkwell"],
       "assets.deploy": ["esbuild inkwell --minify", "phx.digest"],
       tidewave:
-        "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 4000) end)'"
+        "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 4000) end)'",
+      test: ["ash.setup --quiet", "test"]
     ]
   end
 

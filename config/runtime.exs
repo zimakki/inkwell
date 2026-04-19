@@ -25,4 +25,6 @@ if config_env() == :prod do
     http: [ip: {127, 0, 0, 1}, port: 0],
     secret_key_base: secret_key_base,
     server: true
+
+  config :inkwell, Inkwell.Repo, pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
 end
