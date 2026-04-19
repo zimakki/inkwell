@@ -9,17 +9,14 @@ defmodule InkwellWeb.EmptyLive do
      socket
      |> assign(filename: nil)
      |> assign(rel_dir: "")
-     |> assign(page_title: "Inkwell")}
+     |> assign(page_title: "Inkwell")
+     |> assign(picker_open: true)}
   end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div id="page-ctn">
-      <div class="empty-state">
-        Open a file to get started
-      </div>
-    </div>
+    <div id="page-ctn"></div>
     """
   end
 end
