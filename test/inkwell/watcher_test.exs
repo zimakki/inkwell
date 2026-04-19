@@ -32,15 +32,14 @@ defmodule Inkwell.WatcherTest do
     assert Inkwell.Watcher.resolve_path(file2) in watched
   end
 
-  test "broadcast_nav dispatches JSON to registered clients", %{test_file: test_file} do
+  test "broadcast_nav dispatches payload via PubSub to subscribers", %{test_file: test_file} do
     Inkwell.Watcher.ensure_file(test_file)
     expanded = Inkwell.Watcher.resolve_path(test_file)
-    Registry.register(Inkwell.Registry, {:ws_clients, expanded}, [])
+    :ok = Phoenix.PubSub.subscribe(Inkwell.PubSub, "file:" <> expanded)
 
     Inkwell.Watcher.broadcast_nav("<p>Hi</p>", [%{level: 2, text: "Hi", id: "hi"}], [], expanded)
 
-    assert_receive {:reload, payload}, 1000
-    assert %{"html" => "<p>Hi</p>", "headings" => [_]} = Jason.decode!(payload)
+    assert_receive {:reload, %{html: "<p>Hi</p>", headings: [_]}}, 1000
   end
 
   test "rebroadcast_all handles deleted files gracefully", %{base: base} do
@@ -56,29 +55,23 @@ defmodule Inkwell.WatcherTest do
   test "handle_info with :renamed event triggers broadcast", %{test_file: test_file} do
     :ok = Inkwell.Watcher.ensure_file(test_file)
     expanded = Inkwell.Watcher.resolve_path(test_file)
-    Registry.register(Inkwell.Registry, {:ws_clients, expanded}, [])
+    :ok = Phoenix.PubSub.subscribe(Inkwell.PubSub, "file:" <> expanded)
 
-    [{watcher_pid, _}] =
-      Registry.lookup(Inkwell.Registry, {:watcher, Path.dirname(expanded)})
-
+    watcher_pid = lookup_watcher!(Path.dirname(expanded))
     send(watcher_pid, {:file_event, self(), {expanded, [:renamed]}})
 
-    assert_receive {:reload, payload}, 1000
-    assert %{"html" => _} = Jason.decode!(payload)
+    assert_receive {:reload, %{html: _}}, 1000
   end
 
   test "handle_info with :created event triggers broadcast", %{test_file: test_file} do
     :ok = Inkwell.Watcher.ensure_file(test_file)
     expanded = Inkwell.Watcher.resolve_path(test_file)
-    Registry.register(Inkwell.Registry, {:ws_clients, expanded}, [])
+    :ok = Phoenix.PubSub.subscribe(Inkwell.PubSub, "file:" <> expanded)
 
-    [{watcher_pid, _}] =
-      Registry.lookup(Inkwell.Registry, {:watcher, Path.dirname(expanded)})
-
+    watcher_pid = lookup_watcher!(Path.dirname(expanded))
     send(watcher_pid, {:file_event, self(), {expanded, [:created, :modified]}})
 
-    assert_receive {:reload, payload}, 1000
-    assert %{"html" => _} = Jason.decode!(payload)
+    assert_receive {:reload, %{html: _}}, 1000
   end
 
   test "resolve_path follows symlinks" do
@@ -105,13 +98,18 @@ defmodule Inkwell.WatcherTest do
     expanded_tracked = Inkwell.Watcher.resolve_path(tracked)
     expanded_untracked = Inkwell.Watcher.resolve_path(untracked)
 
-    Registry.register(Inkwell.Registry, {:ws_clients, expanded_tracked}, [])
+    :ok = Phoenix.PubSub.subscribe(Inkwell.PubSub, "file:" <> expanded_tracked)
 
-    [{watcher_pid, _}] =
-      Registry.lookup(Inkwell.Registry, {:watcher, Path.dirname(expanded_tracked)})
-
+    watcher_pid = lookup_watcher!(Path.dirname(expanded_tracked))
     send(watcher_pid, {:file_event, self(), {expanded_untracked, [:modified]}})
 
     refute_receive {:reload, _}, 200
+  end
+
+  defp lookup_watcher!(dir) do
+    case Registry.lookup(Inkwell.WatcherRegistry, dir) do
+      [{pid, _}] -> pid
+      [] -> raise "no watcher for dir #{dir}"
+    end
   end
 end

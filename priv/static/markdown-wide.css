@@ -204,6 +204,14 @@ body::-webkit-scrollbar-thumb {
   min-width: 0;
 }
 
+/* Heading targets clear the sticky #page-header on anchor scroll. */
+#page-ctn h1,
+#page-ctn h2,
+#page-ctn h3,
+#page-ctn h4 {
+  scroll-margin-top: 5rem;
+}
+
 /* ── Page header ─────────────────────────────────────── */
 
 #page-header {

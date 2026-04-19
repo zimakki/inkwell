@@ -13,7 +13,11 @@ defmodule Inkwell.Application do
         aliases: [h: :help, v: :version]
       )
 
-    theme = Keyword.get(opts, :theme, "dark")
+    # nil means "no --theme flag was passed" — Application.start will fall back
+    # to the persisted theme (or "dark" on first boot). Client commands keep
+    # this nil and only inject --theme into the spawned daemon when explicitly
+    # provided, so launching the daemon doesn't clobber the user's last choice.
+    theme = opts[:theme]
 
     cond do
       opts[:help] ->
@@ -53,6 +57,9 @@ defmodule Inkwell.Application do
     not Code.ensure_loaded?(Mix)
   end
 
+  defp resolve_theme(explicit) when explicit in ["dark", "light"], do: explicit
+  defp resolve_theme(_other), do: Inkwell.Settings.read_theme() || "dark"
+
   @impl true
   def start(_type, _args) do
     {mode, parsed} =
@@ -60,23 +67,26 @@ defmodule Inkwell.Application do
         args = :init.get_plain_arguments() |> Enum.map(&List.to_string/1)
         parse_mode(args)
       else
-        {:daemon, %{theme: :persistent_term.get(:inkwell_theme, "dark")}}
+        # nil flows through resolve_theme/1 → persisted → "dark" default.
+        {:daemon, %{theme: nil}}
       end
 
     children =
       case mode do
         :daemon ->
-          :persistent_term.put(:inkwell_theme, parsed[:theme] || "dark")
+          theme = resolve_theme(parsed[:theme])
+          :persistent_term.put(:inkwell_theme, theme)
+          if parsed[:theme], do: Inkwell.Settings.write_theme(theme)
           Inkwell.GitRepo.init_cache()
 
           [
-            {Registry, keys: :duplicate, name: Inkwell.Registry},
+            {Phoenix.PubSub, name: Inkwell.PubSub},
+            {Registry, keys: :unique, name: Inkwell.WatcherRegistry},
             {Inkwell.History, []},
             {Inkwell.Daemon, []},
             {DynamicSupervisor, strategy: :one_for_one, name: Inkwell.WatcherSupervisor},
-            Supervisor.child_spec({Bandit, plug: Inkwell.Router, port: 0},
-              id: Inkwell.BanditServer
-            )
+            InkwellWeb.Telemetry,
+            InkwellWeb.Endpoint
           ]
 
         :client ->

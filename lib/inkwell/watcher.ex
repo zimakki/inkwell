@@ -5,7 +5,7 @@ defmodule Inkwell.Watcher do
 
   def start_link(opts) do
     dir = Keyword.fetch!(opts, :dir)
-    GenServer.start_link(__MODULE__, dir)
+    GenServer.start_link(__MODULE__, dir, name: {:via, Registry, {Inkwell.WatcherRegistry, dir}})
   end
 
   def resolve_path(path) do
@@ -50,15 +50,21 @@ defmodule Inkwell.Watcher do
     path = resolve_path(path)
     dir = Path.dirname(path)
 
-    case Registry.lookup(Inkwell.Registry, {:watcher, dir}) do
-      [{pid, _}] ->
-        GenServer.call(pid, {:watch_file, path})
+    pid =
+      case Registry.lookup(Inkwell.WatcherRegistry, dir) do
+        [{pid, _}] ->
+          pid
 
-      [] ->
-        spec = {__MODULE__, dir: dir}
-        {:ok, pid} = DynamicSupervisor.start_child(Inkwell.WatcherSupervisor, spec)
-        GenServer.call(pid, {:watch_file, path})
-    end
+        [] ->
+          spec = {__MODULE__, dir: dir}
+
+          case DynamicSupervisor.start_child(Inkwell.WatcherSupervisor, spec) do
+            {:ok, pid} -> pid
+            {:error, {:already_started, pid}} -> pid
+          end
+      end
+
+    GenServer.call(pid, {:watch_file, path})
   end
 
   def watched_files do
@@ -87,18 +93,17 @@ defmodule Inkwell.Watcher do
   end
 
   def broadcast_nav(html, headings, alerts, path) do
-    payload =
-      Jason.encode!(%{html: html, headings: headings, alerts: alerts})
+    payload_map = %{html: html, headings: headings, alerts: alerts}
 
-    Registry.dispatch(Inkwell.Registry, {:ws_clients, path}, fn entries ->
-      for {pid, _} <- entries, do: send(pid, {:reload, payload})
-    end)
+    Phoenix.PubSub.broadcast(
+      Inkwell.PubSub,
+      "file:" <> path,
+      {:reload, payload_map}
+    )
   end
 
   @impl true
   def init(dir) do
-    Registry.register(Inkwell.Registry, {:watcher, dir}, [])
-
     case FileSystem.start_link(dirs: [dir]) do
       {:ok, watcher} ->
         FileSystem.subscribe(watcher)

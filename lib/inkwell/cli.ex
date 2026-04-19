@@ -24,7 +24,7 @@ defmodule Inkwell.CLI do
       true ->
         case rest do
           ["daemon"] ->
-            run_daemon(Keyword.get(opts, :theme, "dark"))
+            run_daemon(opts[:theme])
 
           ["preview", file] ->
             run_preview(file, opts)
@@ -48,8 +48,15 @@ defmodule Inkwell.CLI do
   end
 
   def run_daemon(theme) do
-    Logger.info("Starting daemon with theme=#{theme}")
-    :persistent_term.put(:inkwell_theme, theme)
+    # Pre-seed :persistent_term so anything reading before the supervision
+    # tree finishes booting sees a value. Application.start/2 will overwrite
+    # this with the resolved theme (explicit > persisted > "dark").
+    if theme do
+      :persistent_term.put(:inkwell_theme, theme)
+      Inkwell.Settings.write_theme(theme)
+    end
+
+    Logger.info("Starting daemon with theme=#{theme || "(persisted)"}")
     Application.ensure_all_started(:inkwell)
     Process.sleep(:infinity)
   end
@@ -143,15 +150,17 @@ defmodule Inkwell.CLI do
         {:error, "not a directory: #{dir}"}
 
       true ->
-        theme = Keyword.get(opts, :theme, "dark")
+        theme = opts[:theme]
 
         case start_daemon.(theme: theme) do
           {:error, reason} ->
             {:error, "failed to start inkwell daemon (#{inspect(reason)})"}
 
           {:ok, port} ->
+            effective_theme = theme || Inkwell.Settings.read_theme() || "dark"
+
             url =
-              "http://localhost:#{port}/?dir=#{URI.encode_www_form(dir)}&theme=#{URI.encode_www_form(theme)}"
+              "http://localhost:#{port}/?dir=#{URI.encode_www_form(dir)}&theme=#{URI.encode_www_form(effective_theme)}"
 
             {:ok, url}
         end
@@ -162,25 +171,22 @@ defmodule Inkwell.CLI do
   def preview(file, opts, start_daemon \\ &Inkwell.Daemon.ensure_started/1) do
     file = Path.expand(file)
 
-    if not File.exists?(file) do
-      {:error, "file not found: #{file}"}
-    else
-      theme = Keyword.get(opts, :theme, "dark")
+    if File.exists?(file) do
+      # nil = use the daemon's persisted theme; only forward an explicit value.
+      theme = opts[:theme]
 
       case start_daemon.(theme: theme) do
         {:error, reason} ->
           {:error, "failed to start inkwell daemon (#{inspect(reason)})"}
 
         {:ok, port} ->
-          mode = Keyword.get(opts, :mode, "diff")
-
-          case http_get_json(
-                 "http://localhost:#{port}/open?path=#{URI.encode_www_form(file)}&theme=#{URI.encode_www_form(theme)}&mode=#{URI.encode_www_form(mode)}"
-               ) do
-            {:ok, payload} -> {:ok, payload["url"], file}
-            {:error, reason} -> {:error, "failed to open preview: #{inspect(reason)}"}
-          end
+          # FileLive resolves the file, registers it with the watcher, and
+          # subscribes to PubSub on mount — no preflight HTTP call needed.
+          url = "http://localhost:#{port}/files?path=#{URI.encode_www_form(file)}"
+          {:ok, url, file}
       end
+    else
+      {:error, "file not found: #{file}"}
     end
   end
 

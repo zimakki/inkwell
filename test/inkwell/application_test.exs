@@ -10,8 +10,8 @@ defmodule Inkwell.ApplicationTest do
     assert {:client, %{command: :usage}} == Inkwell.Application.parse_mode([])
   end
 
-  test "parse_mode returns :client for preview command" do
-    assert {:client, %{command: :preview, file: "file.md", theme: "dark"}} ==
+  test "parse_mode returns :client preview with nil theme when --theme is omitted" do
+    assert {:client, %{command: :preview, file: "file.md", theme: nil}} ==
              Inkwell.Application.parse_mode(["preview", "file.md"])
   end
 
@@ -29,17 +29,17 @@ defmodule Inkwell.ApplicationTest do
   end
 
   test "parse_mode returns :client browse for unknown single arg (treated as dir)" do
-    assert {:client, %{command: :browse, dir: "unknown", theme: "dark"}} ==
+    assert {:client, %{command: :browse, dir: "unknown", theme: nil}} ==
              Inkwell.Application.parse_mode(["unknown"])
   end
 
   test "parse_mode returns :client browse for dot argument" do
-    assert {:client, %{command: :browse, dir: ".", theme: "dark"}} ==
+    assert {:client, %{command: :browse, dir: ".", theme: nil}} ==
              Inkwell.Application.parse_mode(["."])
   end
 
   test "parse_mode returns :client browse for directory path" do
-    assert {:client, %{command: :browse, dir: "/tmp/docs", theme: "dark"}} ==
+    assert {:client, %{command: :browse, dir: "/tmp/docs", theme: nil}} ==
              Inkwell.Application.parse_mode(["/tmp/docs"])
   end
 

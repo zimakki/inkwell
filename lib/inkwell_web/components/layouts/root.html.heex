@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title default="Inkwell">{assigns[:page_title]}</.live_title>
+    <link rel="icon" type="image/svg+xml" href={~p"/favicon.svg"} />
+    <link phx-track-static rel="stylesheet" href={~p"/markdown-wide.css"} />
+    <link phx-track-static rel="stylesheet" href={~p"/app.css"} />
+    <script
+      src="https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.min.js"
+      integrity="sha384-o+g/BxPwhi0C3RK7oQBxQuNimeafQ3GE/ST4iT2BxVI4Wzt60SH4pq9iXVYujjaS"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    >
+    </script>
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
+    </script>
+  </head>
+  <body>
+    {@inner_content}
+  </body>
+</html>

@@ -9,8 +9,12 @@ defmodule Inkwell.Daemon do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
-  def client_connected, do: GenServer.cast(__MODULE__, :client_connected)
-  def client_disconnected, do: GenServer.cast(__MODULE__, :client_disconnected)
+  @doc """
+  Register the calling process as a connected client. The Daemon monitors
+  the caller and automatically removes it when the process exits (covers
+  both graceful LiveView terminate AND abrupt browser-close disconnects).
+  """
+  def client_connected, do: GenServer.call(__MODULE__, {:client_connected, self()})
 
   def status_info do
     GenServer.call(__MODULE__, :status_info)
@@ -30,7 +34,9 @@ defmodule Inkwell.Daemon do
   end
 
   def ensure_started(opts \\ []) do
-    theme = Keyword.get(opts, :theme, "dark")
+    # nil = caller didn't explicitly request a theme; let the spawned daemon
+    # fall back to its persisted preference.
+    theme = Keyword.get(opts, :theme)
 
     if alive?() do
       {:ok, read_port!()}
@@ -82,7 +88,7 @@ defmodule Inkwell.Daemon do
     Process.flag(:trap_exit, true)
     Process.send_after(self(), :refresh_port_info, 100)
     Logger.info("Daemon started (pid=#{System.pid()})")
-    {:ok, %{port: nil, ws_count: 0, idle_timer: nil}}
+    {:ok, %{port: nil, clients: %{}, idle_timer: nil, port_deadline: nil}}
   end
 
   @impl true
@@ -91,7 +97,7 @@ defmodule Inkwell.Daemon do
       running: true,
       pid: System.pid(),
       port: state.port,
-      websocket_clients: state.ws_count,
+      websocket_clients: map_size(state.clients),
       watched_files: Inkwell.Watcher.watched_files()
     }
 
@@ -99,61 +105,60 @@ defmodule Inkwell.Daemon do
   end
 
   @impl true
-  def handle_cast(:client_connected, state) do
+  def handle_call({:client_connected, pid}, _from, state) do
     if state.idle_timer, do: Process.cancel_timer(state.idle_timer)
-    {:noreply, %{state | ws_count: state.ws_count + 1, idle_timer: nil}}
-  end
-
-  @impl true
-  def handle_cast(:client_disconnected, state) do
-    ws_count = max(state.ws_count - 1, 0)
-
-    state =
-      if ws_count == 0 do
-        %{
-          state
-          | ws_count: ws_count,
-            idle_timer: Process.send_after(self(), :idle_shutdown, @idle_timeout)
-        }
-      else
-        %{state | ws_count: ws_count}
-      end
-
-    {:noreply, state}
+    ref = Process.monitor(pid)
+    {:reply, :ok, %{state | clients: Map.put(state.clients, ref, pid), idle_timer: nil}}
   end
 
   @impl true
   def handle_info(:refresh_port_info, state) do
-    case bandit_pid() do
-      nil ->
-        Process.send_after(self(), :refresh_port_info, 100)
-        {:noreply, state}
+    state = ensure_deadline(state, :port_deadline)
 
-      pid ->
-        case ThousandIsland.listener_info(pid) do
-          {:ok, {_, port}} ->
-            File.write!(portfile(), Integer.to_string(port))
-            Logger.info("Listening on port #{port}")
-            {:noreply, %{state | port: port}}
+    case InkwellWeb.Endpoint.server_info(:http) do
+      {:ok, {_ip, port}} when is_integer(port) and port > 0 ->
+        File.write!(portfile(), Integer.to_string(port))
+        Logger.info("Listening on port #{port}")
+        {:noreply, %{state | port: port, port_deadline: nil}}
 
-          _ ->
-            Process.send_after(self(), :refresh_port_info, 100)
-            {:noreply, state}
-        end
+      _ ->
+        schedule_retry_or_give_up(state, :refresh_port_info, :port_deadline, "Phoenix Endpoint")
     end
   end
 
   @impl true
   def handle_info(:idle_shutdown, state) do
-    if state.ws_count == 0 do
+    if map_size(state.clients) == 0 do
       Logger.info(
-        "Idle shutdown triggered (no WebSocket clients for #{div(@idle_timeout, 60_000)} minutes)"
+        "Idle shutdown triggered (no live clients for #{div(@idle_timeout, 60_000)} minutes)"
       )
 
       System.stop(0)
     end
 
     {:noreply, %{state | idle_timer: nil}}
+  end
+
+  @impl true
+  def handle_info({:DOWN, ref, :process, _pid, _reason}, state) do
+    case Map.pop(state.clients, ref) do
+      {nil, _} ->
+        {:noreply, state}
+
+      {_pid, clients} ->
+        state =
+          if map_size(clients) == 0 do
+            %{
+              state
+              | clients: clients,
+                idle_timer: Process.send_after(self(), :idle_shutdown, @idle_timeout)
+            }
+          else
+            %{state | clients: clients}
+          end
+
+        {:noreply, state}
+    end
   end
 
   @impl true
@@ -165,6 +170,24 @@ defmodule Inkwell.Daemon do
     File.rm(pidfile())
     File.rm(portfile())
     :ok
+  end
+
+  defp ensure_deadline(state, key) do
+    if Map.get(state, key) do
+      state
+    else
+      Map.put(state, key, System.monotonic_time(:millisecond) + 30_000)
+    end
+  end
+
+  defp schedule_retry_or_give_up(state, message, deadline_key, label) do
+    if System.monotonic_time(:millisecond) > Map.fetch!(state, deadline_key) do
+      Logger.error("#{label} failed to bind within 30s; giving up port discovery")
+      {:noreply, Map.put(state, deadline_key, nil)}
+    else
+      Process.send_after(self(), message, 100)
+      {:noreply, state}
+    end
   end
 
   defp wait_until_alive(deadline \\ System.monotonic_time(:millisecond) + 30_000) do
@@ -211,18 +234,20 @@ defmodule Inkwell.Daemon do
 
   defp daemon_command(theme) do
     exec = current_executable()
+    theme_flag = if theme, do: " --theme #{shell_escape(theme)}", else: ""
+    mix_theme_arg = if theme, do: ~s|"#{theme}"|, else: "nil"
 
     cond do
       burrito?() or escript?() ->
-        "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >>#{shell_escape(logfile())} 2>&1 &"
+        "nohup #{shell_escape(exec)} daemon#{theme_flag} >>#{shell_escape(logfile())} 2>&1 &"
 
       match?({:ok, _}, project_root(exec)) ->
         {:ok, root} = project_root(exec)
 
-        "cd #{shell_escape(root)} && nohup mix run --no-halt -e 'Inkwell.CLI.run_daemon(\"#{theme}\")' >>#{shell_escape(logfile())} 2>&1 &"
+        "cd #{shell_escape(root)} && nohup mix run --no-halt -e 'Inkwell.CLI.run_daemon(#{mix_theme_arg})' >>#{shell_escape(logfile())} 2>&1 &"
 
       true ->
-        "nohup #{shell_escape(exec)} daemon --theme #{shell_escape(theme)} >>#{shell_escape(logfile())} 2>&1 &"
+        "nohup #{shell_escape(exec)} daemon#{theme_flag} >>#{shell_escape(logfile())} 2>&1 &"
     end
   end
 
@@ -248,15 +273,6 @@ defmodule Inkwell.Daemon do
 
   defp shell_escape(value) do
     "'" <> String.replace(value, "'", "'\"'\"'") <> "'"
-  end
-
-  defp bandit_pid do
-    Inkwell.Supervisor
-    |> Supervisor.which_children()
-    |> Enum.find_value(fn
-      {Inkwell.BanditServer, pid, _type, _modules} -> pid
-      _ -> nil
-    end)
   end
 
   defp escript? do
