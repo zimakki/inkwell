@@ -33,4 +33,17 @@ defmodule Inkwell.Library.RecentFileTest do
       assert paths == ["/tmp/b.md", "/tmp/a.md"]
     end
   end
+
+  describe "push_recent/1" do
+    test "inserts a new recent with open_count = 1 and fresh last_opened_at" do
+      before = DateTime.utc_now()
+      {:ok, recent} = Library.push_recent("/tmp/new.md")
+      after_ = DateTime.utc_now()
+
+      assert recent.path == "/tmp/new.md"
+      assert recent.open_count == 1
+      assert DateTime.compare(recent.last_opened_at, before) in [:gt, :eq]
+      assert DateTime.compare(recent.last_opened_at, after_) in [:lt, :eq]
+    end
+  end
 end

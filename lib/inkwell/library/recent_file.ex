@@ -26,6 +26,16 @@ defmodule Inkwell.Library.RecentFile do
     read :list_recent do
       prepare build(sort: [last_opened_at: :desc], limit: 20)
     end
+
+    create :push_recent do
+      accept [:path]
+      upsert? true
+      upsert_identity :unique_path
+      upsert_fields [:last_opened_at, :open_count]
+
+      change set_attribute(:last_opened_at, &DateTime.utc_now/0)
+      change set_attribute(:open_count, 1)
+    end
   end
 
   attributes do

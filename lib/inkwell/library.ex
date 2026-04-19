@@ -11,6 +11,7 @@ defmodule Inkwell.Library do
   resources do
     resource Inkwell.Library.RecentFile do
       define :list_recent, action: :list_recent
+      define :push_recent, action: :push_recent, args: [:path]
     end
   end
 end
