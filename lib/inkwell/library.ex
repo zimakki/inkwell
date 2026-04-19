@@ -22,4 +22,13 @@ defmodule Inkwell.Library do
 
     :ok
   end
+
+  @doc """
+  Convenience: returns just the paths of recent files, in the same
+  order as `list_recent/0`. Used by the picker where only the path
+  string is needed.
+  """
+  def list_recent_paths do
+    list_recent!() |> Enum.map(& &1.path)
+  end
 end
