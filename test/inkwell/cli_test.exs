@@ -95,10 +95,11 @@ defmodule Inkwell.CLITest do
   test "help_text returns usage documentation" do
     text = Inkwell.CLI.help_text()
     assert text =~ "inkwell"
-    assert text =~ "preview"
+    assert text =~ "<path>"
     assert text =~ "--help"
     assert text =~ "--version"
     assert text =~ "--theme"
+    refute text =~ "preview"
   end
 
   test "version_string returns app name and version" do

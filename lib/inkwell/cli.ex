@@ -302,8 +302,7 @@ defmodule Inkwell.CLI do
   def help_text do
     """
     Usage:
-      inkwell <directory>            Open file picker for a directory
-      inkwell preview <file.md>      Preview a specific markdown file
+      inkwell <path>                 Preview a markdown file or open the picker for a directory
       inkwell stop                   Stop the daemon
       inkwell status                 Show daemon status
 
@@ -315,7 +314,7 @@ defmodule Inkwell.CLI do
     Examples:
       inkwell .                      Browse current directory
       inkwell ~/Documents            Browse a specific directory
-      inkwell preview README.md      Preview README.md\
+      inkwell README.md              Preview a markdown file\
     """
   end
 
