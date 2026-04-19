@@ -46,7 +46,7 @@ config :spark,
 
 config :inkwell, generators: [timestamp_type: :utc_datetime], ecto_repos: [Inkwell.Repo]
 
-config :inkwell, :ash_domains, []
+config :inkwell, :ash_domains, [Inkwell.Library]
 
 # Configure the endpoint
 config :inkwell, InkwellWeb.Endpoint,
