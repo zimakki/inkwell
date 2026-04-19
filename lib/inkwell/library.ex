@@ -9,5 +9,6 @@ defmodule Inkwell.Library do
   use Ash.Domain
 
   resources do
+    resource Inkwell.Library.RecentFile
   end
 end
