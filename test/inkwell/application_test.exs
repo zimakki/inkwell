@@ -28,24 +28,71 @@ defmodule Inkwell.ApplicationTest do
     assert {:client, %{command: :status}} == Inkwell.Application.parse_mode(["status"])
   end
 
-  test "parse_mode returns :client browse for unknown single arg (treated as dir)" do
-    assert {:client, %{command: :browse, dir: "unknown", theme: nil}} ==
-             Inkwell.Application.parse_mode(["unknown"])
-  end
-
-  test "parse_mode returns :client browse for dot argument" do
-    assert {:client, %{command: :browse, dir: ".", theme: nil}} ==
-             Inkwell.Application.parse_mode(["."])
-  end
-
-  test "parse_mode returns :client browse for directory path" do
-    assert {:client, %{command: :browse, dir: "/tmp/docs", theme: nil}} ==
-             Inkwell.Application.parse_mode(["/tmp/docs"])
-  end
-
   test "parse_mode returns :client browse with theme" do
     assert {:client, %{command: :browse, dir: ".", theme: "light"}} ==
              Inkwell.Application.parse_mode([".", "--theme", "light"])
+  end
+
+  describe "parse_mode [path] routing" do
+    setup do
+      root = Path.join(System.tmp_dir!(), "inkwell-parse-#{System.unique_integer([:positive])}")
+      File.mkdir_p!(root)
+      on_exit(fn -> File.rm_rf!(root) end)
+      %{root: root}
+    end
+
+    test "routes an existing file to :preview", %{root: root} do
+      file = Path.join(root, "note.md")
+      File.write!(file, "# hi")
+
+      assert {:client, %{command: :preview, file: ^file, theme: nil}} =
+               Inkwell.Application.parse_mode([file])
+    end
+
+    test "routes an existing directory to :browse", %{root: root} do
+      assert {:client, %{command: :browse, dir: ^root, theme: nil}} =
+               Inkwell.Application.parse_mode([root])
+    end
+
+    test "routes a missing path to :path_not_found", %{root: root} do
+      missing = Path.join(root, "nope")
+
+      assert {:client, %{command: :path_not_found, path: ^missing}} =
+               Inkwell.Application.parse_mode([missing])
+    end
+
+    test "follows symlink to file → :preview", %{root: root} do
+      target = Path.join(root, "real.md")
+      link = Path.join(root, "link.md")
+      File.write!(target, "# hi")
+      :ok = File.ln_s(target, link)
+
+      assert {:client, %{command: :preview, file: ^link, theme: nil}} =
+               Inkwell.Application.parse_mode([link])
+    end
+
+    test "follows symlink to dir → :browse", %{root: root} do
+      target = Path.join(root, "realdir")
+      link = Path.join(root, "linkdir")
+      File.mkdir_p!(target)
+      :ok = File.ln_s(target, link)
+
+      assert {:client, %{command: :browse, dir: ^link, theme: nil}} =
+               Inkwell.Application.parse_mode([link])
+    end
+
+    test "threads --theme through to :preview", %{root: root} do
+      file = Path.join(root, "note.md")
+      File.write!(file, "# hi")
+
+      assert {:client, %{command: :preview, file: ^file, theme: "light"}} =
+               Inkwell.Application.parse_mode([file, "--theme", "light"])
+    end
+
+    test "threads --theme through to :browse", %{root: root} do
+      assert {:client, %{command: :browse, dir: ^root, theme: "light"}} =
+               Inkwell.Application.parse_mode([root, "--theme", "light"])
+    end
   end
 
   describe "classify_path/1" do

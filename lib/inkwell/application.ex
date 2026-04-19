@@ -40,8 +40,17 @@ defmodule Inkwell.Application do
           ["status"] ->
             {:client, %{command: :status}}
 
-          [dir] ->
-            {:client, %{command: :browse, dir: dir, theme: theme}}
+          [path] ->
+            case classify_path(path) do
+              :file ->
+                {:client, %{command: :preview, file: path, theme: theme}}
+
+              :directory ->
+                {:client, %{command: :browse, dir: path, theme: theme}}
+
+              :not_found ->
+                {:client, %{command: :path_not_found, path: path}}
+            end
 
           [] ->
             {:client, %{command: :usage}}
