@@ -32,7 +32,7 @@ defmodule Inkwell.Application do
             {:daemon, %{theme: theme}}
 
           ["preview", file] ->
-            {:client, %{command: :preview, file: file, theme: theme}}
+            {:client, %{command: :preview, file: file, theme: theme, deprecated: true}}
 
           ["stop"] ->
             {:client, %{command: :stop}}

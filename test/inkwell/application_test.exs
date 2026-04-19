@@ -10,13 +10,13 @@ defmodule Inkwell.ApplicationTest do
     assert {:client, %{command: :usage}} == Inkwell.Application.parse_mode([])
   end
 
-  test "parse_mode returns :client preview with nil theme when --theme is omitted" do
-    assert {:client, %{command: :preview, file: "file.md", theme: nil}} ==
+  test "parse_mode returns :client preview (deprecated) with nil theme when --theme is omitted" do
+    assert {:client, %{command: :preview, file: "file.md", theme: nil, deprecated: true}} ==
              Inkwell.Application.parse_mode(["preview", "file.md"])
   end
 
-  test "parse_mode returns :client for preview with theme" do
-    assert {:client, %{command: :preview, file: "file.md", theme: "light"}} ==
+  test "parse_mode returns :client preview (deprecated) with theme" do
+    assert {:client, %{command: :preview, file: "file.md", theme: "light", deprecated: true}} ==
              Inkwell.Application.parse_mode(["preview", "file.md", "--theme", "light"])
   end
 
