@@ -26,5 +26,11 @@ if config_env() == :prod do
     secret_key_base: secret_key_base,
     server: true
 
-  config :inkwell, Inkwell.Repo, pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
+  inkwell_home = Path.join(System.user_home!(), ".inkwell")
+  File.mkdir_p!(inkwell_home)
+
+  config :inkwell, Inkwell.Repo,
+    database: Path.join(inkwell_home, "inkwell.db"),
+    pool_size: 5,
+    journal_mode: :wal
 end
