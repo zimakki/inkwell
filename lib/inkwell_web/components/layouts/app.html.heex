@@ -1,5 +1,5 @@
 <div data-theme={@theme}>
-  <div id="page-header">
+  <div id="page-header" phx-hook="Shortcuts">
     <div id="header-actions">
       <button
         id="btn-toggle-theme"
@@ -67,6 +67,7 @@
       </div>
       <div id="header-dir">{@rel_dir}</div>
     </div>
+    <div id="mode-toggle" phx-hook="ModeToggle" phx-update="ignore"></div>
   </div>
   <.live_component
     module={InkwellWeb.PickerComponent}
