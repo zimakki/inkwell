@@ -18,6 +18,14 @@ defmodule Inkwell.Library.RecentFile do
 
   actions do
     defaults [:read]
+
+    create :create do
+      accept [:path, :last_opened_at, :open_count]
+    end
+
+    read :list_recent do
+      prepare build(sort: [last_opened_at: :desc], limit: 20)
+    end
   end
 
   attributes do

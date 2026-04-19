@@ -9,6 +9,8 @@ defmodule Inkwell.Library do
   use Ash.Domain
 
   resources do
-    resource Inkwell.Library.RecentFile
+    resource Inkwell.Library.RecentFile do
+      define :list_recent, action: :list_recent
+    end
   end
 end
