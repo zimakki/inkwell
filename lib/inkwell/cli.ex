@@ -27,6 +27,7 @@ defmodule Inkwell.CLI do
             run_daemon(opts[:theme])
 
           ["preview", file] ->
+            emit_preview_deprecation_notice()
             run_preview(file, opts)
 
           ["stop"] ->
@@ -37,6 +38,27 @@ defmodule Inkwell.CLI do
 
           ["status"] ->
             run_status()
+
+          [path] ->
+            case Inkwell.Application.classify_path(path) do
+              :file ->
+                run_preview(path, opts)
+
+              :directory ->
+                case browse(path, opts) do
+                  {:ok, url} ->
+                    system_open_for_main(url)
+                    IO.puts(url)
+
+                  {:error, msg} ->
+                    IO.puts("Error: #{msg}")
+                    System.halt(1)
+                end
+
+              :not_found ->
+                IO.puts(format_path_not_found(path))
+                System.halt(1)
+            end
 
           [] ->
             IO.puts(help_text())
@@ -141,14 +163,18 @@ defmodule Inkwell.CLI do
   # to preview/3. Extracted so the notice is testable without System.halt.
   def preview_with_deprecation_notice(parsed, start_daemon \\ &Inkwell.Daemon.ensure_started/1) do
     if Map.get(parsed, :deprecated, false) do
-      IO.puts(
-        :stderr,
-        "warning: 'preview' is deprecated and will be removed in a future release; " <>
-          "use 'inkwell <file>' instead"
-      )
+      emit_preview_deprecation_notice()
     end
 
     preview(parsed.file, [theme: parsed.theme], start_daemon)
+  end
+
+  defp emit_preview_deprecation_notice do
+    IO.puts(
+      :stderr,
+      "warning: 'preview' is deprecated and will be removed in a future release; " <>
+        "use 'inkwell <file>' instead"
+    )
   end
 
   defp run_preview(file, opts) do
@@ -162,6 +188,8 @@ defmodule Inkwell.CLI do
         System.halt(1)
     end
   end
+
+  defp system_open_for_main(url), do: system_open(url)
 
   @doc false
   def browse(dir, opts, start_daemon \\ &Inkwell.Daemon.ensure_started/1) do
