@@ -13,7 +13,7 @@ defmodule Inkwell.Library.RecentFileTest do
 
       {:ok, _} =
         Inkwell.Library.RecentFile
-        |> Ash.Changeset.for_create(:create, %{
+        |> Ash.Changeset.for_create(:seed, %{
           path: "/tmp/a.md",
           last_opened_at: DateTime.add(now, -60, :second),
           open_count: 1
@@ -22,7 +22,7 @@ defmodule Inkwell.Library.RecentFileTest do
 
       {:ok, _} =
         Inkwell.Library.RecentFile
-        |> Ash.Changeset.for_create(:create, %{
+        |> Ash.Changeset.for_create(:seed, %{
           path: "/tmp/b.md",
           last_opened_at: now,
           open_count: 1

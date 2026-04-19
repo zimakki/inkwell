@@ -19,7 +19,7 @@ defmodule Inkwell.Library.RecentFile do
   actions do
     defaults [:read]
 
-    create :create do
+    create :seed do
       accept [:path, :last_opened_at, :open_count]
     end
 
