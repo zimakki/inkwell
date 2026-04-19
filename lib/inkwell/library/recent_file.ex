@@ -17,7 +17,7 @@ defmodule Inkwell.Library.RecentFile do
   end
 
   actions do
-    defaults [:read]
+    defaults [:read, :destroy]
 
     create :seed do
       accept [:path, :last_opened_at, :open_count]

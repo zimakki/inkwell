@@ -91,4 +91,20 @@ defmodule Inkwell.Library.RecentFileTest do
       assert third.open_count == 3
     end
   end
+
+  describe "reset_recents/0" do
+    test "deletes all recent files" do
+      {:ok, _} = Library.push_recent("/tmp/x.md")
+      {:ok, _} = Library.push_recent("/tmp/y.md")
+      assert length(Library.list_recent!()) == 2
+
+      :ok = Library.reset_recents()
+      assert Library.list_recent!() == []
+    end
+
+    test "is idempotent when already empty" do
+      assert :ok = Library.reset_recents()
+      assert :ok = Library.reset_recents()
+    end
+  end
 end

@@ -14,4 +14,12 @@ defmodule Inkwell.Library do
       define :push_recent, action: :push_recent, args: [:path]
     end
   end
+
+  def reset_recents do
+    Inkwell.Library.RecentFile
+    |> Ash.read!()
+    |> Ash.bulk_destroy!(:destroy, %{}, return_errors?: true)
+
+    :ok
+  end
 end
