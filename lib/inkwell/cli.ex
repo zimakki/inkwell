@@ -2,6 +2,7 @@ defmodule Inkwell.CLI do
   @moduledoc "Command-line interface and escript entry point."
   require Logger
 
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   def main(args) do
     {opts, rest, _invalid} =
       OptionParser.parse(args,

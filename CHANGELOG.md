@@ -2,6 +2,15 @@
 
 All notable changes to Inkwell will be documented in this file.
 
+## [0.3.2] - 2026-04-19
+
+### Added
+- Recently opened files now persist across daemon restarts. Backed by SQLite at `~/.inkwell/inkwell.db` via a new `Inkwell.Library` Ash domain (resources: `RecentFile`, with `list_recent_paths/0` and `push_recent!/1`).
+
+### Changed
+- `Inkwell.History` (ephemeral Agent) removed; callers migrated to `Inkwell.Library.list_recent_paths/0` and `Inkwell.Library.push_recent!/1`.
+- Daemon now runs pending Ecto migrations on boot. If migration fails, the daemon refuses to start. Recovery: remove `~/.inkwell/inkwell.db` and restart.
+
 ## [0.3.1] - 2026-04-19
 
 ### Changed
