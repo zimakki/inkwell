@@ -62,8 +62,8 @@ defmodule Inkwell.CLI do
   end
 
   @doc "Called by Application.start/2 in client mode. Runs command and halts."
-  def run_client_command(%{command: :preview, file: file, theme: theme}) do
-    case preview(file, theme: theme) do
+  def run_client_command(%{command: :preview} = parsed) do
+    case preview_with_deprecation_notice(parsed) do
       {:ok, url, path} ->
         open_file(url, path)
         IO.puts(url)
@@ -124,6 +124,21 @@ defmodule Inkwell.CLI do
 
   def run_client_command(_) do
     usage(1)
+  end
+
+  @doc false
+  # Shared helper: writes the deprecation notice (if applicable) and delegates
+  # to preview/3. Extracted so the notice is testable without System.halt.
+  def preview_with_deprecation_notice(parsed, start_daemon \\ &Inkwell.Daemon.ensure_started/1) do
+    if Map.get(parsed, :deprecated, false) do
+      IO.puts(
+        :stderr,
+        "warning: 'preview' is deprecated and will be removed in a future release; " <>
+          "use 'inkwell <file>' instead"
+      )
+    end
+
+    preview(parsed.file, [theme: parsed.theme], start_daemon)
   end
 
   defp run_preview(file, opts) do
