@@ -1,7 +1,7 @@
 # Inkwell
 
 [![CI](https://github.com/zimakki/inkwell/actions/workflows/ci.yml/badge.svg)](https://github.com/zimakki/inkwell/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.3.0-blue)](https://github.com/zimakki/inkwell/releases)
+[![Version](https://img.shields.io/badge/version-0.3.1-blue)](https://github.com/zimakki/inkwell/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 A live markdown preview daemon for your terminal. Inkwell runs a lightweight background server that watches your markdown files and pushes real-time updates to a browser preview.
@@ -80,7 +80,7 @@ cp burrito_out/inkwell_darwin_arm64 ~/.local/bin/inkwell
 ## Quick Start
 
 ```bash
-inkwell preview README.md     # Preview a single file
+inkwell README.md             # Preview a single file
 inkwell .                     # Browse markdown files in current directory
 ```
 
@@ -89,8 +89,7 @@ This starts the daemon (if not already running), opens the preview in the deskto
 ## Usage
 
 ```
-inkwell <directory>            Open file picker for a directory
-inkwell preview <file.md>      Preview a specific markdown file
+inkwell <path>                 Preview a markdown file or open the picker for a directory
 inkwell stop                   Stop the daemon
 inkwell status                 Show daemon status
 ```
@@ -106,10 +105,10 @@ inkwell status                 Show daemon status
 ### Examples
 
 ```bash
-inkwell .                                 # Browse current directory
-inkwell ~/Documents                       # Browse a specific directory
-inkwell preview README.md                 # Preview README.md
-inkwell preview README.md --theme light   # Preview with light theme
+inkwell .                          # Browse current directory
+inkwell ~/Documents                # Browse a specific directory
+inkwell README.md                  # Preview a markdown file
+inkwell README.md --theme light    # Preview with light theme
 ```
 
 The daemon starts automatically on first use and shuts down after 10 minutes of inactivity.
@@ -142,7 +141,7 @@ Inkwell.Supervisor
     └── WsHandler     — WebSocket handler for live updates
 ```
 
-When you run `inkwell preview file.md`:
+When you run `inkwell file.md`:
 
 1. The CLI ensures the daemon is running (spawns it if needed)
 2. The file is registered with the daemon via HTTP
@@ -181,7 +180,7 @@ local function preview_current_markdown()
   local cmd = vim.g.inkwell_cmd or "inkwell"
   local file = vim.fn.expand "%:p"
 
-  local job_id = vim.fn.jobstart({ cmd, "preview", file }, { detach = true })
+  local job_id = vim.fn.jobstart({ cmd, file }, { detach = true })
 
   if job_id <= 0 then
     vim.notify("Failed to start Inkwell. Is `" .. cmd .. "` installed and on your PATH?", vim.log.levels.ERROR)
