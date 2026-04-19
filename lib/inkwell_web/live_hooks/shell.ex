@@ -44,7 +44,14 @@ defmodule InkwellWeb.LiveHooks.Shell do
   end
 
   defp handle_info({:picker_selected, path}, socket) do
-    {:halt, push_navigate(socket, to: "/files?#{URI.encode_query(path: path)}")}
+    {:halt,
+     socket
+     |> assign(:picker_open, false)
+     |> push_navigate(to: "/files?#{URI.encode_query(path: path)}")}
+  end
+
+  defp handle_info(:close_picker, socket) do
+    {:halt, assign(socket, :picker_open, false)}
   end
 
   defp handle_info(_, socket), do: {:cont, socket}

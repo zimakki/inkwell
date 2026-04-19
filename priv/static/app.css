@@ -88,7 +88,8 @@
 }
 #picker-overlay.open { display: flex; }
 
-body.zoom-modal-open {
+body.zoom-modal-open,
+body.picker-open {
   overflow: hidden;
 }
 
