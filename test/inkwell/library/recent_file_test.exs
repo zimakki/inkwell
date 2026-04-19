@@ -45,5 +45,25 @@ defmodule Inkwell.Library.RecentFileTest do
       assert DateTime.compare(recent.last_opened_at, before) in [:gt, :eq]
       assert DateTime.compare(recent.last_opened_at, after_) in [:lt, :eq]
     end
+
+    test "refreshes last_opened_at and increments open_count on existing path" do
+      {:ok, first} = Library.push_recent("/tmp/repeat.md")
+      assert first.open_count == 1
+
+      # Small sleep to make the timestamp comparison meaningful.
+      Process.sleep(2)
+
+      {:ok, second} = Library.push_recent("/tmp/repeat.md")
+      assert second.id == first.id
+      assert second.open_count == 2
+      assert DateTime.compare(second.last_opened_at, first.last_opened_at) == :gt
+    end
+
+    test "three pushes of the same path produce open_count = 3" do
+      {:ok, _} = Library.push_recent("/tmp/three.md")
+      {:ok, _} = Library.push_recent("/tmp/three.md")
+      {:ok, third} = Library.push_recent("/tmp/three.md")
+      assert third.open_count == 3
+    end
   end
 end

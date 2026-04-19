@@ -34,7 +34,7 @@ defmodule Inkwell.Library.RecentFile do
       upsert_fields [:last_opened_at, :open_count]
 
       change set_attribute(:last_opened_at, &DateTime.utc_now/0)
-      change set_attribute(:open_count, 1)
+      change {Inkwell.Library.Changes.BumpOrSetOpenCount, []}
     end
   end
 
