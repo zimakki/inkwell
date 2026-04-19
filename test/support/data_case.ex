@@ -1,35 +1,23 @@
 defmodule Inkwell.DataCase do
   @moduledoc """
-  This module defines the setup for tests requiring
-  access to the application's data layer.
+  ExUnit case template for tests that hit the Repo.
 
-  You may define functions here to be used as helpers in
-  your tests.
-
-  Finally, if the test case interacts with the database,
-  we enable the SQL sandbox, so changes done to the database
-  are reverted at the end of every test. If you are using
-  PostgreSQL, you can even run database tests asynchronously
-  by setting `use Inkwell.DataCase, async: true`, although
-  this option is not recommended for other databases.
+  SQLite doesn't support the Ecto sandbox the way Postgres does, so we
+  use a shared file-backed test DB and delete all RecentFile rows in
+  `setup`. Tests that `use Inkwell.DataCase` must run with `async: false`.
   """
 
   use ExUnit.CaseTemplate
 
   using do
     quote do
-      alias Inkwell.Repo
-
-      import Ecto
-      import Ecto.Changeset
-      import Ecto.Query
       import Inkwell.DataCase
+      alias Inkwell.Repo
     end
   end
 
-  setup tags do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Inkwell.Repo, shared: not tags[:async])
-    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+  setup do
+    Inkwell.Repo.delete_all(Inkwell.Library.RecentFile)
     :ok
   end
 end
