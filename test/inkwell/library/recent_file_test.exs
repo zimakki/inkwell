@@ -32,6 +32,31 @@ defmodule Inkwell.Library.RecentFileTest do
       paths = Library.list_recent!() |> Enum.map(& &1.path)
       assert paths == ["/tmp/b.md", "/tmp/a.md"]
     end
+
+    test "caps at 20 entries, dropping the oldest" do
+      now = DateTime.utc_now()
+
+      for i <- 1..25 do
+        {:ok, _} =
+          Inkwell.Library.RecentFile
+          |> Ash.Changeset.for_create(:seed, %{
+            path: "/tmp/f#{i}.md",
+            last_opened_at: DateTime.add(now, -i, :second),
+            open_count: 1
+          })
+          |> Ash.create()
+      end
+
+      recents = Library.list_recent!()
+      assert length(recents) == 20
+
+      paths = Enum.map(recents, & &1.path)
+      # Most recent (i=1 → -1s ago) is first.
+      assert List.first(paths) == "/tmp/f1.md"
+      # 20th most recent is /tmp/f20.md; /tmp/f21..f25 should be dropped.
+      assert List.last(paths) == "/tmp/f20.md"
+      refute "/tmp/f25.md" in paths
+    end
   end
 
   describe "push_recent/1" do
