@@ -83,8 +83,7 @@ defmodule Inkwell.MixProject do
       "assets.build": ["esbuild inkwell"],
       "assets.deploy": ["esbuild inkwell --minify", "phx.digest"],
       tidewave:
-        "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 4000) end)'",
-      test: ["ash.setup --quiet", "test"]
+        "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 4000) end)'"
     ]
   end
 
