@@ -6,7 +6,6 @@ defmodule Inkwell.Application do
   @doc """
   Parses CLI arguments into a mode (:daemon or :client) and parsed args.
   """
-  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   def parse_mode(args) do
     {opts, rest, _invalid} =
       OptionParser.parse(args,
