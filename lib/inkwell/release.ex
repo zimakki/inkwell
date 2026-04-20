@@ -29,8 +29,13 @@ defmodule Inkwell.Release do
     :inkwell
     |> Application.fetch_env!(:ash_domains)
     |> Enum.flat_map(&Ash.Domain.Info.resources/1)
+    |> Enum.filter(&ash_sqlite?/1)
     |> Enum.map(&AshSqlite.DataLayer.Info.repo/1)
     |> Enum.uniq()
+  end
+
+  defp ash_sqlite?(resource) do
+    Ash.Resource.Info.data_layer(resource) == AshSqlite.DataLayer
   end
 
   defp migrate_repo!(repo) do

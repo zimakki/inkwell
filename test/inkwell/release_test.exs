@@ -12,4 +12,20 @@ defmodule Inkwell.ReleaseTest do
   test "repos/0 derives the unique repo list from configured Ash domains" do
     assert Inkwell.Release.repos() == [Inkwell.Repo]
   end
+
+  test "repos/0 only includes repos for resources backed by AshSqlite.DataLayer" do
+    # Documents the contract: any future embedded resource (or one using
+    # Ets/Mnesia/etc.) must not blow up `AshSqlite.DataLayer.Info.repo/1`.
+    resources =
+      :inkwell
+      |> Application.fetch_env!(:ash_domains)
+      |> Enum.flat_map(&Ash.Domain.Info.resources/1)
+
+    repo_resources =
+      Enum.filter(resources, &(Ash.Resource.Info.data_layer(&1) == AshSqlite.DataLayer))
+
+    assert Enum.count(repo_resources) == length(resources),
+           "current resources are all expected to be AshSqlite-backed; " <>
+             "if a non-SQLite resource is added, repos/0 must still return only SQLite repos"
+  end
 end
