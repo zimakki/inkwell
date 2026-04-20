@@ -59,5 +59,9 @@ defmodule InkwellWeb.LiveHooks.Shell do
     {:halt, assign(socket, :picker_open, false)}
   end
 
+  defp handle_info(:open_picker, socket) do
+    {:halt, assign(socket, :picker_open, true)}
+  end
+
   defp handle_info(_, socket), do: {:cont, socket}
 end
