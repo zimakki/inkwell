@@ -40,7 +40,7 @@ defmodule Inkwell.Library.RecentFileTest do
   describe "push_recent/1" do
     test "inserts a new recent with open_count = 1 and fresh last_opened_at" do
       before = DateTime.utc_now()
-      {:ok, recent} = Library.push_recent("/tmp/new.md")
+      recent = Library.push_recent!("/tmp/new.md")
       after_ = DateTime.utc_now()
 
       assert recent.path == "/tmp/new.md"
@@ -53,24 +53,24 @@ defmodule Inkwell.Library.RecentFileTest do
       past = DateTime.add(DateTime.utc_now(), -60, :second)
       seeded = seed_recent("/tmp/repeat.md", past, 1)
 
-      {:ok, second} = Library.push_recent("/tmp/repeat.md")
+      second = Library.push_recent!("/tmp/repeat.md")
       assert second.id == seeded.id
       assert second.open_count == 2
       assert DateTime.compare(second.last_opened_at, past) == :gt
     end
 
     test "three pushes of the same path produce open_count = 3" do
-      {:ok, _} = Library.push_recent("/tmp/three.md")
-      {:ok, _} = Library.push_recent("/tmp/three.md")
-      {:ok, third} = Library.push_recent("/tmp/three.md")
+      Library.push_recent!("/tmp/three.md")
+      Library.push_recent!("/tmp/three.md")
+      third = Library.push_recent!("/tmp/three.md")
       assert third.open_count == 3
     end
   end
 
   describe "reset_recents/0" do
     test "deletes all recent files" do
-      {:ok, _} = Library.push_recent("/tmp/x.md")
-      {:ok, _} = Library.push_recent("/tmp/y.md")
+      Library.push_recent!("/tmp/x.md")
+      Library.push_recent!("/tmp/y.md")
       assert length(Library.list_recent!()) == 2
 
       :ok = Library.reset_recents()
