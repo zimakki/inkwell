@@ -23,5 +23,4 @@ defmodule Inkwell.Library do
 
     :ok
   end
-
 end
