@@ -75,7 +75,6 @@ defmodule Inkwell.MixProject do
       {:mdex, "~> 0.11"},
       {:bandit, "~> 1.10"},
       {:plug, "~> 1.19"},
-      {:websock_adapter, "~> 0.5"},
       {:file_system, "~> 1.0"},
       {:jason, "~> 1.4"},
       {:phoenix, "~> 1.8.5"},
