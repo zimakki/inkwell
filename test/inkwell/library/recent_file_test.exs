@@ -50,16 +50,13 @@ defmodule Inkwell.Library.RecentFileTest do
     end
 
     test "refreshes last_opened_at and increments open_count on existing path" do
-      {:ok, first} = Library.push_recent("/tmp/repeat.md")
-      assert first.open_count == 1
-
-      # Small sleep to make the timestamp comparison meaningful.
-      Process.sleep(2)
+      past = DateTime.add(DateTime.utc_now(), -60, :second)
+      seeded = seed_recent("/tmp/repeat.md", past, 1)
 
       {:ok, second} = Library.push_recent("/tmp/repeat.md")
-      assert second.id == first.id
+      assert second.id == seeded.id
       assert second.open_count == 2
-      assert DateTime.compare(second.last_opened_at, first.last_opened_at) == :gt
+      assert DateTime.compare(second.last_opened_at, past) == :gt
     end
 
     test "three pushes of the same path produce open_count = 3" do
