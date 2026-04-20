@@ -16,7 +16,11 @@ defmodule Inkwell.Library do
   end
 
   def reset_recents do
-    Ash.bulk_destroy!(Inkwell.Library.RecentFile, :destroy, %{}, return_errors?: true)
+    Ash.bulk_destroy!(Inkwell.Library.RecentFile, :destroy, %{},
+      authorize?: false,
+      return_errors?: true
+    )
+
     :ok
   end
 
