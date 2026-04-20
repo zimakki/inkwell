@@ -1,0 +1,3 @@
+[tools]
+# Pinned for Burrito 1.5.0 releases. Bump when Burrito supports a newer Zig.
+zig = "0.15.2"
