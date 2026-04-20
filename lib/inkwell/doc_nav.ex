@@ -5,12 +5,45 @@ defmodule Inkwell.DocNav do
 
   @doc "Extract h2/h3 headings from raw markdown. Returns list of %{level, text, id}."
   def extract_headings(markdown) do
-    ~r/^(\#{2,3})\s+(.+)$/mu
-    |> Regex.scan(markdown)
-    |> Enum.map(fn [_, hashes, text] ->
-      text = text |> String.trim() |> strip_inline_markdown()
-      %{level: String.length(hashes), text: text, id: slugify(text)}
+    markdown
+    |> MDEx.parse_document!()
+    |> collect_headings()
+    |> deduplicate_slugs()
+  end
+
+  defp collect_headings(doc) do
+    doc
+    |> Enum.flat_map(fn
+      %MDEx.Heading{level: level, nodes: nodes} when level in [2, 3] ->
+        text = nodes |> heading_text() |> String.trim()
+        [%{level: level, text: text, id: slugify(text)}]
+
+      _ ->
+        []
     end)
+  end
+
+  defp heading_text(nodes) do
+    Enum.map_join(nodes, "", fn
+      %MDEx.Text{literal: t} -> t
+      %MDEx.Code{literal: t} -> t
+      %MDEx.Strong{nodes: inner} -> heading_text(inner)
+      %MDEx.Emph{nodes: inner} -> heading_text(inner)
+      %MDEx.Link{nodes: inner} -> heading_text(inner)
+      %MDEx.Strikethrough{nodes: inner} -> heading_text(inner)
+      _ -> ""
+    end)
+  end
+
+  defp deduplicate_slugs(headings) do
+    headings
+    |> Enum.map_reduce(%{}, fn %{id: id} = h, counts ->
+      case Map.get(counts, id, 0) do
+        0 -> {h, Map.put(counts, id, 1)}
+        n -> {%{h | id: "#{id}-#{n}"}, Map.put(counts, id, n + 1)}
+      end
+    end)
+    |> elem(0)
   end
 
   @doc "Extract GitHub-style alerts from raw markdown. Returns list of %{type, title, id}."
@@ -113,17 +146,6 @@ defmodule Inkwell.DocNav do
           String.capitalize(type)
         end
     end
-  end
-
-  defp strip_inline_markdown(text) do
-    text
-    |> String.replace(~r/\*\*(.+?)\*\*/u, "\\1")
-    |> String.replace(~r/\*(.+?)\*/u, "\\1")
-    |> String.replace(~r/__(.+?)__/u, "\\1")
-    |> String.replace(~r/_(.+?)_/u, "\\1")
-    |> String.replace(~r/~~(.+?)~~/u, "\\1")
-    |> String.replace(~r/`(.+?)`/u, "\\1")
-    |> String.replace(~r/\[([^\]]+)\]\([^)]+\)/u, "\\1")
   end
 
   defp slugify(text) do

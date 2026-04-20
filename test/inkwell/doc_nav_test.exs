@@ -59,6 +59,38 @@ defmodule Inkwell.DocNavTest do
     assert id == "spaced-out"
   end
 
+  test "ignores ## lines inside fenced code blocks" do
+    md = """
+    ## Real Heading
+
+    ```elixir
+    ## not a heading
+    ### still not a heading
+    ```
+
+    ## After Code
+    """
+
+    headings = DocNav.extract_headings(md)
+
+    assert headings == [
+             %{level: 2, text: "Real Heading", id: "real-heading"},
+             %{level: 2, text: "After Code", id: "after-code"}
+           ]
+  end
+
+  test "deduplicates identical heading slugs with -1, -2 suffixes" do
+    md = "## Usage\n## Usage\n## Usage\n"
+
+    headings = DocNav.extract_headings(md)
+
+    assert headings == [
+             %{level: 2, text: "Usage", id: "usage"},
+             %{level: 2, text: "Usage", id: "usage-1"},
+             %{level: 2, text: "Usage", id: "usage-2"}
+           ]
+  end
+
   # ── extract_alerts/1 ───────────────────────────
 
   test "extracts alerts with bold title" do
