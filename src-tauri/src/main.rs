@@ -158,18 +158,20 @@ fn navigate_to_url(app: &tauri::AppHandle, url: String) -> Result<(), String> {
     Err("Main window not found".into())
 }
 
-fn navigate_current(app: &tauri::AppHandle, current_path: Option<&str>) -> Result<(), String> {
-    let port = read_port().ok_or_else(|| "Daemon port not available".to_string())?;
-    let url = match current_path {
+fn build_navigation_url(port: u16, current_path: Option<&str>) -> String {
+    match current_path {
         Some(path) => format!(
-            "http://localhost:{}/?path={}",
+            "http://localhost:{}/files?path={}",
             port,
             urlencoding::encode(path)
         ),
         None => format!("http://localhost:{}", port),
-    };
+    }
+}
 
-    navigate_to_url(app, url)
+fn navigate_current(app: &tauri::AppHandle, current_path: Option<&str>) -> Result<(), String> {
+    let port = read_port().ok_or_else(|| "Daemon port not available".to_string())?;
+    navigate_to_url(app, build_navigation_url(port, current_path))
 }
 
 fn navigate_to_file(
@@ -603,5 +605,20 @@ mod tests {
     fn test_inkwell_dir_is_under_home() {
         let dir = inkwell_dir();
         assert!(dir.ends_with(".inkwell"));
+    }
+
+    #[test]
+    fn test_build_navigation_url_with_path_targets_files_route() {
+        let url = build_navigation_url(4000, Some("/Users/test/README.md"));
+        assert_eq!(
+            url,
+            "http://localhost:4000/files?path=%2FUsers%2Ftest%2FREADME.md"
+        );
+    }
+
+    #[test]
+    fn test_build_navigation_url_without_path_targets_root() {
+        let url = build_navigation_url(4000, None);
+        assert_eq!(url, "http://localhost:4000");
     }
 }

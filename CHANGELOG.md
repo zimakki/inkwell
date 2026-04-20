@@ -2,6 +2,12 @@
 
 All notable changes to Inkwell will be documented in this file.
 
+## [0.3.3] - 2026-04-20
+
+### Fixed
+- Desktop app now actually shows the file it was asked to open. `inkwell <file>` from the CLI, drag-and-drop onto the window, and Finder "Open With Inkwell" all routed the webview to `/?path=...`, which is `EmptyLive` — the path was dropped on the floor. They now navigate to `/files?path=...` (`FileLive`).
+- `Inkwell.preview_url/1` updated to the same `/files?path=` route for consistency with the CLI and webview.
+
 ## [0.3.2] - 2026-04-19
 
 ### Added

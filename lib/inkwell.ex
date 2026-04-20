@@ -7,7 +7,7 @@ defmodule Inkwell do
   def preview_url(path) do
     path = Path.expand(path)
     port = Inkwell.Daemon.read_port!()
-    "http://localhost:#{port}/?path=#{URI.encode_www_form(path)}"
+    "http://localhost:#{port}/files?path=#{URI.encode_www_form(path)}"
   end
 
   @doc "Opens a file for preview, registers it with the watcher, and returns metadata."
