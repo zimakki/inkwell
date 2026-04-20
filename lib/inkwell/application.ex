@@ -20,44 +20,27 @@ defmodule Inkwell.Application do
     theme = opts[:theme]
 
     cond do
-      opts[:help] ->
-        {:client, %{command: :help}}
+      opts[:help] -> {:client, %{command: :help}}
+      opts[:version] -> {:client, %{command: :version}}
+      true -> dispatch_subcommand(rest, theme)
+    end
+  end
 
-      opts[:version] ->
-        {:client, %{command: :version}}
+  defp dispatch_subcommand(["daemon"], theme), do: {:daemon, %{theme: theme}}
 
-      true ->
-        case rest do
-          ["daemon"] ->
-            {:daemon, %{theme: theme}}
+  defp dispatch_subcommand(["preview", file], theme),
+    do: {:client, %{command: :preview, file: file, theme: theme, deprecated: true}}
 
-          ["preview", file] ->
-            {:client, %{command: :preview, file: file, theme: theme, deprecated: true}}
+  defp dispatch_subcommand(["stop"], _theme), do: {:client, %{command: :stop}}
+  defp dispatch_subcommand(["status"], _theme), do: {:client, %{command: :status}}
+  defp dispatch_subcommand([path], theme), do: dispatch_path(path, theme)
+  defp dispatch_subcommand(_, _theme), do: {:client, %{command: :usage}}
 
-          ["stop"] ->
-            {:client, %{command: :stop}}
-
-          ["status"] ->
-            {:client, %{command: :status}}
-
-          [path] ->
-            case classify_path(path) do
-              :file ->
-                {:client, %{command: :preview, file: path, theme: theme}}
-
-              :directory ->
-                {:client, %{command: :browse, dir: path, theme: theme}}
-
-              :not_found ->
-                {:client, %{command: :path_not_found, path: path}}
-            end
-
-          [] ->
-            {:client, %{command: :usage}}
-
-          _ ->
-            {:client, %{command: :usage}}
-        end
+  defp dispatch_path(path, theme) do
+    case classify_path(path) do
+      :file -> {:client, %{command: :preview, file: path, theme: theme}}
+      :directory -> {:client, %{command: :browse, dir: path, theme: theme}}
+      :not_found -> {:client, %{command: :path_not_found, path: path}}
     end
   end
 
