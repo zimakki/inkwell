@@ -23,6 +23,10 @@ if config_env() == :prod do
 
   config :inkwell, InkwellWeb.Endpoint,
     http: [ip: {127, 0, 0, 1}, port: 0],
+    # Daemon binds a random port (port: 0) and the configured url: host:
+    # localhost has no port, so the default origin check would reject the
+    # browser's Origin header. Allow any port on loopback hosts.
+    check_origin: ["//localhost", "//localhost:*", "//127.0.0.1", "//127.0.0.1:*"],
     secret_key_base: secret_key_base,
     server: true
 
