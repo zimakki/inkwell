@@ -22,7 +22,32 @@ defmodule Inkwell.MixProject do
       aliases: aliases(),
       usage_rules: [
         file: "CLAUDE.md",
-        usage_rules: :all
+        usage_rules: [],
+        skills: [
+          location: ".claude/skills",
+          build: [
+            "ash-framework": [
+              description:
+                "Use when working with Ash resources, actions, queries, migrations, code interfaces, or any ash_* extension (incl. spark, reactor, igniter generators).",
+              usage_rules: [:ash, :spark, :reactor, :igniter, ~r/^ash_/]
+            ],
+            "phoenix-framework": [
+              description:
+                "Use when working with the web layer — Phoenix routes, controllers, LiveViews, Ecto, HTML/HEEx components.",
+              usage_rules: [:phoenix, ~r/^phoenix_/]
+            ],
+            "elixir-core": [
+              description:
+                "Use for general Elixir/OTP patterns — pattern matching, GenServers, supervision trees, Task, error handling.",
+              usage_rules: [:usage_rules]
+            ],
+            mdex: [
+              description:
+                "Use when rendering markdown with MDEx — sigils, HEEx integration, streaming, plugins, syntax highlighting.",
+              usage_rules: [:mdex]
+            ]
+          ]
+        ]
       ],
       consolidate_protocols: Mix.env() != :dev
     ]
