@@ -2,6 +2,12 @@
 
 All notable changes to Inkwell will be documented in this file.
 
+## [0.3.4] - 2026-04-20
+
+### Fixed
+- File paths in the picker no longer bleed out of the list at narrow widths. The directory portion now truncates with an ellipsis while the filename stays visible.
+- Paths under your home directory now render with `~` for a more compact picker list.
+
 ## [0.3.3] - 2026-04-20
 
 ### Fixed

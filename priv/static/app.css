@@ -341,8 +341,20 @@ body.picker-open {
 .picker-item.selected .picker-item-title { color: var(--text); }
 .picker-item:not(.selected) .picker-item-title { color: var(--text-secondary); }
 .picker-item-file {
+  display: flex; align-items: baseline;
   color: var(--text-muted); font-size: 11px; margin-top: 3px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0; max-width: 100%;
+}
+.picker-item-file-dir {
+  flex: 0 1 auto; min-width: 0;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.picker-item-file-name {
+  flex: 0 0 auto; white-space: nowrap;
+  color: var(--text-secondary);
+}
+.picker-item:not(.selected) .picker-item-file-name {
+  color: var(--text-muted);
 }
 
 #picker-status {

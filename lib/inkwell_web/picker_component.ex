@@ -236,9 +236,46 @@ defmodule InkwellWeb.PickerComponent do
       phx-target={@myself}
     >
       <div class="picker-item-title">{item[:title] || item.filename}</div>
-      <div class="picker-item-file">{item[:rel_path] || item.path}</div>
+      <.file_path path={item[:rel_path] || item.path} />
     </div>
     """
+  end
+
+  attr :path, :string, required: true
+
+  defp file_path(assigns) do
+    path = assigns.path
+    dir = Path.dirname(path)
+    name = Path.basename(path)
+
+    dir_display =
+      case dir do
+        "." -> ""
+        "/" -> "/"
+        d -> tildify(d) <> "/"
+      end
+
+    assigns = assign(assigns, dir: dir_display, name: name)
+
+    ~H"""
+    <div class="picker-item-file">
+      <span :if={@dir != ""} class="picker-item-file-dir">{@dir}</span><span class="picker-item-file-name">{@name}</span>
+    </div>
+    """
+  end
+
+  defp tildify(path) do
+    case System.user_home() do
+      nil ->
+        path
+
+      home ->
+        cond do
+          path == home -> "~"
+          String.starts_with?(path, home <> "/") -> "~" <> String.replace_prefix(path, home, "")
+          true -> path
+        end
+    end
   end
 
   attr :path, :string, required: true
