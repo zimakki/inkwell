@@ -23,7 +23,6 @@ metadata:
 - [relationships](references/relationships.md)
 - [testing](references/testing.md)
 - [ash](references/ash.md)
-- [ash_sqlite](references/ash_sqlite.md)
 
 ## Searching Documentation
 
