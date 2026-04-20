@@ -10,7 +10,12 @@ defmodule Inkwell.Renderer do
       footnotes: true,
       alerts: true
     ],
-    render: [unsafe: true]
+    render: [unsafe: true],
+    sanitize:
+      MDEx.Document.default_sanitize_options()
+      |> Keyword.update(:add_generic_attributes, ["class", "id"], fn existing ->
+        Enum.uniq(existing ++ ["class", "id"])
+      end)
   ]
 
   @doc "Render markdown to HTML string (legacy, no nav data)."
@@ -27,13 +32,20 @@ defmodule Inkwell.Renderer do
     opts =
       Keyword.put(@base_opts, :syntax_highlight, formatter: {:html_inline, [theme: syntax_theme]})
 
-    md =
-      Regex.replace(~r/```mermaid\n(.*?)```/s, markdown, fn _, content ->
-        escaped = Plug.HTML.html_escape(content)
-        "<pre class=\"mermaid\">#{escaped}</pre>"
-      end)
+    html =
+      markdown
+      |> MDEx.parse_document!(opts)
+      |> MDEx.traverse_and_update(&swap_mermaid/1)
+      |> MDEx.to_html!(opts)
 
-    html = MDEx.to_html!(md, opts)
     Inkwell.DocNav.process(markdown, html)
   end
+
+  defp swap_mermaid(%MDEx.CodeBlock{info: "mermaid", literal: code}) do
+    %MDEx.HtmlBlock{
+      literal: ~s|<pre class="mermaid">#{Plug.HTML.html_escape(code)}</pre>|
+    }
+  end
+
+  defp swap_mermaid(node), do: node
 end

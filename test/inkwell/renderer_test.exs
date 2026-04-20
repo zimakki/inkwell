@@ -61,6 +61,56 @@ defmodule Inkwell.RendererTest do
     assert html =~ "<div class=\"custom\">content</div>"
   end
 
+  test "sanitizer strips script tags from markdown" do
+    :persistent_term.put(:inkwell_theme, "dark")
+
+    html = Inkwell.Renderer.render(~s|# Title\n\n<script>alert("xss")</script>\n|)
+
+    assert html =~ "<h1>Title</h1>"
+    refute html =~ "<script"
+    refute html =~ "alert("
+  end
+
+  test "sanitizer strips iframe tags from markdown" do
+    :persistent_term.put(:inkwell_theme, "dark")
+
+    html = Inkwell.Renderer.render(~s|<iframe src="https://evil.example"></iframe>\n|)
+
+    refute html =~ "<iframe"
+  end
+
+  test "sanitizer strips javascript: URLs from links" do
+    :persistent_term.put(:inkwell_theme, "dark")
+
+    html = Inkwell.Renderer.render(~s|[Click](javascript:alert(1))\n|)
+
+    refute html =~ "javascript:"
+  end
+
+  test "mermaid block survives sanitization and unusual surrounding fences" do
+    :persistent_term.put(:inkwell_theme, "dark")
+
+    html =
+      Inkwell.Renderer.render("""
+      Some intro.
+
+      ```bash
+      echo "this is bash, not mermaid"
+      ```
+
+      ```mermaid
+      graph TD;
+      A-->B;
+      ```
+
+      And then more.
+      """)
+
+    assert html =~ ~s(<pre class="mermaid">)
+    assert html =~ "graph TD;"
+    assert html =~ "echo"
+  end
+
   test "escapes HTML inside mermaid blocks" do
     :persistent_term.put(:inkwell_theme, "dark")
 
