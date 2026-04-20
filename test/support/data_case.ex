@@ -12,7 +12,6 @@ defmodule Inkwell.DataCase do
   using do
     quote do
       import Inkwell.DataCase
-      alias Inkwell.Repo
     end
   end
 
