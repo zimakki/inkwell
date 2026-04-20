@@ -60,7 +60,7 @@ defmodule Inkwell.Search do
   def list_recent do
     {t_recent, recent} =
       :timer.tc(fn ->
-        Inkwell.Library.list_recent_paths()
+        Inkwell.Library.list_recent!() |> Enum.map(& &1.path)
         |> Enum.filter(&File.exists?/1)
         |> Enum.map(fn path ->
           %{
@@ -96,7 +96,7 @@ defmodule Inkwell.Search do
   def list_files(current_path) do
     t_start = System.monotonic_time(:millisecond)
     dir = Path.dirname(current_path)
-    recent = Inkwell.Library.list_recent_paths()
+    recent = Inkwell.Library.list_recent!() |> Enum.map(& &1.path)
     existing_recent = Enum.filter(recent, &File.exists?/1)
 
     recent_entries =
@@ -254,7 +254,7 @@ defmodule Inkwell.Search do
 
   def allowed_path?(current_path, candidate_path) do
     dir = Path.dirname(current_path)
-    recent_paths = Inkwell.Library.list_recent_paths() |> Enum.filter(&File.exists?/1)
+    recent_paths = Inkwell.Library.list_recent!() |> Enum.map(& &1.path) |> Enum.filter(&File.exists?/1)
 
     sibling_paths =
       case File.ls(dir) do
