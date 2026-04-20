@@ -19,7 +19,13 @@ defmodule Inkwell.Library.RecentFile do
   actions do
     defaults [:read, :destroy]
 
-    create :seed do
+    create :seed_for_test do
+      description """
+      Test fixture only — bypasses push_recent's automatic timestamp /
+      open_count handling so tests can plant rows with explicit values.
+      Production code must use :push_recent.
+      """
+
       accept [:path, :last_opened_at, :open_count]
     end
 
