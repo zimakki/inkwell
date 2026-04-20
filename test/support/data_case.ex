@@ -16,12 +16,7 @@ defmodule Inkwell.DataCase do
   end
 
   setup do
-    # Future resources (favorites, tags) get added here.
-    for schema <- [Inkwell.Library.RecentFile] do
-      Inkwell.Repo.delete_all(schema)
-    end
-
-    :ok
+    Inkwell.Library.reset_recents()
   end
 
   @doc """
