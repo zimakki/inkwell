@@ -15,57 +15,55 @@ defmodule Inkwell.CLI do
       )
 
     cond do
-      opts[:help] ->
-        IO.puts(help_text())
+      opts[:help] -> IO.puts(help_text())
+      opts[:version] -> IO.puts(version_string())
+      true -> run_subcommand(rest, opts)
+    end
+  end
 
-      opts[:version] ->
-        IO.puts(version_string())
+  defp run_subcommand(["daemon"], opts), do: run_daemon(opts[:theme])
 
-      true ->
-        case rest do
-          ["daemon"] ->
-            run_daemon(opts[:theme])
+  defp run_subcommand(["preview", file], opts) do
+    emit_preview_deprecation_notice()
+    run_preview(file, opts)
+  end
 
-          ["preview", file] ->
-            emit_preview_deprecation_notice()
-            run_preview(file, opts)
+  defp run_subcommand(["stop"], _opts), do: run_stop()
+  defp run_subcommand(["status"], _opts), do: run_status()
+  defp run_subcommand([path], opts), do: run_path(path, opts)
+  defp run_subcommand([], _opts), do: IO.puts(help_text())
+  defp run_subcommand(_, _opts), do: usage(1)
 
-          ["stop"] ->
-            case Inkwell.Daemon.stop() do
-              :ok -> IO.puts("inkwell daemon stopped")
-              {:error, :not_running} -> IO.puts("inkwell daemon is not running")
-            end
+  defp run_stop do
+    case Inkwell.Daemon.stop() do
+      :ok -> IO.puts("inkwell daemon stopped")
+      {:error, :not_running} -> IO.puts("inkwell daemon is not running")
+    end
+  end
 
-          ["status"] ->
-            run_status()
+  defp run_path(path, opts) do
+    case Inkwell.Application.classify_path(path) do
+      :file ->
+        run_preview(path, opts)
 
-          [path] ->
-            case Inkwell.Application.classify_path(path) do
-              :file ->
-                run_preview(path, opts)
+      :directory ->
+        run_browse(path, opts)
 
-              :directory ->
-                case browse(path, opts) do
-                  {:ok, url} ->
-                    system_open_for_main(url)
-                    IO.puts(url)
+      :not_found ->
+        IO.puts(format_path_not_found(path))
+        System.halt(1)
+    end
+  end
 
-                  {:error, msg} ->
-                    IO.puts("Error: #{msg}")
-                    System.halt(1)
-                end
+  defp run_browse(path, opts) do
+    case browse(path, opts) do
+      {:ok, url} ->
+        system_open_for_main(url)
+        IO.puts(url)
 
-              :not_found ->
-                IO.puts(format_path_not_found(path))
-                System.halt(1)
-            end
-
-          [] ->
-            IO.puts(help_text())
-
-          _ ->
-            usage(1)
-        end
+      {:error, msg} ->
+        IO.puts("Error: #{msg}")
+        System.halt(1)
     end
   end
 
