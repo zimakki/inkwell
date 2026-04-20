@@ -71,23 +71,23 @@ defmodule Inkwell.CLITest do
   # Tests for parse_mode — verifying --help and --version flag handling
 
   test "parse_mode returns help command for --help flag" do
-    assert {:client, %{command: :help}} = Inkwell.Application.parse_mode(["--help"])
+    assert {:client, %{command: :help}} = Inkwell.CLI.parse_mode(["--help"])
   end
 
   test "parse_mode returns help command for -h flag" do
-    assert {:client, %{command: :help}} = Inkwell.Application.parse_mode(["-h"])
+    assert {:client, %{command: :help}} = Inkwell.CLI.parse_mode(["-h"])
   end
 
   test "parse_mode returns version command for --version flag" do
-    assert {:client, %{command: :version}} = Inkwell.Application.parse_mode(["--version"])
+    assert {:client, %{command: :version}} = Inkwell.CLI.parse_mode(["--version"])
   end
 
   test "parse_mode returns version command for -v flag" do
-    assert {:client, %{command: :version}} = Inkwell.Application.parse_mode(["-v"])
+    assert {:client, %{command: :version}} = Inkwell.CLI.parse_mode(["-v"])
   end
 
   test "parse_mode returns usage command for no args" do
-    assert {:client, %{command: :usage}} = Inkwell.Application.parse_mode([])
+    assert {:client, %{command: :usage}} = Inkwell.CLI.parse_mode([])
   end
 
   # Tests for help_text and version_string — pure functions that don't call System.halt
