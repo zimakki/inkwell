@@ -11,23 +11,8 @@ defmodule Inkwell.Library.RecentFileTest do
     test "returns entries sorted by last_opened_at descending" do
       now = DateTime.utc_now()
 
-      {:ok, _} =
-        Inkwell.Library.RecentFile
-        |> Ash.Changeset.for_create(:seed, %{
-          path: "/tmp/a.md",
-          last_opened_at: DateTime.add(now, -60, :second),
-          open_count: 1
-        })
-        |> Ash.create()
-
-      {:ok, _} =
-        Inkwell.Library.RecentFile
-        |> Ash.Changeset.for_create(:seed, %{
-          path: "/tmp/b.md",
-          last_opened_at: now,
-          open_count: 1
-        })
-        |> Ash.create()
+      seed_recent("/tmp/a.md", DateTime.add(now, -60, :second))
+      seed_recent("/tmp/b.md", now)
 
       paths = Library.list_recent!() |> Enum.map(& &1.path)
       assert paths == ["/tmp/b.md", "/tmp/a.md"]
@@ -37,14 +22,7 @@ defmodule Inkwell.Library.RecentFileTest do
       now = DateTime.utc_now()
 
       for i <- 1..25 do
-        {:ok, _} =
-          Inkwell.Library.RecentFile
-          |> Ash.Changeset.for_create(:seed, %{
-            path: "/tmp/f#{i}.md",
-            last_opened_at: DateTime.add(now, -i, :second),
-            open_count: 1
-          })
-          |> Ash.create()
+        seed_recent("/tmp/f#{i}.md", DateTime.add(now, -i, :second))
       end
 
       recents = Library.list_recent!()

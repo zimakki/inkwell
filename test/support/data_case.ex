@@ -23,4 +23,19 @@ defmodule Inkwell.DataCase do
 
     :ok
   end
+
+  @doc """
+  Inserts a `RecentFile` row with explicit `last_opened_at` / `open_count`.
+  Wraps the `:seed` action so tests don't call it directly from outside
+  `test/support/`.
+  """
+  def seed_recent(path, last_opened_at, open_count \\ 1) do
+    Inkwell.Library.RecentFile
+    |> Ash.Changeset.for_create(:seed, %{
+      path: path,
+      last_opened_at: last_opened_at,
+      open_count: open_count
+    })
+    |> Ash.create!()
+  end
 end
