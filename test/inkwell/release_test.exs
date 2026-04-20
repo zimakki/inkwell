@@ -8,4 +8,8 @@ defmodule Inkwell.ReleaseTest do
     assert :ok = Inkwell.Release.migrate!()
     assert File.exists?(Inkwell.Settings.state_dir())
   end
+
+  test "repos/0 derives the unique repo list from configured Ash domains" do
+    assert Inkwell.Release.repos() == [Inkwell.Repo]
+  end
 end

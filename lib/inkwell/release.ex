@@ -16,14 +16,32 @@ defmodule Inkwell.Release do
   def migrate! do
     File.mkdir_p!(Inkwell.Settings.state_dir())
 
-    case Ecto.Migrator.with_repo(Inkwell.Repo, fn repo ->
+    Enum.each(repos(), &migrate_repo!/1)
+  end
+
+  @doc """
+  Returns the unique list of repos owned by configured Ash domains.
+
+  Used by `migrate!/0` and exposed publicly so release tasks can iterate
+  the same set of repos for rollback or other ops.
+  """
+  def repos do
+    :inkwell
+    |> Application.fetch_env!(:ash_domains)
+    |> Enum.flat_map(&Ash.Domain.Info.resources/1)
+    |> Enum.map(&AshSqlite.DataLayer.Info.repo/1)
+    |> Enum.uniq()
+  end
+
+  defp migrate_repo!(repo) do
+    case Ecto.Migrator.with_repo(repo, fn repo ->
            Ecto.Migrator.run(repo, :up, all: true)
          end) do
       {:ok, _, _} ->
         :ok
 
       {:error, reason} ->
-        raise "Inkwell.Release.migrate! failed: #{inspect(reason)}"
+        raise "Inkwell.Release.migrate! failed for #{inspect(repo)}: #{inspect(reason)}"
     end
   end
 end
