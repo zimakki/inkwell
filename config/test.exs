@@ -1,5 +1,12 @@
 import Config
 
+config :inkwell, Inkwell.Repo,
+  database: Path.join(System.tmp_dir!(), "inkwell_test.db"),
+  pool_size: 5,
+  journal_mode: :wal
+
+config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
+
 # Disable BEAM shutdown when /stop is hit during tests.
 config :inkwell, :shutdown_on_stop, false
 

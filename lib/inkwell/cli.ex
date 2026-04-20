@@ -2,6 +2,65 @@ defmodule Inkwell.CLI do
   @moduledoc "Command-line interface and escript entry point."
   require Logger
 
+  @doc """
+  Parses CLI arguments into a mode (:daemon or :client) and parsed args.
+  Called by `Inkwell.Application.start/2` in release/burrito boots.
+  """
+  def parse_mode(args) do
+    {opts, rest, _invalid} =
+      OptionParser.parse(args,
+        strict: [theme: :string, help: :boolean, version: :boolean],
+        aliases: [h: :help, v: :version]
+      )
+
+    # nil means "no --theme flag was passed" — Application.start will fall back
+    # to the persisted theme (or "dark" on first boot). Client commands keep
+    # this nil and only inject --theme into the spawned daemon when explicitly
+    # provided, so launching the daemon doesn't clobber the user's last choice.
+    theme = opts[:theme]
+
+    cond do
+      opts[:help] -> {:client, %{command: :help}}
+      opts[:version] -> {:client, %{command: :version}}
+      true -> dispatch_subcommand(rest, theme)
+    end
+  end
+
+  defp dispatch_subcommand(["daemon"], theme), do: {:daemon, %{theme: theme}}
+
+  defp dispatch_subcommand(["preview", file], theme),
+    do: {:client, %{command: :preview, file: file, theme: theme, deprecated: true}}
+
+  defp dispatch_subcommand(["stop"], _theme), do: {:client, %{command: :stop}}
+  defp dispatch_subcommand(["status"], _theme), do: {:client, %{command: :status}}
+  defp dispatch_subcommand([path], theme), do: dispatch_path(path, theme)
+  defp dispatch_subcommand([], _theme), do: {:client, %{command: :usage}}
+  defp dispatch_subcommand(_, _theme), do: {:client, %{command: :invalid}}
+
+  defp dispatch_path(path, theme) do
+    case classify_path(path) do
+      :file -> {:client, %{command: :preview, file: path, theme: theme}}
+      :directory -> {:client, %{command: :browse, dir: path, theme: theme}}
+      :not_found -> {:client, %{command: :path_not_found, path: path}}
+    end
+  end
+
+  @doc """
+  Classifies a path as `:file`, `:directory`, or `:not_found`.
+
+  Symlinks are followed (uses `File.stat/1`, not `File.lstat/1`).
+  Anything that isn't a regular file or directory — device nodes,
+  sockets, broken symlinks, stat errors — is reported as `:not_found`.
+  """
+  @spec classify_path(Path.t()) :: :file | :directory | :not_found
+  def classify_path(path) do
+    case File.stat(Path.expand(path)) do
+      {:ok, %File.Stat{type: :regular}} -> :file
+      {:ok, %File.Stat{type: :directory}} -> :directory
+      _ -> :not_found
+    end
+  end
+
   def main(args) do
     {opts, rest, _invalid} =
       OptionParser.parse(args,
@@ -15,57 +74,55 @@ defmodule Inkwell.CLI do
       )
 
     cond do
-      opts[:help] ->
-        IO.puts(help_text())
+      opts[:help] -> IO.puts(help_text())
+      opts[:version] -> IO.puts(version_string())
+      true -> run_subcommand(rest, opts)
+    end
+  end
 
-      opts[:version] ->
-        IO.puts(version_string())
+  defp run_subcommand(["daemon"], opts), do: run_daemon(opts[:theme])
 
-      true ->
-        case rest do
-          ["daemon"] ->
-            run_daemon(opts[:theme])
+  defp run_subcommand(["preview", file], opts) do
+    emit_preview_deprecation_notice()
+    run_preview(file, opts)
+  end
 
-          ["preview", file] ->
-            emit_preview_deprecation_notice()
-            run_preview(file, opts)
+  defp run_subcommand(["stop"], _opts), do: run_stop()
+  defp run_subcommand(["status"], _opts), do: run_status()
+  defp run_subcommand([path], opts), do: run_path(path, opts)
+  defp run_subcommand([], _opts), do: IO.puts(help_text())
+  defp run_subcommand(_, _opts), do: usage(1)
 
-          ["stop"] ->
-            case Inkwell.Daemon.stop() do
-              :ok -> IO.puts("inkwell daemon stopped")
-              {:error, :not_running} -> IO.puts("inkwell daemon is not running")
-            end
+  defp run_stop do
+    case Inkwell.Daemon.stop() do
+      :ok -> IO.puts("inkwell daemon stopped")
+      {:error, :not_running} -> IO.puts("inkwell daemon is not running")
+    end
+  end
 
-          ["status"] ->
-            run_status()
+  defp run_path(path, opts) do
+    case classify_path(path) do
+      :file ->
+        run_preview(path, opts)
 
-          [path] ->
-            case Inkwell.Application.classify_path(path) do
-              :file ->
-                run_preview(path, opts)
+      :directory ->
+        run_browse(path, opts)
 
-              :directory ->
-                case browse(path, opts) do
-                  {:ok, url} ->
-                    system_open_for_main(url)
-                    IO.puts(url)
+      :not_found ->
+        IO.puts(format_path_not_found(path))
+        System.halt(1)
+    end
+  end
 
-                  {:error, msg} ->
-                    IO.puts("Error: #{msg}")
-                    System.halt(1)
-                end
+  defp run_browse(path, opts) do
+    case browse(path, opts) do
+      {:ok, url} ->
+        system_open_for_main(url)
+        IO.puts(url)
 
-              :not_found ->
-                IO.puts(format_path_not_found(path))
-                System.halt(1)
-            end
-
-          [] ->
-            IO.puts(help_text())
-
-          _ ->
-            usage(1)
-        end
+      {:error, msg} ->
+        IO.puts("Error: #{msg}")
+        System.halt(1)
     end
   end
 
@@ -147,6 +204,11 @@ defmodule Inkwell.CLI do
   def run_client_command(%{command: :usage}) do
     IO.puts(help_text())
     System.halt(0)
+  end
+
+  def run_client_command(%{command: :invalid}) do
+    IO.puts(:stderr, help_text())
+    System.halt(1)
   end
 
   def run_client_command(_) do

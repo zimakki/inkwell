@@ -112,4 +112,33 @@ defmodule Inkwell.WatcherTest do
       [] -> raise "no watcher for dir #{dir}"
     end
   end
+
+  describe "lifecycle" do
+    test "watcher terminates when its last subscriber pid dies", %{base: base} do
+      file = Path.join(base, "ephemeral.md")
+      File.write!(file, "# E")
+
+      parent = self()
+
+      {:ok, subscriber} =
+        Task.start(fn ->
+          Inkwell.Watcher.ensure_file(file)
+          send(parent, :registered)
+
+          receive do
+            :exit -> :ok
+          end
+        end)
+
+      assert_receive :registered, 1000
+
+      dir = Path.dirname(Inkwell.Watcher.resolve_path(file))
+      watcher_pid = lookup_watcher!(dir)
+      ref = Process.monitor(watcher_pid)
+
+      send(subscriber, :exit)
+
+      assert_receive {:DOWN, ^ref, :process, ^watcher_pid, _reason}, 2000
+    end
+  end
 end

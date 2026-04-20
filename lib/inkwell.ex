@@ -16,7 +16,7 @@ defmodule Inkwell do
     theme = Keyword.get(opts, :theme)
 
     Inkwell.Watcher.ensure_file(path)
-    Inkwell.History.push(path)
+    Inkwell.Library.push_recent!(path)
 
     if theme do
       :persistent_term.put(:inkwell_theme, theme)

@@ -10,7 +10,7 @@ defmodule InkwellWeb.FileLive do
 
     if File.exists?(resolved) do
       Inkwell.Watcher.ensure_file(resolved)
-      Inkwell.History.push(resolved)
+      Inkwell.Library.push_recent!(resolved)
 
       if connected?(socket) do
         Phoenix.PubSub.subscribe(Inkwell.PubSub, "file:" <> resolved)

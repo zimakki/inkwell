@@ -1,5 +1,11 @@
 import Config
 
+config :inkwell, Inkwell.Repo,
+  database: Path.expand("../inkwell_dev.db", __DIR__),
+  pool_size: 5
+
+config :ash, policies: [show_policy_breakdowns?: true]
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #

@@ -1,9 +1,7 @@
 defmodule Inkwell.SearchTest do
-  use ExUnit.Case, async: false
+  use Inkwell.DataCase, async: false
 
   setup do
-    Inkwell.History.reset()
-
     base = Path.join(System.tmp_dir!(), "inkwell-search-#{System.unique_integer([:positive])}")
     File.mkdir_p!(base)
 
@@ -15,7 +13,7 @@ defmodule Inkwell.SearchTest do
     File.write!(sibling, "# Beta Heading\n\nbody")
     File.write!(other, "ignore")
 
-    Inkwell.History.push(current)
+    Inkwell.Library.push_recent!(current)
 
     on_exit(fn -> File.rm_rf!(base) end)
 
@@ -34,6 +32,22 @@ defmodule Inkwell.SearchTest do
 
   test "extract_title returns nil for non-existent file" do
     assert Inkwell.Search.extract_title("/nonexistent/file.md") == nil
+  end
+
+  test "invalidate_title forces a re-read after the file is rewritten" do
+    path = Path.join(System.tmp_dir!(), "inkwell-cache-#{System.unique_integer([:positive])}.md")
+    File.write!(path, "# Original Title\n\nbody")
+
+    on_exit(fn -> File.rm(path) end)
+
+    assert Inkwell.Search.extract_title(path) == "Original Title"
+
+    File.write!(path, "# New Title\n\nbody")
+    # Without invalidation the cached value persists.
+    assert Inkwell.Search.extract_title(path) == "Original Title"
+
+    Inkwell.Search.invalidate_title(path)
+    assert Inkwell.Search.extract_title(path) == "New Title"
   end
 
   test "search returns recent and sibling markdown files", %{current: current, sibling: sibling} do

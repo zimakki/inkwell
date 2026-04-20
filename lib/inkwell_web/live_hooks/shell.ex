@@ -1,6 +1,11 @@
 defmodule InkwellWeb.LiveHooks.Shell do
   @moduledoc "on_mount hook for live_session :shell — shared theme + picker state."
 
+  use Phoenix.VerifiedRoutes,
+    endpoint: InkwellWeb.Endpoint,
+    router: InkwellWeb.Router,
+    statics: InkwellWeb.static_paths()
+
   import Phoenix.LiveView
   import Phoenix.Component, only: [assign: 3]
 
@@ -47,11 +52,15 @@ defmodule InkwellWeb.LiveHooks.Shell do
     {:halt,
      socket
      |> assign(:picker_open, false)
-     |> push_navigate(to: "/files?#{URI.encode_query(path: path)}")}
+     |> push_navigate(to: ~p"/files?#{[path: path]}")}
   end
 
   defp handle_info(:close_picker, socket) do
     {:halt, assign(socket, :picker_open, false)}
+  end
+
+  defp handle_info(:open_picker, socket) do
+    {:halt, assign(socket, :picker_open, true)}
   end
 
   defp handle_info(_, socket), do: {:cont, socket}

@@ -38,16 +38,65 @@ defmodule Inkwell.Daemon do
     # fall back to its persisted preference.
     theme = Keyword.get(opts, :theme)
 
+    File.mkdir_p!(state_dir())
+    cleanup_stale_state()
+
     if alive?() do
       {:ok, read_port!()}
     else
-      File.mkdir_p!(state_dir())
-      cmd = daemon_command(theme)
+      spawn_with_lock(theme)
+    end
+  end
 
-      case System.cmd("sh", ["-c", cmd]) do
-        {_out, 0} -> wait_until_alive()
-        {out, code} -> {:error, {:spawn_failed, code, out}}
-      end
+  defp cleanup_stale_state do
+    cleanup_stale_pidfile()
+    cleanup_stale_lockfile()
+  end
+
+  defp cleanup_stale_pidfile do
+    with {:ok, content} <- File.read(pidfile()),
+         pid <- String.trim(content),
+         false <- pid_alive?(pid) do
+      File.rm(pidfile())
+      File.rm(portfile())
+    else
+      _ -> :ok
+    end
+  end
+
+  defp cleanup_stale_lockfile do
+    case File.stat(lockfile(), time: :posix) do
+      {:ok, %File.Stat{mtime: mtime}} ->
+        if System.os_time(:second) - mtime > 60, do: File.rm(lockfile())
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp spawn_with_lock(theme) do
+    case File.open(lockfile(), [:write, :exclusive]) do
+      {:ok, file} ->
+        try do
+          do_spawn(theme)
+        after
+          File.close(file)
+          File.rm(lockfile())
+        end
+
+      {:error, :eexist} ->
+        # Another invocation is mid-spawn (lockfile exists, < 60s old).
+        # Wait for that daemon to come up rather than racing it.
+        wait_until_alive()
+    end
+  end
+
+  defp do_spawn(theme) do
+    cmd = daemon_command(theme)
+
+    case System.cmd("sh", ["-c", cmd]) do
+      {_out, 0} -> wait_until_alive()
+      {out, code} -> {:error, {:spawn_failed, code, out}}
     end
   end
 
@@ -80,6 +129,26 @@ defmodule Inkwell.Daemon do
   def pidfile, do: Path.join(state_dir(), "pid")
   def portfile, do: Path.join(state_dir(), "port")
   def logfile, do: Path.join(state_dir(), "daemon.log")
+  def lockfile, do: Path.join(state_dir(), "starting")
+
+  @doc """
+  Returns `true` when the given OS pid (binary) is running. Used to
+  detect stale pidfiles left behind by SIGKILL or power loss.
+  """
+  def pid_alive?(pid) when is_binary(pid) do
+    case Integer.parse(pid) do
+      {n, ""} when n > 0 ->
+        case System.cmd("kill", ["-0", pid], stderr_to_stdout: true) do
+          {_, 0} -> true
+          _ -> false
+        end
+
+      _ ->
+        false
+    end
+  end
+
+  def pid_alive?(_), do: false
 
   @impl true
   def init(_state) do

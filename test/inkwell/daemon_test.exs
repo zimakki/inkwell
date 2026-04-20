@@ -56,4 +56,21 @@ defmodule Inkwell.DaemonTest do
 
   defp restore_env(key, nil), do: System.delete_env(key)
   defp restore_env(key, value), do: System.put_env(key, value)
+
+  describe "pid_alive?/1" do
+    test "returns true for the current OS process" do
+      assert Inkwell.Daemon.pid_alive?(System.pid()) == true
+    end
+
+    test "returns false for a clearly-nonexistent PID" do
+      # 7-digit PIDs aren't impossible but the odds of clash with a live
+      # process during a test are vanishingly small; a rerun would surface it.
+      assert Inkwell.Daemon.pid_alive?("9999999") == false
+    end
+
+    test "returns false for malformed input" do
+      assert Inkwell.Daemon.pid_alive?("not a pid") == false
+      assert Inkwell.Daemon.pid_alive?("") == false
+    end
+  end
 end
