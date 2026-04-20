@@ -64,7 +64,7 @@ defmodule Inkwell.Watcher do
           end
       end
 
-    GenServer.call(pid, {:watch_file, path})
+    GenServer.call(pid, {:watch_file, path, self()})
   end
 
   def watched_files do
@@ -104,37 +104,58 @@ defmodule Inkwell.Watcher do
 
   @impl true
   def init(dir) do
+    base = %{dir: dir, watcher: nil, files: %{}, refs: %{}}
+
     case FileSystem.start_link(dirs: [dir]) do
       {:ok, watcher} ->
         FileSystem.subscribe(watcher)
         Logger.info("Watching directory: #{dir}")
-        {:ok, %{dir: dir, watcher: watcher, files: MapSet.new()}}
+        {:ok, %{base | watcher: watcher}}
 
       {:error, reason} ->
         Logger.warning("File watcher unavailable for #{dir}: #{inspect(reason)}")
-        {:ok, %{dir: dir, watcher: nil, files: MapSet.new()}}
+        {:ok, base}
 
       :ignore ->
         Logger.warning("File watcher unavailable for #{dir}: fs backend not supported")
-        {:ok, %{dir: dir, watcher: nil, files: MapSet.new()}}
+        {:ok, base}
     end
   end
 
   @impl true
-  def handle_call({:watch_file, path}, _from, state) do
-    {:reply, :ok, %{state | files: MapSet.put(state.files, path)}}
+  def handle_call({:watch_file, path, subscriber}, _from, state) do
+    state =
+      state
+      |> add_subscriber(path, subscriber)
+      |> ensure_monitor(subscriber)
+
+    {:reply, :ok, state}
   end
 
   @impl true
   def handle_call(:watched_files, _from, state) do
-    {:reply, MapSet.to_list(state.files), state}
+    {:reply, Map.keys(state.files), state}
+  end
+
+  defp add_subscriber(state, path, pid) do
+    subscribers = Map.get(state.files, path, MapSet.new()) |> MapSet.put(pid)
+    %{state | files: Map.put(state.files, path, subscribers)}
+  end
+
+  defp ensure_monitor(state, pid) do
+    if Map.has_key?(state.refs, pid) do
+      state
+    else
+      ref = Process.monitor(pid)
+      %{state | refs: Map.put(state.refs, pid, ref)}
+    end
   end
 
   @impl true
   def handle_info({:file_event, _pid, {changed_path, events}}, state) do
     expanded = resolve_path(changed_path)
 
-    if MapSet.member?(state.files, expanded) and
+    if Map.has_key?(state.files, expanded) and
          Enum.any?(events, &(&1 in [:modified, :renamed, :created])) do
       Logger.debug("File changed: #{expanded}")
 
@@ -151,6 +172,25 @@ defmodule Inkwell.Watcher do
     end
 
     {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+    files =
+      state.files
+      |> Enum.map(fn {path, subs} -> {path, MapSet.delete(subs, pid)} end)
+      |> Enum.reject(fn {_path, subs} -> MapSet.size(subs) == 0 end)
+      |> Map.new()
+
+    refs = Map.delete(state.refs, pid)
+    state = %{state | files: files, refs: refs}
+
+    if map_size(files) == 0 do
+      Logger.info("Watcher for #{state.dir} stopping — no remaining subscribers")
+      {:stop, :normal, state}
+    else
+      {:noreply, state}
+    end
   end
 
   @impl true
