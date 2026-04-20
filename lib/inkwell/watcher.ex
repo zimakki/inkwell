@@ -138,6 +138,8 @@ defmodule Inkwell.Watcher do
          Enum.any?(events, &(&1 in [:modified, :renamed, :created])) do
       Logger.debug("File changed: #{expanded}")
 
+      Inkwell.Search.invalidate_title(expanded)
+
       case File.read(expanded) do
         {:ok, content} ->
           {html, headings, alerts} = Inkwell.Renderer.render_with_nav(content)

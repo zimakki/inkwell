@@ -34,6 +34,22 @@ defmodule Inkwell.SearchTest do
     assert Inkwell.Search.extract_title("/nonexistent/file.md") == nil
   end
 
+  test "invalidate_title forces a re-read after the file is rewritten" do
+    path = Path.join(System.tmp_dir!(), "inkwell-cache-#{System.unique_integer([:positive])}.md")
+    File.write!(path, "# Original Title\n\nbody")
+
+    on_exit(fn -> File.rm(path) end)
+
+    assert Inkwell.Search.extract_title(path) == "Original Title"
+
+    File.write!(path, "# New Title\n\nbody")
+    # Without invalidation the cached value persists.
+    assert Inkwell.Search.extract_title(path) == "Original Title"
+
+    Inkwell.Search.invalidate_title(path)
+    assert Inkwell.Search.extract_title(path) == "New Title"
+  end
+
   test "search returns recent and sibling markdown files", %{current: current, sibling: sibling} do
     result = Inkwell.Search.search(current, "")
 

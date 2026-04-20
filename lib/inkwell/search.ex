@@ -25,6 +25,14 @@ defmodule Inkwell.Search do
     ArgumentError -> do_extract_title(path)
   end
 
+  @doc "Drops the cached H1 title for `path`. Call when the file changes."
+  def invalidate_title(path) do
+    :ets.delete(:inkwell_git_repo_cache, {:title, path})
+    :ok
+  rescue
+    ArgumentError -> :ok
+  end
+
   defp do_extract_title(path) do
     path
     |> File.stream!()
