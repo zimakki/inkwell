@@ -34,7 +34,8 @@ defmodule Inkwell.CLI do
   defp dispatch_subcommand(["stop"], _theme), do: {:client, %{command: :stop}}
   defp dispatch_subcommand(["status"], _theme), do: {:client, %{command: :status}}
   defp dispatch_subcommand([path], theme), do: dispatch_path(path, theme)
-  defp dispatch_subcommand(_, _theme), do: {:client, %{command: :usage}}
+  defp dispatch_subcommand([], _theme), do: {:client, %{command: :usage}}
+  defp dispatch_subcommand(_, _theme), do: {:client, %{command: :invalid}}
 
   defp dispatch_path(path, theme) do
     case classify_path(path) do
@@ -203,6 +204,11 @@ defmodule Inkwell.CLI do
   def run_client_command(%{command: :usage}) do
     IO.puts(help_text())
     System.halt(0)
+  end
+
+  def run_client_command(%{command: :invalid}) do
+    IO.puts(:stderr, help_text())
+    System.halt(1)
   end
 
   def run_client_command(_) do

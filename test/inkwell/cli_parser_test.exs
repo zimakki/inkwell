@@ -10,6 +10,12 @@ defmodule Inkwell.CLIParserTest do
     assert {:client, %{command: :usage}} == Inkwell.CLI.parse_mode([])
   end
 
+  test "parse_mode returns :client invalid for unrecognized args" do
+    # Three-or-more positionals are never a real command — the daemon should
+    # exit non-zero (handled by run_client_command(%{command: :invalid})).
+    assert {:client, %{command: :invalid}} == Inkwell.CLI.parse_mode(["foo", "bar", "baz"])
+  end
+
   test "parse_mode returns :client preview (deprecated) with nil theme when --theme is omitted" do
     assert {:client, %{command: :preview, file: "file.md", theme: nil, deprecated: true}} ==
              Inkwell.CLI.parse_mode(["preview", "file.md"])
