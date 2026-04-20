@@ -16,11 +16,14 @@ defmodule Inkwell.Release do
   def migrate! do
     File.mkdir_p!(Inkwell.Settings.state_dir())
 
-    {:ok, _, _} =
-      Ecto.Migrator.with_repo(Inkwell.Repo, fn repo ->
-        Ecto.Migrator.run(repo, :up, all: true)
-      end)
+    case Ecto.Migrator.with_repo(Inkwell.Repo, fn repo ->
+           Ecto.Migrator.run(repo, :up, all: true)
+         end) do
+      {:ok, _, _} ->
+        :ok
 
-    :ok
+      {:error, reason} ->
+        raise "Inkwell.Release.migrate! failed: #{inspect(reason)}"
+    end
   end
 end
