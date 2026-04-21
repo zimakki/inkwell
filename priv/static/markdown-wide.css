@@ -404,6 +404,88 @@ li input[type="checkbox"]:checked {
   background-repeat: no-repeat;
 }
 
+/* ── GitHub-style alert blocks ──────────────────────────
+   MDEx's `alerts: true` extension emits:
+     <div class="markdown-alert markdown-alert-{type}">
+       <p class="markdown-alert-title">Note</p>
+       <p>body…</p>
+     </div>
+   Styling reuses existing theme variables so light + dark fall out
+   for free. No icons — matches the calm editorial feel. */
+
+.markdown-alert {
+  margin: 1em 0;
+  padding: 0.75em 1em;
+  border-left: 3px solid var(--text-muted);
+  border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--text-muted) 6%, transparent);
+}
+
+.markdown-alert > p {
+  margin: 0.25em 0;
+}
+
+.markdown-alert > p:first-child {
+  margin-top: 0;
+}
+
+.markdown-alert > p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-alert-title {
+  color: var(--text-muted);
+  font-weight: 600;
+  margin: 0 0 0.35em 0;
+  text-transform: capitalize;
+  letter-spacing: 0.01em;
+}
+
+.markdown-alert-note {
+  border-left-color: var(--link);
+  background: color-mix(in srgb, var(--link) 6%, transparent);
+}
+
+.markdown-alert-note .markdown-alert-title {
+  color: var(--link);
+}
+
+.markdown-alert-tip {
+  border-left-color: var(--h3);
+  background: color-mix(in srgb, var(--h3) 6%, transparent);
+}
+
+.markdown-alert-tip .markdown-alert-title {
+  color: var(--h3);
+}
+
+.markdown-alert-important {
+  border-left-color: var(--h4);
+  background: color-mix(in srgb, var(--h4) 6%, transparent);
+}
+
+.markdown-alert-important .markdown-alert-title {
+  color: var(--h4);
+}
+
+.markdown-alert-warning {
+  border-left-color: var(--mark-text);
+  background: color-mix(in srgb, var(--mark-text) 6%, transparent);
+}
+
+.markdown-alert-warning .markdown-alert-title {
+  color: var(--mark-text);
+}
+
+.markdown-alert-caution {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.markdown-alert-caution .markdown-alert-title {
+  color: var(--accent);
+}
+
 /* ── Blockquotes ──────────────────────────────────────── */
 
 blockquote {
