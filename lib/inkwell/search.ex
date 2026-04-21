@@ -242,6 +242,12 @@ defmodule Inkwell.Search do
     end
   end
 
+  def browse(dir_path, query) do
+    files = search_directory(dir_path, query)
+    %{recent: recent} = list_recent()
+    %{recent: recent, siblings: files, repository: nil}
+  end
+
   def search_directory(dir_path, query) when query in ["", nil] do
     list_directory_files(dir_path)
   end

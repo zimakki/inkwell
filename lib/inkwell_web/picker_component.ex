@@ -9,6 +9,7 @@ defmodule InkwellWeb.PickerComponent do
       socket
       |> assign(assigns)
       |> assign_new(:query, fn -> "" end)
+      |> assign_new(:scope_dir, fn -> nil end)
       |> assign_new(:results, fn -> initial_results(assigns[:current_path]) end)
 
     {:ok, sync_selection(socket, 0)}
@@ -17,9 +18,10 @@ defmodule InkwellWeb.PickerComponent do
   @impl true
   def handle_event("search", %{"q" => q}, socket) do
     results =
-      case socket.assigns.current_path do
-        nil -> Inkwell.Search.list_recent()
-        current -> Inkwell.Search.search(current, q)
+      case {socket.assigns.scope_dir, socket.assigns.current_path} do
+        {nil, nil} -> Inkwell.Search.list_recent()
+        {nil, current} -> Inkwell.Search.search(current, q)
+        {dir, _} -> Inkwell.Search.browse(dir, q)
       end
 
     {:noreply,
@@ -79,11 +81,17 @@ defmodule InkwellWeb.PickerComponent do
 
   def handle_event("pick_directory", _, socket) do
     case dialog_module().pick_directory() do
-      {:ok, dir} -> send(self(), {:picker_browse, dir})
-      _ -> :noop
-    end
+      {:ok, dir} ->
+        results = Inkwell.Search.browse(dir, "")
 
-    {:noreply, socket}
+        {:noreply,
+         socket
+         |> assign(scope_dir: dir, query: "", results: results)
+         |> sync_selection(0)}
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   defp dialog_module,
@@ -126,9 +134,15 @@ defmodule InkwellWeb.PickerComponent do
     has_repo = assigns.results.repository != nil
     repo_files = if has_repo, do: assigns.results.repository.files, else: []
 
+    siblings_title =
+      case assigns.scope_dir do
+        nil -> "In this folder"
+        dir -> "In " <> Path.basename(dir)
+      end
+
     sections = [
       {"Recent", assigns.results.recent, 0},
-      {"In this folder", assigns.results.siblings, length(assigns.results.recent)},
+      {siblings_title, assigns.results.siblings, length(assigns.results.recent)},
       {(has_repo && assigns.results.repository.name) || nil, repo_files,
        length(assigns.results.recent) + length(assigns.results.siblings)}
     ]

@@ -55,37 +55,34 @@ defmodule InkwellWeb.PickerComponentTest do
     assert target =~ "bar.md"
   end
 
-  test "receiving {:picker_browse, dir} navigates to /browse?dir=...", %{conn: conn, foo: foo} do
-    {:ok, view, _} = live(conn, ~p"/files?#{[path: foo]}")
-
-    send(view.pid, {:picker_browse, "/tmp/docs"})
-
-    {target, _flash} = assert_redirect(view, 200)
-    assert target =~ "/browse"
-    assert URI.decode(target) =~ "/tmp/docs"
-  end
-
   describe "Open Folder button" do
     setup do
       {:ok, _} = DialogStub.start_link()
       prev = Application.get_env(:inkwell, :file_dialog_module)
       Application.put_env(:inkwell, :file_dialog_module, DialogStub)
       on_exit(fn -> Application.put_env(:inkwell, :file_dialog_module, prev) end)
-      :ok
+
+      scope_dir = Path.join(@tmp_dir, "scoped")
+      File.mkdir_p!(scope_dir)
+      File.write!(Path.join(scope_dir, "alpha.md"), "# Alpha")
+      File.write!(Path.join(scope_dir, "beta.md"), "# Beta")
+
+      {:ok, scope_dir: scope_dir}
     end
 
-    test "clicking Open Folder navigates to /browse?dir=... when user picks a folder",
-         %{conn: conn, foo: foo} do
-      DialogStub.put(:pick_directory, {:ok, "/tmp/inkwell-browse-target"})
+    test "clicking Open Folder re-scopes the picker to that folder and stays open",
+         %{conn: conn, foo: foo, scope_dir: scope_dir} do
+      DialogStub.put(:pick_directory, {:ok, scope_dir})
 
       {:ok, view, _} = live(conn, ~p"/files?#{[path: foo]}")
       view |> element("#btn-search") |> render_click()
 
-      view |> element(".picker-btn", "Open Folder") |> render_click()
+      html = view |> element(".picker-btn", "Open Folder") |> render_click()
 
-      {target, _flash} = assert_redirect(view, 200)
-      assert target =~ "/browse"
-      assert URI.decode(target) =~ "/tmp/inkwell-browse-target"
+      assert has_element?(view, "#picker-overlay.open")
+      assert html =~ "In " <> Path.basename(scope_dir)
+      assert html =~ "alpha.md"
+      assert html =~ "beta.md"
     end
 
     test "clicking Open Folder does nothing when user cancels",
@@ -97,7 +94,6 @@ defmodule InkwellWeb.PickerComponentTest do
 
       view |> element(".picker-btn", "Open Folder") |> render_click()
 
-      refute_redirected(view, "/browse")
       assert has_element?(view, "#picker-overlay.open")
     end
   end

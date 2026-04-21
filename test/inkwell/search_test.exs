@@ -185,4 +185,26 @@ defmodule Inkwell.SearchTest do
       assert results == []
     end
   end
+
+  describe "browse/2" do
+    test "returns a recent list plus the folder's markdown files in siblings", %{base: base} do
+      result = Inkwell.Search.browse(base, "")
+
+      assert is_list(result.recent)
+      assert is_list(result.siblings)
+      assert result.repository == nil
+
+      sibling_names = Enum.map(result.siblings, & &1.filename)
+      assert "alpha.md" in sibling_names
+      assert "beta.md" in sibling_names
+      refute "gamma.txt" in sibling_names
+    end
+
+    test "filters siblings by query", %{base: base} do
+      result = Inkwell.Search.browse(base, "alpha")
+      sibling_names = Enum.map(result.siblings, & &1.filename)
+      assert "alpha.md" in sibling_names
+      refute "beta.md" in sibling_names
+    end
+  end
 end
