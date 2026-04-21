@@ -9297,6 +9297,12 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
   };
 
   // js/hooks/shortcuts.js
+  function isEditableTarget(target) {
+    if (!target) return false;
+    const tag = target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return true;
+    return !!(target.closest && target.closest('[contenteditable="true"]'));
+  }
   var shortcuts_default = {
     mounted() {
       this.handler = (e) => {
@@ -9311,6 +9317,15 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
         if (key === "t" && e.shiftKey && !e.altKey) {
           e.preventDefault();
           this.pushEvent("toggle_theme", {});
+          return;
+        }
+        if (key === "f" && !e.shiftKey && !e.altKey) {
+          if (isEditableTarget(e.target)) return;
+          e.preventDefault();
+          const seed = window.getSelection && window.getSelection().toString() || "";
+          document.dispatchEvent(
+            new CustomEvent("inkwell:open-find", { detail: { seed } })
+          );
         }
       };
       document.addEventListener("keydown", this.handler);
