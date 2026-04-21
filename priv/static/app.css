@@ -308,12 +308,13 @@ body.picker-open {
 #picker-path .path-back:hover { opacity: 1; color: var(--h2); }
 
 #picker-body {
-  display: flex; flex: 1; min-height: 0;
+  display: flex; flex: 1; min-height: 0; min-width: 0;
 }
 
 #picker-list {
   width: 35%; border-right: 1px solid var(--border);
-  overflow-y: auto; display: flex; flex-direction: column;
+  min-width: 0; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column;
 }
 
 .picker-section {
@@ -325,7 +326,7 @@ body.picker-open {
 .picker-item {
   padding: 6px 12px; cursor: pointer;
   border-left: 3px solid transparent;
-  overflow: hidden; min-width: 0;
+  box-sizing: border-box; overflow: hidden; min-width: 0; max-width: 100%;
 }
 .picker-item:hover { background: var(--bg-hover); }
 .picker-item.selected {
