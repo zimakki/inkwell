@@ -2,6 +2,16 @@
 
 All notable changes to Inkwell will be documented in this file.
 
+## [0.3.6] - 2026-04-21
+
+### Added
+- README now features new product media covering the file picker, diff mode with per-block accept, rails + TOC scrollspy, Mermaid rendering, the click-to-zoom modal, and browse mode. Three animated GIFs (`live-reload.gif`, `picker-search.gif`, `diff-accept.gif`) demonstrate the signature motion-driven features in place of static screenshots. Two reusable demo documents (`.github/demo/showcase.md` and `.github/demo/live-reload.md`) power repeatable captures.
+- Feature copy expanded to cover render modes (Static / Live / Diff with `Cmd+Enter` accept-all), GitHub-style alerts with sidebar indexing, auto-generated table of contents with scrollspy, the mobile Doc Map sheet, click-to-zoom for images and Mermaid, native Open File / Open Folder dialogs, persistent recent files, and stable heading anchors.
+- Keyboard shortcuts table now lists `Cmd+Enter` / `Ctrl+Enter` for the diff accept-all binding.
+
+### Changed
+- "How It Works" supervision tree in the README updated to match the current Phoenix + LiveView application tree — previous diagram referenced a removed `History` Agent and a non-existent `WsHandler`.
+
 ## [0.3.5] - 2026-04-21
 
 ### Added
