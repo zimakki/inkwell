@@ -2,6 +2,12 @@
 
 All notable changes to Inkwell will be documented in this file.
 
+## [0.3.7] - 2026-04-21
+
+### Fixed
+- GitHub-style alert blocks (`> [!NOTE]`, `[!TIP]`, `[!WARNING]`, `[!IMPORTANT]`, `[!CAUTION]`) now render with a colored left border, tinted background, and bold type label. Previously the MDEx `alerts: true` extension emitted the class structure and `Inkwell.DocNav` indexed them into the right-rail sidebar, but `priv/static/markdown-wide.css` had zero selectors for those classes, so inline alerts rendered as plain paragraphs. Regression dates back to the 0.3.0 Phoenix rewrite.
+- `Cmd+F` / `Ctrl+F` find-in-document restored. Opens an in-page find bar with incremental highlighting, `Enter` / `Shift+Enter` for next/previous with wrap-around, a live match counter, `Esc` to close, and automatic re-apply after WebSocket file-change updates. Input is seeded with the current text selection. Feature originally shipped in 0.2.22 but was not ported during the 0.3.0 Phoenix rewrite — `#find-bar` CSS had been dormant in `priv/static/app.css:745-773` with no JS hook or markup to attach to.
+
 ## [0.3.6] - 2026-04-21
 
 ### Added

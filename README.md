@@ -160,11 +160,12 @@ The daemon starts automatically on first use and shuts down after 10 minutes of 
 |----------|--------|
 | `Ctrl+P` | Open file picker |
 | `Ctrl+Shift+T` | Toggle dark/light theme |
+| `Cmd+F` / `Ctrl+F` | Open find-in-document |
+| `Enter` / `Shift+Enter` | Next / previous match (in find bar) |
 | `Cmd+Enter` / `Ctrl+Enter` | Accept all changes (in Diff mode) |
-| `Cmd+F` / `Ctrl+F` | Browser find-in-page |
 | `Up` / `Down` | Navigate file list in picker |
 | `Enter` | Open the selected file |
-| `Esc` | Close file picker or zoom modal |
+| `Esc` | Close file picker, find bar, or zoom modal |
 
 ## How It Works
 
