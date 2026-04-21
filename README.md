@@ -1,7 +1,7 @@
 # Inkwell
 
 [![CI](https://github.com/zimakki/inkwell/actions/workflows/ci.yml/badge.svg)](https://github.com/zimakki/inkwell/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.3.1-blue)](https://github.com/zimakki/inkwell/releases)
+[![Version](https://img.shields.io/github/v/release/zimakki/inkwell)](https://github.com/zimakki/inkwell/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 A live markdown preview daemon for your terminal. Inkwell runs a lightweight background server that watches your markdown files and pushes real-time updates to a browser preview.
