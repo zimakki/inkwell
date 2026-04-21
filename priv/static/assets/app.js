@@ -9020,27 +9020,39 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
   // js/hooks/picker_overlay.js
   var picker_overlay_default = {
     mounted() {
+      this.wasOpen = false;
       this.handler = (e) => {
         if (e.target === this.el) {
           this.pushEvent("close_picker", {});
         }
       };
       this.el.addEventListener("click", this.handler);
-      this.syncScrollLock();
+      this.sync();
     },
     updated() {
-      this.syncScrollLock();
+      this.sync();
+      this.scrollSelectedIntoView();
     },
     destroyed() {
       if (this.handler) this.el.removeEventListener("click", this.handler);
       document.body.classList.remove("picker-open");
     },
-    syncScrollLock() {
-      if (this.el.classList.contains("open")) {
+    sync() {
+      const isOpen = this.el.classList.contains("open");
+      if (isOpen) {
         document.body.classList.add("picker-open");
       } else {
         document.body.classList.remove("picker-open");
       }
+      if (isOpen && !this.wasOpen) {
+        const input = this.el.querySelector("#picker-input");
+        if (input) input.focus();
+      }
+      this.wasOpen = isOpen;
+    },
+    scrollSelectedIntoView() {
+      const selected = this.el.querySelector(".picker-item.selected");
+      if (selected) selected.scrollIntoView({ block: "nearest" });
     }
   };
 
