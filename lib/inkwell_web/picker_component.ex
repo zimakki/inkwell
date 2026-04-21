@@ -9,6 +9,7 @@ defmodule InkwellWeb.PickerComponent do
       socket
       |> assign(assigns)
       |> assign_new(:query, fn -> "" end)
+      |> assign_new(:scope_dir, fn -> nil end)
       |> assign_new(:results, fn -> initial_results(assigns[:current_path]) end)
 
     {:ok, sync_selection(socket, 0)}
@@ -17,9 +18,10 @@ defmodule InkwellWeb.PickerComponent do
   @impl true
   def handle_event("search", %{"q" => q}, socket) do
     results =
-      case socket.assigns.current_path do
-        nil -> Inkwell.Search.list_recent()
-        current -> Inkwell.Search.search(current, q)
+      case {socket.assigns.scope_dir, socket.assigns.current_path} do
+        {nil, nil} -> Inkwell.Search.list_recent()
+        {nil, current} -> Inkwell.Search.search(current, q)
+        {dir, _} -> Inkwell.Search.browse(dir, q)
       end
 
     {:noreply,
@@ -78,13 +80,18 @@ defmodule InkwellWeb.PickerComponent do
   end
 
   def handle_event("pick_directory", _, socket) do
-    # Hand-off to BrowseLive on directory selection lands in a follow-up.
     case dialog_module().pick_directory() do
-      {:ok, _dir} -> :noop
-      _ -> :noop
-    end
+      {:ok, dir} ->
+        results = Inkwell.Search.browse(dir, "")
 
-    {:noreply, socket}
+        {:noreply,
+         socket
+         |> assign(scope_dir: dir, query: "", results: results)
+         |> sync_selection(0)}
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   defp dialog_module,
@@ -127,9 +134,15 @@ defmodule InkwellWeb.PickerComponent do
     has_repo = assigns.results.repository != nil
     repo_files = if has_repo, do: assigns.results.repository.files, else: []
 
+    siblings_title =
+      case assigns.scope_dir do
+        nil -> "In this folder"
+        dir -> "In " <> Path.basename(dir)
+      end
+
     sections = [
       {"Recent", assigns.results.recent, 0},
-      {"In this folder", assigns.results.siblings, length(assigns.results.recent)},
+      {siblings_title, assigns.results.siblings, length(assigns.results.recent)},
       {(has_repo && assigns.results.repository.name) || nil, repo_files,
        length(assigns.results.recent) + length(assigns.results.siblings)}
     ]
@@ -223,22 +236,106 @@ defmodule InkwellWeb.PickerComponent do
   attr :myself, :any, required: true
 
   defp section(assigns) do
+    assigns = assign(assigns, kind: section_kind(assigns.title))
+
     ~H"""
-    <div class="picker-section">{@title}</div>
-    <div
-      :for={{item, i} <- Enum.with_index(@items)}
-      class={["picker-item", @offset + i == @selected_index && "selected"]}
-      data-path={item.path}
-      phx-click="select"
-      phx-value-path={item.path}
-      phx-mouseenter="hover"
-      phx-value-index={@offset + i}
-      phx-target={@myself}
-    >
-      <div class="picker-item-title">{item[:title] || item.filename}</div>
-      <div class="picker-item-file">{item[:rel_path] || item.path}</div>
+    <div class="picker-group">
+      <div class="picker-section">
+        <span class="section-mark">
+          <.section_line_icon kind={@kind} />
+        </span>
+        <span class="picker-section-title">{@title}</span>
+        <span class="picker-section-count">{length(@items)}</span>
+      </div>
+      <div
+        :for={{item, i} <- Enum.with_index(@items)}
+        class={["picker-item", @offset + i == @selected_index && "selected"]}
+        data-path={item.path}
+        phx-click="select"
+        phx-value-path={item.path}
+        phx-mouseenter="hover"
+        phx-value-index={@offset + i}
+        phx-target={@myself}
+      >
+        <div class="picker-item-title">{item[:title] || item.filename}</div>
+        <.file_path path={item[:rel_path] || item.path} />
+      </div>
     </div>
     """
+  end
+
+  defp section_kind("Recent"), do: :recent
+  defp section_kind("In this folder"), do: :folder
+  defp section_kind(_), do: :repo
+
+  attr :kind, :atom, required: true
+
+  defp section_line_icon(%{kind: :recent} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+         stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <polyline points="12 7 12 12 15.5 14" />
+    </svg>
+    """
+  end
+
+  defp section_line_icon(%{kind: :folder} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+         stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+    """
+  end
+
+  defp section_line_icon(%{kind: :repo} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+         stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="6" x2="6" y1="3" y2="15" />
+      <circle cx="18" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <path d="M18 9a9 9 0 0 1-9 9" />
+    </svg>
+    """
+  end
+
+  attr :path, :string, required: true
+
+  defp file_path(assigns) do
+    path = assigns.path
+    dir = Path.dirname(path)
+    name = Path.basename(path)
+
+    dir_display =
+      case dir do
+        "." -> ""
+        "/" -> "/"
+        d -> tildify(d) <> "/"
+      end
+
+    assigns = assign(assigns, dir: dir_display, name: name)
+
+    ~H"""
+    <div class="picker-item-file">
+      <span :if={@dir != ""} class="picker-item-file-dir">{@dir}</span><span class="picker-item-file-name">{@name}</span>
+    </div>
+    """
+  end
+
+  defp tildify(path) do
+    case System.user_home() do
+      nil ->
+        path
+
+      home ->
+        cond do
+          path == home -> "~"
+          String.starts_with?(path, home <> "/") -> "~" <> String.replace_prefix(path, home, "")
+          true -> path
+        end
+    end
   end
 
   attr :path, :string, required: true

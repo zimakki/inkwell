@@ -1,0 +1,27 @@
+{
+  "worktree": {
+    "setup": [
+      "mise trust",
+      "mix deps.get",
+      "mix compile",
+      "mix assets.setup",
+      "mix assets.build"
+    ],
+    "teardown": ["rm -f inkwell_dev.db inkwell_dev.db-shm inkwell_dev.db-wal"]
+  },
+  "scripts": {
+    "precommit": {
+      "command": "mix precommit"
+    },
+    "localhost": {
+      "command": "PORT=$PASEO_PORT mix run --no-halt",
+      "type": "service"
+    },
+    "release": {
+      "command": "MIX_ENV=prod mix release"
+    },
+    "build-desktop": {
+      "command": "./scripts/build-desktop.sh"
+    }
+  }
+}

@@ -89,7 +89,7 @@ defmodule Inkwell.MixProject do
       {:burrito, "~> 1.0", only: :prod},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:usage_rules, "~> 1.1", only: :dev},
-      {:tidewave, "~> 0.5", only: :dev},
+      {:tidewave, "~> 0.5", only: [:dev]},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
