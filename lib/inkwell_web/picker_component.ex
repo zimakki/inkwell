@@ -223,21 +223,65 @@ defmodule InkwellWeb.PickerComponent do
   attr :myself, :any, required: true
 
   defp section(assigns) do
+    assigns = assign(assigns, kind: section_kind(assigns.title))
+
     ~H"""
-    <div class="picker-section">{@title}</div>
-    <div
-      :for={{item, i} <- Enum.with_index(@items)}
-      class={["picker-item", @offset + i == @selected_index && "selected"]}
-      data-path={item.path}
-      phx-click="select"
-      phx-value-path={item.path}
-      phx-mouseenter="hover"
-      phx-value-index={@offset + i}
-      phx-target={@myself}
-    >
-      <div class="picker-item-title">{item[:title] || item.filename}</div>
-      <.file_path path={item[:rel_path] || item.path} />
+    <div class="picker-group">
+      <div class="picker-section">
+        <span class="section-mark">
+          <.section_line_icon kind={@kind} />
+        </span>
+        <span class="picker-section-title">{@title}</span>
+        <span class="picker-section-count">{length(@items)}</span>
+      </div>
+      <div
+        :for={{item, i} <- Enum.with_index(@items)}
+        class={["picker-item", @offset + i == @selected_index && "selected"]}
+        data-path={item.path}
+        phx-click="select"
+        phx-value-path={item.path}
+        phx-mouseenter="hover"
+        phx-value-index={@offset + i}
+        phx-target={@myself}
+      >
+        <div class="picker-item-title">{item[:title] || item.filename}</div>
+        <.file_path path={item[:rel_path] || item.path} />
+      </div>
     </div>
+    """
+  end
+
+  defp section_kind("Recent"), do: :recent
+  defp section_kind("In this folder"), do: :folder
+  defp section_kind(_), do: :repo
+
+  attr :kind, :atom, required: true
+
+  defp section_line_icon(%{kind: :recent} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+         stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <polyline points="12 7 12 12 15.5 14" />
+    </svg>
+    """
+  end
+
+  defp section_line_icon(%{kind: :folder} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+         stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+    """
+  end
+
+  defp section_line_icon(%{kind: :repo} = assigns) do
+    ~H"""
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+         stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
     """
   end
 
