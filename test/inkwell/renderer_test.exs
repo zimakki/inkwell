@@ -150,4 +150,47 @@ defmodule Inkwell.RendererTest do
     assert headings == []
     assert alerts == []
   end
+
+  describe "GitHub-style alert blocks" do
+    setup do
+      :persistent_term.put(:inkwell_theme, "dark")
+      :ok
+    end
+
+    test "renders note alerts with the markdown-alert-note class" do
+      html = Inkwell.Renderer.render("> [!NOTE]\n> Heads up.\n")
+
+      assert html =~ ~r/<div class="markdown-alert markdown-alert-note"[^>]*>/
+      assert html =~ ~r/<p class="markdown-alert-title">Note<\/p>/
+      assert html =~ "Heads up."
+    end
+
+    test "renders tip alerts" do
+      html = Inkwell.Renderer.render("> [!TIP]\n> Quick tip.\n")
+
+      assert html =~ ~r/<div class="markdown-alert markdown-alert-tip"[^>]*>/
+      assert html =~ ~r/<p class="markdown-alert-title">Tip<\/p>/
+    end
+
+    test "renders important alerts" do
+      html = Inkwell.Renderer.render("> [!IMPORTANT]\n> Pay attention.\n")
+
+      assert html =~ ~r/<div class="markdown-alert markdown-alert-important"[^>]*>/
+      assert html =~ ~r/<p class="markdown-alert-title">Important<\/p>/
+    end
+
+    test "renders warning alerts" do
+      html = Inkwell.Renderer.render("> [!WARNING]\n> Be careful.\n")
+
+      assert html =~ ~r/<div class="markdown-alert markdown-alert-warning"[^>]*>/
+      assert html =~ ~r/<p class="markdown-alert-title">Warning<\/p>/
+    end
+
+    test "renders caution alerts" do
+      html = Inkwell.Renderer.render("> [!CAUTION]\n> Do not do this.\n")
+
+      assert html =~ ~r/<div class="markdown-alert markdown-alert-caution"[^>]*>/
+      assert html =~ ~r/<p class="markdown-alert-title">Caution<\/p>/
+    end
+  end
 end
