@@ -16,6 +16,8 @@ A live markdown preview daemon for your terminal. Inkwell runs a lightweight bac
 
 Save a file and see it in the browser immediately — no refresh needed. Inkwell pushes re-rendered HTML over WebSocket the moment a file changes on disk.
 
+![Live preview updating as a file is saved, with diff highlights in place](.github/assets/live-reload.gif)
+
 ### Smart File Navigation
 
 Hit `Ctrl+P` anywhere to open the file picker with fuzzy search across filenames, H1 titles, and file paths. Results are grouped into sections:
@@ -26,7 +28,7 @@ Hit `Ctrl+P` anywhere to open the file picker with fuzzy search across filenames
 
 Selecting any result previews the rendered markdown on the right before you open it. **Open File** and **Open Folder** buttons fall back to the OS-native file dialogs when you need to reach outside the current scope.
 
-![File picker with Recent, folder, and repository groups plus live preview](.github/assets/picker-dark.png)
+![File picker with Recent and repository groups; typing filters filenames, titles, and paths](.github/assets/picker-search.gif)
 
 ### Three Render Modes
 
@@ -38,7 +40,7 @@ A header toggle switches between three ways to receive live updates:
 
 Diff mode is built for reviewing AI-assisted or collaborative edits — you see exactly what changed, paragraph by paragraph, and ratify each edit one click at a time.
 
-![Diff mode highlighting modified paragraphs with per-block accept buttons](.github/assets/diff-mode-dark.png)
+![Clicking each accept button to merge modified paragraphs one at a time](.github/assets/diff-accept.gif)
 
 ### Rich Markdown Rendering
 
