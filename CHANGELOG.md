@@ -2,6 +2,11 @@
 
 All notable changes to Inkwell will be documented in this file.
 
+## [0.3.5] - 2026-04-21
+
+### Added
+- README now showcases light and dark theme previews side-by-side.
+
 ## [0.3.4] - 2026-04-20
 
 ### Fixed

@@ -6,7 +6,9 @@
 
 A live markdown preview daemon for your terminal. Inkwell runs a lightweight background server that watches your markdown files and pushes real-time updates to a browser preview.
 
-<!-- TODO: Add screenshot/GIF of the preview UI here -->
+| Light | Dark |
+|-------|------|
+| ![Inkwell preview — light theme](.github/assets/preview-light.png) | ![Inkwell preview — dark theme](.github/assets/preview-dark.png) |
 
 ## Features
 
