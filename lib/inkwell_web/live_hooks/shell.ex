@@ -55,6 +55,13 @@ defmodule InkwellWeb.LiveHooks.Shell do
      |> push_navigate(to: ~p"/files?#{[path: path]}")}
   end
 
+  defp handle_info({:picker_browse, dir}, socket) do
+    {:halt,
+     socket
+     |> assign(:picker_open, false)
+     |> push_navigate(to: ~p"/browse?#{[dir: dir]}")}
+  end
+
   defp handle_info(:close_picker, socket) do
     {:halt, assign(socket, :picker_open, false)}
   end

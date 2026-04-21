@@ -78,9 +78,8 @@ defmodule InkwellWeb.PickerComponent do
   end
 
   def handle_event("pick_directory", _, socket) do
-    # Hand-off to BrowseLive on directory selection lands in a follow-up.
     case dialog_module().pick_directory() do
-      {:ok, _dir} -> :noop
+      {:ok, dir} -> send(self(), {:picker_browse, dir})
       _ -> :noop
     end
 
