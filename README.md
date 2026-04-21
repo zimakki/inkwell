@@ -18,21 +18,58 @@ Save a file and see it in the browser immediately — no refresh needed. Inkwell
 
 ### Smart File Navigation
 
-Hit `Ctrl+P` to open the file picker with fuzzy search across filenames, H1 titles, and file paths. Results are grouped into sections:
+Hit `Ctrl+P` anywhere to open the file picker with fuzzy search across filenames, H1 titles, and file paths. Results are grouped into sections:
 
-- **Recent** — your 20 most recently opened files
-- **Sibling** — other `.md` files in the same directory
+- **Recent** — your most recently opened files, persisted across daemon restarts
+- **In this folder** — other `.md` files alongside what you're reading
 - **Repository** — every markdown file in the git repo, discovered automatically
 
-Select any result to see a rendered preview before opening it.
+Selecting any result previews the rendered markdown on the right before you open it. **Open File** and **Open Folder** buttons fall back to the OS-native file dialogs when you need to reach outside the current scope.
+
+![File picker with Recent, folder, and repository groups plus live preview](.github/assets/picker-dark.png)
+
+### Three Render Modes
+
+A header toggle switches between three ways to receive live updates:
+
+- **Static** — pause updates entirely and freeze the current preview.
+- **Live** — replace the whole article on every save (classic hot reload).
+- **Diff** *(default)* — run a block-level longest-common-subsequence diff against the previous render, paint modified blocks with a word-level diff, and grow a `✓` button on every changed block. `Cmd+Enter` (or `Ctrl+Enter`) accepts every visible change at once.
+
+Diff mode is built for reviewing AI-assisted or collaborative edits — you see exactly what changed, paragraph by paragraph, and ratify each edit one click at a time.
+
+![Diff mode highlighting modified paragraphs with per-block accept buttons](.github/assets/diff-mode-dark.png)
 
 ### Rich Markdown Rendering
 
 Full GitHub Flavored Markdown support including tables, task lists, strikethrough, autolinks, and footnotes. Plus:
 
 - **Syntax highlighting** — theme-aware colors for code blocks (powered by [MDEx](https://github.com/leandrocp/mdex))
-- **Mermaid diagrams** — fenced `mermaid` blocks render as diagrams automatically
-- **Dark and light themes** — toggle anytime with `Ctrl+Shift+T`
+- **Mermaid diagrams** — fenced `mermaid` blocks render as SVG automatically
+- **GitHub-style alerts** — `> [!NOTE]`, `[!TIP]`, `[!WARNING]`, `[!IMPORTANT]`, and `[!CAUTION]` blocks are parsed and auto-indexed in the sidebar
+- **Dark and light themes** — toggle anytime with `Ctrl+Shift+T`, persisted across restarts
+
+![Rails and syntax highlighting with scrollspy in the right sidebar](.github/assets/rails-toc-dark.png)
+
+### Navigation That Keeps Up
+
+A right-hand rail auto-generates a table of contents from your `h2` and `h3` headings and highlights the currently visible one via `IntersectionObserver`-based scrollspy. Alert blocks get their own sidebar group so you can jump straight to every note, warning, tip, important, or caution in the document.
+
+Every heading receives a stable `id` derived from its text — duplicate slugs are disambiguated with `-2`, `-3` suffixes — so deep links and in-page anchors keep working.
+
+On mobile, the rail collapses into a floating **Map** FAB that opens a swipeable bottom sheet with the same navigation.
+
+### Click-to-Zoom
+
+Click any image or Mermaid diagram to open a full-screen pan-and-zoom modal. Scroll-wheel or pinch to zoom, drag to pan, `Esc` to close.
+
+![Mermaid diagram open in the pan-and-zoom modal](.github/assets/zoom-modal-dark.png)
+
+### Directory Browsing
+
+Point `inkwell` at a folder instead of a file and you get a minimal browse view that lists every markdown file in the directory with live filtering.
+
+![Browse mode listing markdown files in a folder](.github/assets/browse-dark.png)
 
 ### Lightweight Daemon Architecture
 
@@ -120,27 +157,29 @@ The daemon starts automatically on first use and shuts down after 10 minutes of 
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+P` | Open file picker |
-| `Cmd+F` / `Ctrl+F` | Open find-in-document search |
-| `Enter` / `Shift+Enter` | Next / previous match |
 | `Ctrl+Shift+T` | Toggle dark/light theme |
-| `Esc` | Close file picker / find bar |
-| `Up/Down` | Navigate file list |
-| `Enter` | Open selected file |
+| `Cmd+Enter` / `Ctrl+Enter` | Accept all changes (in Diff mode) |
+| `Cmd+F` / `Ctrl+F` | Browser find-in-page |
+| `Up` / `Down` | Navigate file list in picker |
+| `Enter` | Open the selected file |
+| `Esc` | Close file picker or zoom modal |
 
 ## How It Works
 
-Inkwell runs as an OTP application with a supervision tree:
+Inkwell is a Phoenix + LiveView application running inside a self-extracting Burrito binary:
 
 ```
 Inkwell.Supervisor
-├── Registry          — pub/sub for per-file WebSocket clients
-├── History           — tracks recently opened files
-├── Daemon            — manages lifecycle, PID/port files, idle shutdown
-├── WatcherSupervisor — spawns one filesystem watcher per directory
-│   └── Watcher       — monitors files, broadcasts changes
-└── Bandit            — HTTP server (dynamic port)
-    ├── Router        — serves HTML, JSON APIs, static assets
-    └── WsHandler     — WebSocket handler for live updates
+├── Phoenix.PubSub        — broadcasts file-change and theme events
+├── Registry              — O(1) "is this directory already watched?" lookup
+├── Repo                  — SQLite-backed Ash Repo (recent files, settings)
+├── Daemon                — manages lifecycle, PID/port files, idle shutdown
+├── WatcherSupervisor     — spawns one filesystem watcher per directory
+│   └── Watcher           — monitors files, broadcasts changes
+├── Telemetry
+└── Endpoint (Bandit)     — HTTP + WebSocket server on a dynamic port
+    ├── Router            — controllers + live_session
+    └── LiveViews         — EmptyLive, BrowseLive, FileLive + PickerComponent
 ```
 
 When you run `inkwell file.md`:
@@ -148,10 +187,10 @@ When you run `inkwell file.md`:
 1. The CLI ensures the daemon is running (spawns it if needed)
 2. The file is registered with the daemon via HTTP
 3. A filesystem watcher starts for the file's directory
-4. The browser opens the preview page
-5. A WebSocket connection pushes re-rendered HTML on every file save
+4. The browser (or desktop app via `inkwell://`) opens the preview page
+5. LiveView subscribes to `"file:#{path}"` on PubSub — every save pushes fresh HTML to `article_reload` which the DiffView hook applies according to the current mode (static / live / diff)
 
-State files live in `~/.inkwell/` (pid, port). The daemon binds to a random port to avoid conflicts.
+State files live in `~/.inkwell/` (pid, port, theme, `inkwell.db`). The daemon binds to a random port to avoid conflicts.
 
 ## Development
 
