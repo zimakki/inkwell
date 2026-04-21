@@ -341,16 +341,19 @@ body.picker-open {
 .picker-item.selected .picker-item-title { color: var(--text); }
 .picker-item:not(.selected) .picker-item-title { color: var(--text-secondary); }
 .picker-item-file {
-  display: flex; align-items: baseline;
+  display: flex; align-items: center;
   color: var(--text-muted); font-size: 11px; margin-top: 3px;
-  min-width: 0; max-width: 100%;
+  line-height: 1.35; min-height: 15px;
+  min-width: 0; max-width: 100%; overflow: hidden;
 }
 .picker-item-file-dir {
   flex: 0 1 auto; min-width: 0;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  line-height: inherit;
 }
 .picker-item-file-name {
   flex: 0 0 auto; white-space: nowrap;
+  line-height: inherit;
   color: var(--text-secondary);
 }
 .picker-item:not(.selected) .picker-item-file-name {
