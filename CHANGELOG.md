@@ -2,6 +2,11 @@
 
 All notable changes to Inkwell will be documented in this file.
 
+## [0.3.8] - 2026-04-22
+
+### Added
+- Images referenced by relative paths in markdown (e.g. `![pic](./img/foo.png)`) now render in the preview. Previously they 404'd because the browser resolved the relative path against the page URL and no route served local files. The renderer now rewrites relative `<img>` URLs to `/raw?path=<abs>` at render time, and a new `RawFileController` (`GET /raw?path=`) streams the file from disk with a content-type derived from the extension. Absolute `http(s)://` and `/…` URLs are left untouched.
+
 ## [0.3.7] - 2026-04-21
 
 ### Fixed

@@ -193,4 +193,64 @@ defmodule Inkwell.RendererTest do
       assert html =~ ~r/<p class="markdown-alert-title">Caution<\/p>/
     end
   end
+
+  describe "image URL rewriting" do
+    setup do
+      :persistent_term.put(:inkwell_theme, "dark")
+      :ok
+    end
+
+    test "rewrites relative image paths to /raw?path=<abs> when base_dir given" do
+      {html, _, _} =
+        Inkwell.Renderer.render_with_nav(
+          "![pic](foo.png)\n",
+          base_dir: "/tmp/notes"
+        )
+
+      assert html =~ ~s(src="/raw?path=/tmp/notes/foo.png")
+    end
+
+    test "resolves parent traversal and subdirectories against base_dir" do
+      {html, _, _} =
+        Inkwell.Renderer.render_with_nav(
+          "![a](../img/a.png)\n![b](./sub/b.png)\n",
+          base_dir: "/home/user/docs"
+        )
+
+      assert html =~ ~s(src="/raw?path=/home/user/img/a.png")
+      assert html =~ ~s(src="/raw?path=/home/user/docs/sub/b.png")
+    end
+
+    test "leaves absolute http(s) and root-absolute URLs unchanged" do
+      markdown = """
+      ![a](https://example.com/a.png)
+      ![b](http://example.com/b.png)
+      ![d](/already/absolute.png)
+      """
+
+      {html, _, _} = Inkwell.Renderer.render_with_nav(markdown, base_dir: "/tmp")
+
+      assert html =~ ~s(src="https://example.com/a.png")
+      assert html =~ ~s(src="http://example.com/b.png")
+      assert html =~ ~s(src="/already/absolute.png")
+      refute html =~ "/raw?path="
+    end
+
+    test "does not rewrite when base_dir is not provided" do
+      {html, _, _} = Inkwell.Renderer.render_with_nav("![pic](foo.png)\n")
+
+      assert html =~ ~s(src="foo.png")
+      refute html =~ "/raw?path="
+    end
+
+    test "URL-encodes spaces in resolved paths" do
+      {html, _, _} =
+        Inkwell.Renderer.render_with_nav(
+          "![pic](pic.png)\n",
+          base_dir: "/tmp/some dir"
+        )
+
+      assert html =~ ~s(src="/raw?path=/tmp/some%20dir/pic.png")
+    end
+  end
 end

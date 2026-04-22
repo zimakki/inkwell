@@ -20,7 +20,7 @@ defmodule InkwellWeb.FileLive do
       {html, headings, alerts} =
         resolved
         |> File.read!()
-        |> Inkwell.Renderer.render_with_nav()
+        |> Inkwell.Renderer.render_with_nav(base_dir: Path.dirname(resolved))
 
       filename = Path.basename(resolved)
       rel_dir = compute_rel_dir(resolved)
