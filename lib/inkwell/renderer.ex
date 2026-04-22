@@ -62,7 +62,7 @@ defmodule Inkwell.Renderer do
        when is_binary(base_dir) do
     if relative_image?(url) do
       expanded = Path.expand(url, base_dir)
-      %{img | url: "/raw?path=" <> URI.encode(expanded)}
+      %{img | url: "/raw?" <> URI.encode_query(path: expanded)}
     else
       img
     end

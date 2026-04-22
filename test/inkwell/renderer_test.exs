@@ -200,14 +200,14 @@ defmodule Inkwell.RendererTest do
       :ok
     end
 
-    test "rewrites relative image paths to /raw?path=<abs> when base_dir given" do
+    test "rewrites relative image paths to /raw?path=<encoded_abs> when base_dir given" do
       {html, _, _} =
         Inkwell.Renderer.render_with_nav(
           "![pic](foo.png)\n",
           base_dir: "/tmp/notes"
         )
 
-      assert html =~ ~s(src="/raw?path=/tmp/notes/foo.png")
+      assert html =~ ~s(src="/raw?path=%2Ftmp%2Fnotes%2Ffoo.png")
     end
 
     test "resolves parent traversal and subdirectories against base_dir" do
@@ -217,8 +217,8 @@ defmodule Inkwell.RendererTest do
           base_dir: "/home/user/docs"
         )
 
-      assert html =~ ~s(src="/raw?path=/home/user/img/a.png")
-      assert html =~ ~s(src="/raw?path=/home/user/docs/sub/b.png")
+      assert html =~ ~s(src="/raw?path=%2Fhome%2Fuser%2Fimg%2Fa.png")
+      assert html =~ ~s(src="/raw?path=%2Fhome%2Fuser%2Fdocs%2Fsub%2Fb.png")
     end
 
     test "leaves absolute http(s) and root-absolute URLs unchanged" do
@@ -243,14 +243,14 @@ defmodule Inkwell.RendererTest do
       refute html =~ "/raw?path="
     end
 
-    test "URL-encodes spaces in resolved paths" do
+    test "URL-encodes spaces and reserved characters in resolved paths" do
       {html, _, _} =
         Inkwell.Renderer.render_with_nav(
-          "![pic](pic.png)\n",
+          "![pic](a&b?c#d%.png)\n",
           base_dir: "/tmp/some dir"
         )
 
-      assert html =~ ~s(src="/raw?path=/tmp/some%20dir/pic.png")
+      assert html =~ ~s(src="/raw?path=%2Ftmp%2Fsome+dir%2Fa%26b%3Fc%23d%25.png")
     end
   end
 end
