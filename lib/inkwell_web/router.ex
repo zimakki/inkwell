@@ -35,4 +35,8 @@ defmodule InkwellWeb.Router do
     get "/pick-file", FileDialogController, :file
     get "/pick-directory", FileDialogController, :directory
   end
+
+  scope "/", InkwellWeb do
+    get "/raw", RawFileController, :show
+  end
 end

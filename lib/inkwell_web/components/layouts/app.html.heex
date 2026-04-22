@@ -75,5 +75,74 @@
     open={@picker_open}
     current_path={assigns[:path]}
   />
+  <div id="find-bar" phx-hook="FindBar" role="search" aria-hidden="true">
+    <svg
+      id="find-bar-icon"
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+    <input
+      type="text"
+      id="find-bar-input"
+      placeholder="Find in document…"
+      autocomplete="off"
+      spellcheck="false"
+      aria-label="Find in document"
+    />
+    <span id="find-bar-count" aria-live="polite">0 of 0</span>
+    <button type="button" class="find-bar-btn" data-action="prev" aria-label="Previous match">
+      <svg
+        viewBox="0 0 24 24"
+        width="14"
+        height="14"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="18 15 12 9 6 15" />
+      </svg>
+    </button>
+    <button type="button" class="find-bar-btn" data-action="next" aria-label="Next match">
+      <svg
+        viewBox="0 0 24 24"
+        width="14"
+        height="14"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </button>
+    <button type="button" id="find-bar-close" data-action="close" aria-label="Close find bar">
+      <svg
+        viewBox="0 0 24 24"
+        width="14"
+        height="14"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    </button>
+  </div>
   {@inner_content}
 </div>

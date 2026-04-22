@@ -3,6 +3,14 @@ defmodule Inkwell.Watcher do
   use GenServer
   require Logger
 
+  def child_spec(opts) do
+    %{
+      id: {__MODULE__, Keyword.fetch!(opts, :dir)},
+      start: {__MODULE__, :start_link, [opts]},
+      restart: :temporary
+    }
+  end
+
   def start_link(opts) do
     dir = Keyword.fetch!(opts, :dir)
     GenServer.start_link(__MODULE__, dir, name: {:via, Registry, {Inkwell.WatcherRegistry, dir}})
@@ -83,7 +91,9 @@ defmodule Inkwell.Watcher do
     |> Enum.each(fn path ->
       case File.read(path) do
         {:ok, content} ->
-          {html, headings, alerts} = Inkwell.Renderer.render_with_nav(content)
+          {html, headings, alerts} =
+            Inkwell.Renderer.render_with_nav(content, base_dir: Path.dirname(path))
+
           broadcast_nav(html, headings, alerts, path)
 
         {:error, reason} ->
@@ -163,7 +173,9 @@ defmodule Inkwell.Watcher do
 
       case File.read(expanded) do
         {:ok, content} ->
-          {html, headings, alerts} = Inkwell.Renderer.render_with_nav(content)
+          {html, headings, alerts} =
+            Inkwell.Renderer.render_with_nav(content, base_dir: Path.dirname(expanded))
+
           broadcast_nav(html, headings, alerts, expanded)
 
         {:error, reason} ->

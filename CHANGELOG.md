@@ -2,6 +2,32 @@
 
 All notable changes to Inkwell will be documented in this file.
 
+## [0.3.8] - 2026-04-22
+
+### Added
+- Images referenced by relative paths in markdown (e.g. `![pic](./img/foo.png)`) now render in the preview. Previously they 404'd because the browser resolved the relative path against the page URL and no route served local files. The renderer now rewrites relative `<img>` URLs to `/raw?path=<abs>` at render time, and a new `RawFileController` (`GET /raw?path=`) streams the file from disk with a content-type derived from the extension. Absolute `http(s)://` and `/…` URLs are left untouched.
+
+## [0.3.7] - 2026-04-21
+
+### Fixed
+- GitHub-style alert blocks (`> [!NOTE]`, `[!TIP]`, `[!WARNING]`, `[!IMPORTANT]`, `[!CAUTION]`) now render with a colored left border, tinted background, and bold type label. Previously the MDEx `alerts: true` extension emitted the class structure and `Inkwell.DocNav` indexed them into the right-rail sidebar, but `priv/static/markdown-wide.css` had zero selectors for those classes, so inline alerts rendered as plain paragraphs. Regression dates back to the 0.3.0 Phoenix rewrite.
+- `Cmd+F` / `Ctrl+F` find-in-document restored. Opens an in-page find bar with incremental highlighting, `Enter` / `Shift+Enter` for next/previous with wrap-around, a live match counter, `Esc` to close, and automatic re-apply after WebSocket file-change updates. Input is seeded with the current text selection. Feature originally shipped in 0.2.22 but was not ported during the 0.3.0 Phoenix rewrite — `#find-bar` CSS had been dormant in `priv/static/app.css:745-773` with no JS hook or markup to attach to.
+
+## [0.3.6] - 2026-04-21
+
+### Added
+- README now features new product media covering the file picker, diff mode with per-block accept, rails + TOC scrollspy, Mermaid rendering, the click-to-zoom modal, and browse mode. Three animated GIFs (`live-reload.gif`, `picker-search.gif`, `diff-accept.gif`) demonstrate the signature motion-driven features in place of static screenshots. Two reusable demo documents (`.github/demo/showcase.md` and `.github/demo/live-reload.md`) power repeatable captures.
+- Feature copy expanded to cover render modes (Static / Live / Diff with `Cmd+Enter` accept-all), GitHub-style alerts with sidebar indexing, auto-generated table of contents with scrollspy, the mobile Doc Map sheet, click-to-zoom for images and Mermaid, native Open File / Open Folder dialogs, persistent recent files, and stable heading anchors.
+- Keyboard shortcuts table now lists `Cmd+Enter` / `Ctrl+Enter` for the diff accept-all binding.
+
+### Changed
+- "How It Works" supervision tree in the README updated to match the current Phoenix + LiveView application tree — previous diagram referenced a removed `History` Agent and a non-existent `WsHandler`.
+
+## [0.3.5] - 2026-04-21
+
+### Added
+- README now showcases light and dark theme previews side-by-side.
+
 ## [0.3.4] - 2026-04-20
 
 ### Fixed

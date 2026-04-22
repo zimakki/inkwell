@@ -6,6 +6,7 @@ import topbar from "../vendor/topbar";
 import DiffView from "./hooks/diff_view";
 import DocMap from "./hooks/doc_map";
 import DocRailNav from "./hooks/doc_rail_nav";
+import FindBar from "./hooks/find_bar";
 import Mermaid from "./hooks/mermaid";
 import ModeToggle from "./hooks/mode_toggle";
 import PickerKeys from "./hooks/picker_keys";
@@ -18,6 +19,7 @@ const Hooks = {
   DiffView,
   DocMap,
   DocRailNav,
+  FindBar,
   Mermaid,
   ModeToggle,
   PickerKeys,

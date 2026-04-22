@@ -121,8 +121,12 @@ defmodule InkwellWeb.PickerComponent do
 
   defp render_preview(%{path: path}) do
     case File.read(path) do
-      {:ok, content} -> Inkwell.Renderer.render(content)
-      {:error, _} -> nil
+      {:ok, content} ->
+        {html, _, _} = Inkwell.Renderer.render_with_nav(content, base_dir: Path.dirname(path))
+        html
+
+      {:error, _} ->
+        nil
     end
   end
 

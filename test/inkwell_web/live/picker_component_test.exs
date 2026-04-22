@@ -97,4 +97,18 @@ defmodule InkwellWeb.PickerComponentTest do
       assert has_element?(view, "#picker-overlay.open")
     end
   end
+
+  test "preview rewrites relative image URLs to /raw?path=", %{conn: conn} do
+    with_image = Path.join(@tmp_dir, "with-image.md")
+    File.write!(with_image, "# With Image\n\n![pic](sibling.png)\n")
+
+    {:ok, view, _} = live(conn, ~p"/files?#{[path: with_image]}")
+    view |> element("#btn-search") |> render_click()
+
+    preview_html = view |> element("#picker-preview") |> render()
+
+    assert preview_html =~ ~s(src="/raw?path=)
+    assert preview_html =~ "sibling.png"
+    refute preview_html =~ ~s(src="sibling.png")
+  end
 end

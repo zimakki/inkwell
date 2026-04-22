@@ -150,4 +150,107 @@ defmodule Inkwell.RendererTest do
     assert headings == []
     assert alerts == []
   end
+
+  describe "GitHub-style alert blocks" do
+    setup do
+      :persistent_term.put(:inkwell_theme, "dark")
+      :ok
+    end
+
+    test "renders note alerts with the markdown-alert-note class" do
+      html = Inkwell.Renderer.render("> [!NOTE]\n> Heads up.\n")
+
+      assert html =~ ~r/<div class="markdown-alert markdown-alert-note"[^>]*>/
+      assert html =~ ~r/<p class="markdown-alert-title">Note<\/p>/
+      assert html =~ "Heads up."
+    end
+
+    test "renders tip alerts" do
+      html = Inkwell.Renderer.render("> [!TIP]\n> Quick tip.\n")
+
+      assert html =~ ~r/<div class="markdown-alert markdown-alert-tip"[^>]*>/
+      assert html =~ ~r/<p class="markdown-alert-title">Tip<\/p>/
+    end
+
+    test "renders important alerts" do
+      html = Inkwell.Renderer.render("> [!IMPORTANT]\n> Pay attention.\n")
+
+      assert html =~ ~r/<div class="markdown-alert markdown-alert-important"[^>]*>/
+      assert html =~ ~r/<p class="markdown-alert-title">Important<\/p>/
+    end
+
+    test "renders warning alerts" do
+      html = Inkwell.Renderer.render("> [!WARNING]\n> Be careful.\n")
+
+      assert html =~ ~r/<div class="markdown-alert markdown-alert-warning"[^>]*>/
+      assert html =~ ~r/<p class="markdown-alert-title">Warning<\/p>/
+    end
+
+    test "renders caution alerts" do
+      html = Inkwell.Renderer.render("> [!CAUTION]\n> Do not do this.\n")
+
+      assert html =~ ~r/<div class="markdown-alert markdown-alert-caution"[^>]*>/
+      assert html =~ ~r/<p class="markdown-alert-title">Caution<\/p>/
+    end
+  end
+
+  describe "image URL rewriting" do
+    setup do
+      :persistent_term.put(:inkwell_theme, "dark")
+      :ok
+    end
+
+    test "rewrites relative image paths to /raw?path=<encoded_abs> when base_dir given" do
+      {html, _, _} =
+        Inkwell.Renderer.render_with_nav(
+          "![pic](foo.png)\n",
+          base_dir: "/tmp/notes"
+        )
+
+      assert html =~ ~s(src="/raw?path=%2Ftmp%2Fnotes%2Ffoo.png")
+    end
+
+    test "resolves parent traversal and subdirectories against base_dir" do
+      {html, _, _} =
+        Inkwell.Renderer.render_with_nav(
+          "![a](../img/a.png)\n![b](./sub/b.png)\n",
+          base_dir: "/home/user/docs"
+        )
+
+      assert html =~ ~s(src="/raw?path=%2Fhome%2Fuser%2Fimg%2Fa.png")
+      assert html =~ ~s(src="/raw?path=%2Fhome%2Fuser%2Fdocs%2Fsub%2Fb.png")
+    end
+
+    test "leaves absolute http(s) and root-absolute URLs unchanged" do
+      markdown = """
+      ![a](https://example.com/a.png)
+      ![b](http://example.com/b.png)
+      ![d](/already/absolute.png)
+      """
+
+      {html, _, _} = Inkwell.Renderer.render_with_nav(markdown, base_dir: "/tmp")
+
+      assert html =~ ~s(src="https://example.com/a.png")
+      assert html =~ ~s(src="http://example.com/b.png")
+      assert html =~ ~s(src="/already/absolute.png")
+      refute html =~ "/raw?path="
+    end
+
+    test "does not rewrite when base_dir is not provided" do
+      {html, _, _} = Inkwell.Renderer.render_with_nav("![pic](foo.png)\n")
+
+      assert html =~ ~s(src="foo.png")
+      refute html =~ "/raw?path="
+    end
+
+    test "URL-encodes spaces and reserved characters in resolved paths" do
+      {html, _, _} =
+        Inkwell.Renderer.render_with_nav(
+          "![pic](a&b?c#d%.png)\n",
+          base_dir: "/tmp/some dir"
+        )
+
+      assert html =~ ~s(src="/raw?path=%2Ftmp%2Fsome+dir%2Fa%26b%3Fc%23d%25.png")
+    end
+  end
 end
