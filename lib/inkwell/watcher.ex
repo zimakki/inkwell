@@ -3,6 +3,14 @@ defmodule Inkwell.Watcher do
   use GenServer
   require Logger
 
+  def child_spec(opts) do
+    %{
+      id: {__MODULE__, Keyword.fetch!(opts, :dir)},
+      start: {__MODULE__, :start_link, [opts]},
+      restart: :temporary
+    }
+  end
+
   def start_link(opts) do
     dir = Keyword.fetch!(opts, :dir)
     GenServer.start_link(__MODULE__, dir, name: {:via, Registry, {Inkwell.WatcherRegistry, dir}})
