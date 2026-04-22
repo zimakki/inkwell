@@ -67,11 +67,11 @@ Click any image or Mermaid diagram to open a full-screen pan-and-zoom modal. Scr
 
 ![Mermaid diagram open in the pan-and-zoom modal](.github/assets/zoom-modal-dark.png)
 
-### Directory Browsing
+### Open at a Folder
 
-Point `inkwell` at a folder instead of a file and you get a minimal browse view that lists every markdown file in the directory with live filtering.
+Point `inkwell` at a folder instead of a file and the preview boots straight into the file picker — same fuzzy search, Recent, and repository groups as `Ctrl+P`, just pre-opened so you can jump to a markdown file without opening anything first.
 
-![Browse mode listing markdown files in a folder](.github/assets/browse-dark.png)
+![File picker opened on startup when inkwell is launched against a folder](.github/assets/browse-dark.png)
 
 ### Lightweight Daemon Architecture
 
