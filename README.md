@@ -14,9 +14,9 @@ A live markdown preview daemon for your terminal. Inkwell runs a lightweight bac
 
 ### Instant Live Preview
 
-Save a file and see it in the browser immediately — no refresh needed. Inkwell pushes re-rendered HTML over WebSocket the moment a file changes on disk.
+Save a file and see it in the browser immediately — no refresh needed. Inkwell watches your markdown via native filesystem notifications (`fsevents` on macOS, `inotify` on Linux) and pushes re-rendered HTML over WebSocket the moment the bytes hit disk.
 
-![Live preview updating as a file is saved, with diff highlights in place](.github/assets/live-reload.gif)
+![Live mode: the whole article swaps the instant the file is saved](.github/assets/live-reload.gif)
 
 ### Smart File Navigation
 
@@ -32,15 +32,15 @@ Selecting any result previews the rendered markdown on the right before you open
 
 ### Three Render Modes
 
-A header toggle switches between three ways to receive live updates:
+A toggle in the header switches how the preview responds to every save:
 
-- **Static** — pause updates entirely and freeze the current preview.
-- **Live** — replace the whole article on every save (classic hot reload).
+- **Static** — freeze the current preview. File changes are ignored until you leave Static. Handy when you want the last render to stay put while you keep editing.
+- **Live** — replace the whole article on every save. No overlay, no diff highlighting — just the latest render every time. The gif above shows this mode in action.
 - **Diff** *(default)* — run a block-level longest-common-subsequence diff against the previous render, paint modified blocks with a word-level diff, and grow a `✓` button on every changed block. `Cmd+Enter` (or `Ctrl+Enter`) accepts every visible change at once.
 
 Diff mode is built for reviewing AI-assisted or collaborative edits — you see exactly what changed, paragraph by paragraph, and ratify each edit one click at a time.
 
-![Clicking each accept button to merge modified paragraphs one at a time](.github/assets/diff-accept.gif)
+![Diff mode: changed paragraphs are highlighted in place, and each ✓ accepts that block](.github/assets/diff-accept.gif)
 
 ### Rich Markdown Rendering
 
