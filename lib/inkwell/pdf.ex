@@ -14,12 +14,10 @@ defmodule Inkwell.Pdf do
   """
   @spec detect_chrome() :: {:ok, String.t()} | :error
   def detect_chrome do
-    result =
+    value =
       env_var_path()
       |> first_existing()
-
-    value =
-      case result do
+      |> case do
         nil -> :error
         path -> {:ok, path}
       end

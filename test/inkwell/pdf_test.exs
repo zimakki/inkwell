@@ -43,9 +43,10 @@ defmodule Inkwell.PdfTest do
       System.put_env("INKWELL_CHROME_PATH", missing)
       on_exit(fn -> System.delete_env("INKWELL_CHROME_PATH") end)
 
-      # No platform paths exist in the sandbox, so detection falls through to :error.
-      # We assert the env-var did NOT match (the function does not crash, and the
-      # cached value is :error or a real-system Chrome — accept either).
+      # Permissive on purpose: this test only verifies that an env-var pointing
+      # at a missing file is *rejected* — it doesn't assert :error, because
+      # Task 3 adds platform-path + PATH fallback that may legitimately return
+      # {:ok, real_chrome_path} on a dev machine with Chrome installed.
       result = Pdf.detect_chrome()
       assert result != {:ok, missing}
     end
