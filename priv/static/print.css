@@ -1,57 +1,44 @@
-/* ── Reset ── */
+/* ── Reset ──
+   markdown-wide.css owns the markdown body's typography and theme tokens
+   (--bg, --text, --h2, etc., switched via `body:has([data-theme="dark"])`).
+   This stylesheet only adds the print-specific concerns: paper-edge bg,
+   page break rules, TOC styling, and the printer-friendly overrides. */
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
-body {
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: 11pt;
-  line-height: 1.55;
-  color: #111;
-}
 
-/* ── Theme: keep current (dark or light) ── */
+/* ── Theme: keep current (dark or light) ──
+   markdown-wide.css paints body bg via `var(--bg)` — but body sits inside the
+   @page margin box, so the area between body and paper edge defaults to white.
+   We mirror the bg onto html so it fills the paper to the edges. */
 html[data-theme-mode="keep"] {
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
+  background: #faf9f6;
 }
-
-html[data-theme-mode="keep"] body {
-  background: var(--print-bg, #fff);
-  color: var(--print-fg, #111);
-}
-
 html[data-theme-mode="keep"][data-theme="dark"] {
-  --print-bg: #16161e;
-  --print-fg: #c0caf5;
-  --print-link: #7aa2f7;
-  --print-muted: #a9b1d6;
+  background: #16161e;
 }
 
-html[data-theme-mode="keep"][data-theme="dark"] body {
-  background: var(--print-bg);
-  color: var(--print-fg);
+/* ── Theme: printer-friendly (white bg, black text everywhere) ── */
+html[data-theme-mode="print"] {
+  background: #fff !important;
 }
-
-html[data-theme-mode="keep"][data-theme="dark"] a { color: var(--print-link); }
-
-/* ── Theme: printer-friendly (white bg, black text) ── */
-html[data-theme-mode="print"] body {
+html[data-theme-mode="print"] body,
+html[data-theme-mode="print"] body > [data-theme] {
   background: #fff !important;
   color: #000 !important;
 }
-
 html[data-theme-mode="print"] pre,
 html[data-theme-mode="print"] code,
 html[data-theme-mode="print"] blockquote {
   background: #f6f6f6 !important;
   color: #000 !important;
 }
-
 html[data-theme-mode="print"] .markdown-alert {
   background: #f6f6f6 !important;
   color: #000 !important;
   border-color: #999 !important;
 }
-
 html[data-theme-mode="print"] a {
   color: #000;
   text-decoration: underline;

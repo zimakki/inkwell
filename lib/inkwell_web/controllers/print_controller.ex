@@ -57,16 +57,12 @@ defmodule InkwellWeb.PrintController do
   defp render_print(conn, opts) do
     conn = put_format(conn, "html")
 
+    on_screen_theme = :persistent_term.get(:inkwell_theme, "dark")
+
     syntax_theme =
       case opts.theme_mode do
-        "print" ->
-          "onelight"
-
-        "keep" ->
-          if(:persistent_term.get(:inkwell_theme, "dark") == "dark",
-            do: "onedark",
-            else: "onelight"
-          )
+        "print" -> "onelight"
+        "keep" -> if(on_screen_theme == "dark", do: "onedark", else: "onelight")
       end
 
     {html, headings, _alerts} =
@@ -79,15 +75,31 @@ defmodule InkwellWeb.PrintController do
 
     filename = Path.basename(opts.path)
 
+    margin = margin_value(opts.margins)
+
+    # In `keep` mode the user wants the theme's page bg (often dark) to fill the
+    # paper edge-to-edge. Chrome's PDF generator does NOT paint html/body bg
+    # through the @page margin area, so we collapse @page margin to 0 and apply
+    # the requested margin as body padding instead. In `print` mode (always
+    # white) we keep the traditional @page margin so @bottom-center page
+    # numbers can render in their reserved strip.
+    {page_margin, body_padding} =
+      case opts.theme_mode do
+        "print" -> {margin, "0"}
+        "keep" -> {"0", margin}
+      end
+
     conn
     |> put_root_layout(false)
     |> put_layout(html: {InkwellWeb.Layouts, :print})
-    |> assign(:theme, :persistent_term.get(:inkwell_theme, "dark"))
+    |> assign(:theme, on_screen_theme)
     |> assign(:theme_mode, opts.theme_mode)
     |> assign(:filename, filename)
     |> assign(:page_size, opts.pagesize)
-    |> assign(:page_margin, margin_value(opts.margins))
+    |> assign(:page_margin, page_margin)
+    |> assign(:body_padding, body_padding)
     |> assign(:page_numbers, opts.numbers)
+    |> assign(:page_number_color, page_number_color(opts.theme_mode, on_screen_theme))
     |> assign(:autoprint, opts.autoprint)
     |> assign(:article_html, html)
     |> assign(:headings, headings)
@@ -98,4 +110,8 @@ defmodule InkwellWeb.PrintController do
   defp margin_value("normal"), do: "1in"
   defp margin_value("narrow"), do: "0.5in"
   defp margin_value("none"), do: "0"
+
+  defp page_number_color("print", _), do: "#666"
+  defp page_number_color("keep", "dark"), do: "#a9b1d6"
+  defp page_number_color("keep", _), do: "#666"
 end

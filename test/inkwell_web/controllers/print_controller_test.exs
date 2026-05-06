@@ -67,7 +67,19 @@ defmodule InkwellWeb.PrintControllerTest do
       conn = get(conn, ~p"/print?path=#{md}&pagesize=letter&margins=narrow")
       html = response(conn, 200)
       assert html =~ "size: letter"
+      # In `keep` mode (the default), @page margin is 0 and the user's margin
+      # is applied as body padding instead — so the dark theme bg can fill
+      # the paper edge-to-edge. The 0.5in value appears in the body padding.
+      assert html =~ "padding: 0.5in"
+    end
+
+    test "in print mode the @page rule carries the user margin", %{conn: conn, tmp: tmp} do
+      md = Path.join(tmp, "doc.md")
+      File.write!(md, "# Hi\n")
+      conn = get(conn, ~p"/print?path=#{md}&pagesize=letter&margins=narrow&theme=print")
+      html = response(conn, 200)
       assert html =~ "margin: 0.5in"
+      assert html =~ "padding: 0"
     end
 
     test "emits page-numbers @page rule when numbers=true", %{conn: conn, tmp: tmp} do
