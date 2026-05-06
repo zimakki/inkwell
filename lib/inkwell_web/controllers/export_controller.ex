@@ -41,15 +41,24 @@ defmodule InkwellWeb.ExportController do
   end
 
   defp build_print_url(path, params) do
-    port = Inkwell.Daemon.read_port!()
-
     forwarded =
       params
       |> Map.take(~w(theme toc numbers pagesize margins))
       |> Map.put("path", path)
 
     query = URI.encode_query(forwarded)
-    "http://127.0.0.1:#{port}/print?#{query}"
+    "http://127.0.0.1:#{endpoint_port()}/print?#{query}"
+  end
+
+  # Query the running endpoint directly — same BEAM, no IPC. We deliberately
+  # do not read ~/.inkwell/port: that file is for external clients (the CLI),
+  # and a stray second `mix phx.server` invocation can clobber it with the
+  # wrong port, sending ChromicPDF to whatever else happens to be on that port.
+  defp endpoint_port do
+    case InkwellWeb.Endpoint.server_info(:http) do
+      {:ok, {_ip, port}} -> port
+      _ -> 0
+    end
   end
 
   defp parse_pagesize("letter"), do: :letter

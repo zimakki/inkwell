@@ -11,12 +11,6 @@ defmodule InkwellWeb.ExportControllerTest do
     def print_url(_url, _opts), do: Process.get(:stub_print_url, {:ok, "%PDF-1.4 stub bytes"})
   end
 
-  setup_all do
-    File.mkdir_p!(Path.join(System.user_home!(), ".inkwell"))
-    File.write!(Path.join(System.user_home!(), ".inkwell/port"), "4000")
-    :ok
-  end
-
   setup do
     Application.put_env(:inkwell, :pdf_module, StubPdf)
     on_exit(fn -> Application.put_env(:inkwell, :pdf_module, Inkwell.Pdf) end)
