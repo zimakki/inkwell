@@ -137,7 +137,16 @@ defmodule Inkwell.Pdf do
   end
 
   defp start_chromic(chrome_path) do
-    case ChromicPDF.start_link(chrome_executable: chrome_path) do
+    # ChromicPDF defaults init_timeout/timeout to 5_000ms, which is too short
+    # for a cold Chrome warming up on a 30+ page document — the workers all
+    # time out at init and the pool wedges. We bump generously since this is
+    # a local desktop daemon, not a high-throughput service.
+    config = [
+      chrome_executable: chrome_path,
+      session_pool: [init_timeout: 30_000, timeout: 60_000]
+    ]
+
+    case ChromicPDF.start_link(config) do
       {:ok, _pid} -> :ok
       {:error, {:already_started, _pid}} -> :ok
       {:error, reason} -> {:error, {:chromic_start_failed, reason}}
