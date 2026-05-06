@@ -7,6 +7,26 @@ defmodule Inkwell.Pdf do
 
   @persistent_key :inkwell_chrome_available
 
+  @macos_paths [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+  ]
+
+  @linux_paths [
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/snap/bin/chromium"
+  ]
+
+  @windows_paths [
+    "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"
+  ]
+
+  @path_lookups [~c"google-chrome", ~c"chromium", ~c"chrome"]
+
   @doc """
   Probe for an installed Chrome/Chromium executable. Caches the result in
   `:persistent_term` under #{inspect(@persistent_key)}. Returns `{:ok, path}`
@@ -15,7 +35,11 @@ defmodule Inkwell.Pdf do
   @spec detect_chrome() :: {:ok, String.t()} | :error
   def detect_chrome do
     value =
-      env_var_path()
+      (env_var_path() ++
+         @macos_paths ++
+         @linux_paths ++
+         @windows_paths ++
+         path_lookup_results())
       |> first_existing()
       |> case do
         nil -> :error
@@ -23,8 +47,16 @@ defmodule Inkwell.Pdf do
       end
 
     :persistent_term.put(@persistent_key, value)
-
     value
+  end
+
+  defp path_lookup_results do
+    Enum.flat_map(@path_lookups, fn name ->
+      case :os.find_executable(name) do
+        false -> []
+        path -> [List.to_string(path)]
+      end
+    end)
   end
 
   defp env_var_path do

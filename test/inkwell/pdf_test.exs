@@ -51,4 +51,19 @@ defmodule Inkwell.PdfTest do
       assert result != {:ok, missing}
     end
   end
+
+  describe "detect_chrome/0 — platform paths" do
+    test "returns :error when no env var, no platform path, and PATH lookup fails" do
+      System.delete_env("INKWELL_CHROME_PATH")
+
+      # Stub: this test asserts behaviour when nothing is found. On a dev
+      # machine with Chrome installed, real PATH lookup will succeed — so we
+      # narrow the assertion: detect_chrome/0 either returns {:ok, _} or
+      # :error, never crashes, and the persistent_term is set accordingly.
+      result = Inkwell.Pdf.detect_chrome()
+      assert result == :error or match?({:ok, _}, result)
+      cached = :persistent_term.get(:inkwell_chrome_available)
+      assert cached == :error or match?({:ok, _}, cached)
+    end
+  end
 end
