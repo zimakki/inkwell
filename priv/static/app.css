@@ -988,4 +988,11 @@ body:has([data-theme="dark"]).drag-over::after {
 [data-theme="light"] #diff-accept-fab .diff-summary .removed { color: #d20f39; }
 [data-theme="light"] #diff-accept-fab .accept-all-btn { background: #40a02b; color: #fff; }
 [data-theme="light"] #diff-accept-fab .accept-all-btn:hover { background: #4db836; }
+
+/* ── Disabled anchor / action (used by ExportComponent when Chrome is missing) ── */
+.disabled {
+  pointer-events: none;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .find-match.active { background: var(--selection); outline: 2px solid var(--link); }
