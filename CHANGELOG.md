@@ -2,6 +2,18 @@
 
 All notable changes to Inkwell will be documented in this file.
 
+## [0.3.9] - 2026-05-06
+
+### Added
+- New **Export** action in the header (printer icon, Ctrl/Cmd+Shift+E) opens a modal with two presets — **Save as PDF** and **Print** — replacing the broken Cmd+P → Save-as-PDF path. Save-as-PDF defaults to keeping the current theme (dark backgrounds preserved) and renders a clickable Table of Contents page; Print defaults to printer-friendly white background with page numbers in the bottom margin. Each preset's settings (theme, TOC on/off, page numbers, page size A4/Letter/Legal, margins Normal/Narrow/None) are individually overridable. Save-as-PDF downloads a real PDF rendered headlessly via the new `chromic_pdf` dependency; Print opens a new tab that auto-triggers the browser print dialog. The Export icon is hidden on the empty / browse views — it requires a file open.
+- New `/print` and `/export.pdf` HTTP routes power both flows. The `/print` view is rendered through a chrome-free minimal layout that loads only `print.css`, so the document body never bleeds into surrounding app shell.
+- New `Inkwell.Pdf` module: probes for Chrome at boot (macOS / Linux / Windows known paths, plus PATH fallback and `INKWELL_CHROME_PATH` env-var override), caches the result, and lazy-starts the ChromicPDF supervisor on first export so daemon boot stays fast for users who never export.
+- `Inkwell.Renderer.render_with_nav/2` accepts an optional `:syntax_theme` so the print path can force light syntax-highlighting colors when the user picks the printer-friendly preset, regardless of the app's current theme.
+
+### Known limitations
+- Mermaid diagrams print as their raw source text. Mermaid is rendered client-side from a CDN script in the regular preview; the print page deliberately omits both. v2 may pre-render diagrams server-side.
+- Diff / Live view modes are not reproduced in the printed output. Both are implemented client-side via the `DiffView` JS hook over a LiveView socket; the print route is a stateless HTTP request, so it always renders the canonical static rendering of the current file content.
+
 ## [0.3.8] - 2026-04-22
 
 ### Added
