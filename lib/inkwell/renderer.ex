@@ -33,8 +33,12 @@ defmodule Inkwell.Renderer do
       them through the daemon's raw-file endpoint.
   """
   def render_with_nav(markdown, opts \\ []) do
-    theme = :persistent_term.get(:inkwell_theme, "dark")
-    syntax_theme = if theme == "light", do: "onelight", else: "onedark"
+    syntax_theme =
+      Keyword.get_lazy(opts, :syntax_theme, fn ->
+        theme = :persistent_term.get(:inkwell_theme, "dark")
+        if theme == "light", do: "onelight", else: "onedark"
+      end)
+
     base_dir = Keyword.get(opts, :base_dir)
 
     mdex_opts =

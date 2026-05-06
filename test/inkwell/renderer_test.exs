@@ -1,5 +1,7 @@
 defmodule Inkwell.RendererTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
+
+  alias Inkwell.Renderer
 
   test "renders markdown headings and mermaid blocks" do
     :persistent_term.put(:inkwell_theme, "dark")
@@ -191,6 +193,34 @@ defmodule Inkwell.RendererTest do
 
       assert html =~ ~r/<div class="markdown-alert markdown-alert-caution"[^>]*>/
       assert html =~ ~r/<p class="markdown-alert-title">Caution<\/p>/
+    end
+  end
+
+  describe "render_with_nav/2 — :syntax_theme option" do
+    test "uses :syntax_theme option when provided, regardless of persistent_term" do
+      :persistent_term.put(:inkwell_theme, "dark")
+
+      markdown = "```elixir\nIO.puts(\"hi\")\n```\n"
+
+      {html_dark, _, _} = Renderer.render_with_nav(markdown)
+
+      {html_light, _, _} =
+        Renderer.render_with_nav(markdown, syntax_theme: "onelight")
+
+      assert html_dark != html_light,
+             "expected onelight theme to produce different HTML than the persistent_term-driven default"
+    end
+
+    test "falls back to persistent_term :inkwell_theme when :syntax_theme not given" do
+      :persistent_term.put(:inkwell_theme, "light")
+      markdown = "```elixir\nIO.puts(\"hi\")\n```\n"
+
+      {html_default, _, _} = Renderer.render_with_nav(markdown)
+
+      {html_explicit, _, _} =
+        Renderer.render_with_nav(markdown, syntax_theme: "onelight")
+
+      assert html_default == html_explicit
     end
   end
 
