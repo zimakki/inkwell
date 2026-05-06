@@ -13,6 +13,7 @@ All notable changes to Inkwell will be documented in this file.
 ### Known limitations
 - Mermaid diagrams print as their raw source text. Mermaid is rendered client-side from a CDN script in the regular preview; the print page deliberately omits both. v2 may pre-render diagrams server-side.
 - Diff / Live view modes are not reproduced in the printed output. Both are implemented client-side via the `DiffView` JS hook over a LiveView socket; the print route is a stateless HTTP request, so it always renders the canonical static rendering of the current file content.
+- Page numbers (`n / N` in the bottom margin) only appear in the **Print** preset. They are rendered via `@page { @bottom-center }`, which requires a non-zero `@page` margin — but the **Save as PDF** + Keep-theme path collapses `@page` margin to zero so the theme background can fill the paper edge-to-edge (Chrome's PDF generator does not paint html/body backgrounds through the @page margin area). The PDF preset defaults page numbers OFF so this is invisible by default; users who explicitly enable page numbers with keep theme will see edge-to-edge bg but no `n / N` footer.
 
 ## [0.3.8] - 2026-04-22
 
