@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" data-theme={@theme} data-theme-mode={@theme_mode}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{@filename}</title>
+    <link rel="stylesheet" href={~p"/markdown-wide.css"} />
+    <link rel="stylesheet" href={~p"/print.css"} />
+    <style>
+      @page { size: {@page_size}; margin: {@page_margin}; }
+      <%= if @page_numbers do %>
+      @page { @bottom-center { content: counter(page) " / " counter(pages); font-family: 'Outfit', system-ui, sans-serif; font-size: 9pt; color: #666; } }
+      <% end %>
+    </style>
+    <%= if @autoprint do %>
+      <script>
+        window.addEventListener('load', () => {
+          setTimeout(() => window.print(), 200);
+        });
+      </script>
+    <% end %>
+  </head>
+  <body>
+    {@inner_content}
+  </body>
+</html>
