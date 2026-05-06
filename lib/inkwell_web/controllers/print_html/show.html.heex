@@ -1,0 +1,17 @@
+<%= if @toc and @headings != [] do %>
+  <nav id="toc-page">
+    <h1>Contents</h1>
+    <ul>
+      <li
+        :for={h <- @headings}
+        class={if h.level == 3, do: "toc-h3", else: "toc-h2"}
+      >
+        <a href={"#" <> h.id}>{h.text}</a>
+      </li>
+    </ul>
+  </nav>
+<% end %>
+
+<article id="print-article">
+  {Phoenix.HTML.raw(@article_html)}
+</article>
