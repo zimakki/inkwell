@@ -28,6 +28,18 @@ defmodule Inkwell.Pdf do
   @path_lookups [~c"google-chrome", ~c"chromium", ~c"chrome"]
 
   @doc """
+  Returns true when a Chrome/Chromium executable was detected at boot.
+  Pure persistent_term lookup; safe to call from hot paths.
+  """
+  @spec available?() :: boolean
+  def available? do
+    case :persistent_term.get(@persistent_key, :error) do
+      {:ok, _} -> true
+      _ -> false
+    end
+  end
+
+  @doc """
   Probe for an installed Chrome/Chromium executable. Caches the result in
   `:persistent_term` under #{inspect(@persistent_key)}. Returns `{:ok, path}`
   on success, `:error` otherwise.

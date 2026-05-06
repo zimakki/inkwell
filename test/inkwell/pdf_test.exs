@@ -66,4 +66,26 @@ defmodule Inkwell.PdfTest do
       assert cached == :error or match?({:ok, _}, cached)
     end
   end
+
+  describe "available?/0" do
+    test "returns true when persistent_term holds {:ok, _}" do
+      :persistent_term.put(:inkwell_chrome_available, {:ok, "/fake/chrome"})
+      assert Inkwell.Pdf.available?() == true
+    end
+
+    test "returns false when persistent_term holds :error" do
+      :persistent_term.put(:inkwell_chrome_available, :error)
+      assert Inkwell.Pdf.available?() == false
+    end
+
+    test "returns false when the persistent_term key is missing" do
+      try do
+        :persistent_term.erase(:inkwell_chrome_available)
+      rescue
+        ArgumentError -> :ok
+      end
+
+      assert Inkwell.Pdf.available?() == false
+    end
+  end
 end
