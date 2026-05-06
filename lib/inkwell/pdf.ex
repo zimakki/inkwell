@@ -5,6 +5,11 @@ defmodule Inkwell.Pdf do
   surface for callers (`InkwellWeb.ExportController`).
   """
 
+  @behaviour __MODULE__
+
+  @callback available?() :: boolean
+  @callback print_url(String.t(), keyword) :: {:ok, binary} | {:error, term}
+
   @persistent_key :inkwell_chrome_available
 
   @macos_paths [
@@ -31,6 +36,7 @@ defmodule Inkwell.Pdf do
   Returns true when a Chrome/Chromium executable was detected at boot.
   Pure persistent_term lookup; safe to call from hot paths.
   """
+  @impl true
   @spec available?() :: boolean
   def available? do
     case :persistent_term.get(@persistent_key, :error) do
@@ -93,6 +99,7 @@ defmodule Inkwell.Pdf do
     * `:pagesize` — `:a4` / `:letter` / `:legal` (default `:a4`)
     * `:margins`  — `:normal` / `:narrow` / `:none` (default `:normal`)
   """
+  @impl true
   @spec print_url(String.t(), keyword) :: {:ok, binary} | {:error, term}
   def print_url(url, opts \\ []) do
     with :ok <- ensure_started() do
