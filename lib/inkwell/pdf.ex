@@ -84,4 +84,68 @@ defmodule Inkwell.Pdf do
       File.exists?(path) and not File.dir?(path)
     end)
   end
+
+  @doc """
+  Render a remote URL to PDF via ChromicPDF, lazy-starting the ChromicPDF
+  supervisor on first call. Returns `{:ok, binary}` on success.
+
+  `opts` keys:
+    * `:pagesize` — `:a4` / `:letter` / `:legal` (default `:a4`)
+    * `:margins`  — `:normal` / `:narrow` / `:none` (default `:normal`)
+  """
+  @spec print_url(String.t(), keyword) :: {:ok, binary} | {:error, term}
+  def print_url(url, opts \\ []) do
+    with :ok <- ensure_started() do
+      pagesize = Keyword.get(opts, :pagesize, :a4)
+      margins = Keyword.get(opts, :margins, :normal)
+
+      ChromicPDF.print_to_pdf(
+        {:url, url},
+        print_to_pdf: %{
+          paperWidth: paper_width_inches(pagesize),
+          paperHeight: paper_height_inches(pagesize),
+          marginTop: margin_inches(margins),
+          marginBottom: margin_inches(margins),
+          marginLeft: margin_inches(margins),
+          marginRight: margin_inches(margins),
+          printBackground: true,
+          preferCSSPageSize: true
+        },
+        output: &File.read/1
+      )
+    end
+  end
+
+  defp ensure_started do
+    case :persistent_term.get(@persistent_key, :error) do
+      {:ok, chrome_path} ->
+        case Process.whereis(ChromicPDF) do
+          nil -> start_chromic(chrome_path)
+          _ -> :ok
+        end
+
+      :error ->
+        {:error, :chrome_unavailable}
+    end
+  end
+
+  defp start_chromic(chrome_path) do
+    case ChromicPDF.start_link(chrome_executable: chrome_path) do
+      {:ok, _pid} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
+      {:error, reason} -> {:error, {:chromic_start_failed, reason}}
+    end
+  end
+
+  defp paper_width_inches(:a4), do: 8.27
+  defp paper_width_inches(:letter), do: 8.5
+  defp paper_width_inches(:legal), do: 8.5
+
+  defp paper_height_inches(:a4), do: 11.69
+  defp paper_height_inches(:letter), do: 11.0
+  defp paper_height_inches(:legal), do: 14.0
+
+  defp margin_inches(:normal), do: 1.0
+  defp margin_inches(:narrow), do: 0.5
+  defp margin_inches(:none), do: 0.0
 end
