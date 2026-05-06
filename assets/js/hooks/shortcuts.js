@@ -7,6 +7,7 @@
 // Bindings:
 //   Ctrl/Cmd + P              → open_picker (LiveView event)
 //   Ctrl/Cmd + Shift + T      → toggle_theme (LiveView event)
+//   Ctrl/Cmd + Shift + E      → open_export (LiveView event)
 //   Ctrl/Cmd + F              → inkwell:open-find (CustomEvent, seeded with
 //                                the current text selection if any)
 
@@ -34,6 +35,12 @@ export default {
       if (key === "t" && e.shiftKey && !e.altKey) {
         e.preventDefault();
         this.pushEvent("toggle_theme", {});
+        return;
+      }
+
+      if (key === "e" && e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        this.pushEvent("open_export", {});
         return;
       }
 

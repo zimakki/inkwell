@@ -48,6 +48,8 @@ config :inkwell, generators: [timestamp_type: :utc_datetime], ecto_repos: [Inkwe
 
 config :inkwell, :ash_domains, [Inkwell.Library]
 
+config :inkwell, :pdf_module, Inkwell.Pdf
+
 # Configure the endpoint
 config :inkwell, InkwellWeb.Endpoint,
   url: [host: "localhost"],

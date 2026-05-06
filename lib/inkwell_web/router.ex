@@ -38,5 +38,7 @@ defmodule InkwellWeb.Router do
 
   scope "/", InkwellWeb do
     get "/raw", RawFileController, :show
+    get "/print", PrintController, :show
+    get "/export.pdf", ExportController, :show
   end
 end

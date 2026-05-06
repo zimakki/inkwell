@@ -49,6 +49,8 @@ defmodule Inkwell.Application do
     {:ok, pid} =
       Supervisor.start_link(children, strategy: :one_for_one, name: Inkwell.Supervisor)
 
+    if mode == :daemon, do: Inkwell.Pdf.detect_chrome()
+
     # In client mode, run_client_command calls System.halt() so the line
     # below is only reached in daemon mode.
     if mode == :client, do: Inkwell.CLI.run_client_command(parsed)

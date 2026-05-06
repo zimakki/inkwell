@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" data-theme={@theme} data-theme-mode={@theme_mode}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{@filename}</title>
+    <link rel="stylesheet" href={~p"/markdown-wide.css"} />
+    <link rel="stylesheet" href={~p"/print.css"} />
+    <style>
+      @page { size: <%= @page_size %>; margin: <%= @page_margin %>; }
+      body > [data-theme] { padding: <%= @body_padding %>; }
+      <%= if @page_numbers do %>
+      @page { @bottom-center { content: counter(page) " / " counter(pages); font-family: 'Outfit', system-ui, sans-serif; font-size: 9pt; color: <%= @page_number_color %>; } }
+      <% end %>
+    </style>
+    <%= if @autoprint do %>
+      <script>
+        window.addEventListener('load', () => {
+          setTimeout(() => window.print(), 200);
+        });
+      </script>
+    <% end %>
+  </head>
+  <body>
+    <%!-- markdown-wide.css's theme tokens key off `body:has([data-theme="dark"])`,
+         which only matches when data-theme is INSIDE body. Mirror the regular
+         shell (`app.html.heex`) by wrapping content in a themed div. --%>
+    <div data-theme={@theme}>
+      {@inner_content}
+    </div>
+  </body>
+</html>

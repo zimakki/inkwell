@@ -74,6 +74,7 @@ defmodule Inkwell.MixProject do
       {:ash, "~> 3.0"},
       {:mdex, "~> 0.11"},
       {:bandit, "~> 1.10"},
+      {:chromic_pdf, "~> 1.16"},
       {:plug, "~> 1.19"},
       {:file_system, "~> 1.0"},
       {:jason, "~> 1.4"},

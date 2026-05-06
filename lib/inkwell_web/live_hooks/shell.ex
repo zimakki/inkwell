@@ -18,6 +18,8 @@ defmodule InkwellWeb.LiveHooks.Shell do
       socket
       |> assign(:theme, theme)
       |> assign(:picker_open, false)
+      |> assign(:export_open, false)
+      |> assign(:chrome_available, Inkwell.Pdf.available?())
       |> attach_hook(:shell_events, :handle_event, &handle_event/3)
       |> attach_hook(:shell_info, :handle_info, &handle_info/2)
 
@@ -37,10 +39,24 @@ defmodule InkwellWeb.LiveHooks.Shell do
   end
 
   defp handle_event("open_picker", _, socket),
-    do: {:halt, assign(socket, :picker_open, true)}
+    do:
+      {:halt,
+       socket
+       |> assign(:picker_open, true)
+       |> assign(:export_open, false)}
 
   defp handle_event("close_picker", _, socket),
     do: {:halt, assign(socket, :picker_open, false)}
+
+  defp handle_event("open_export", _, socket),
+    do:
+      {:halt,
+       socket
+       |> assign(:export_open, true)
+       |> assign(:picker_open, false)}
+
+  defp handle_event("close_export", _, socket),
+    do: {:halt, assign(socket, :export_open, false)}
 
   defp handle_event(_, _, socket), do: {:cont, socket}
 

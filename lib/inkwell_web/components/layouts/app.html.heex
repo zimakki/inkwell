@@ -58,6 +58,27 @@
         </svg>
         <span class="header-tooltip">Ctrl+P</span>
       </button>
+      <button
+        :if={assigns[:filename]}
+        id="btn-export"
+        class="header-btn"
+        aria-label="Export or print"
+        phx-click="open_export"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M6 9V2h12v7" />
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+          <rect x="6" y="14" width="12" height="8" />
+        </svg>
+        <span class="header-tooltip">Ctrl+Shift+E</span>
+      </button>
     </div>
     <div id="header-separator"></div>
     <div id="header-file-info">
@@ -74,6 +95,13 @@
     id="picker"
     open={@picker_open}
     current_path={assigns[:path]}
+  />
+  <.live_component
+    module={InkwellWeb.ExportComponent}
+    id="export"
+    open={@export_open}
+    current_path={assigns[:path]}
+    chrome_available={@chrome_available}
   />
   <div id="find-bar" phx-hook="FindBar" role="search" aria-hidden="true">
     <svg
