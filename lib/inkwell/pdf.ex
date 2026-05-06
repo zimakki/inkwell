@@ -111,7 +111,7 @@ defmodule Inkwell.Pdf do
           printBackground: true,
           preferCSSPageSize: true
         },
-        output: &File.read/1
+        output: &File.read!/1
       )
     end
   end
