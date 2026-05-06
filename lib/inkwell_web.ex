@@ -18,7 +18,8 @@ defmodule InkwellWeb do
   """
 
   def static_paths,
-    do: ~w(assets fonts images favicon.ico favicon.svg robots.txt app.css markdown-wide.css print.css)
+    do:
+      ~w(assets fonts images favicon.ico favicon.svg robots.txt app.css markdown-wide.css print.css)
 
   def router do
     quote do
