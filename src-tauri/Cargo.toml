@@ -1,6 +1,6 @@
 [package]
 name = "inkwell-desktop"
-version = "0.3.9"
+version = "0.3.10"
 edition = "2021"
 
 [build-dependencies]
@@ -12,7 +12,8 @@ tauri-plugin-shell = "2"
 tauri-plugin-deep-link = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
-reqwest = { version = "0.12", features = ["blocking"], default-features = false }
+tauri-plugin-dialog = "2"
+reqwest = { version = "0.12", features = ["blocking", "rustls-tls"], default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dirs = "6"
