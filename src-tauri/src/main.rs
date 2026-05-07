@@ -16,6 +16,7 @@ use tauri_plugin_shell::ShellExt;
 use tauri_plugin_updater::{Update, UpdaterExt};
 use update_ui::{inject_toast, PendingUpdate, UpdateBannerState};
 
+mod export;
 mod update_ui;
 
 const CHECK_FOR_UPDATES_MENU_ID: &str = "check-for-updates";
@@ -341,11 +342,13 @@ fn main() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(update_ui::PendingUpdate::new())
         .invoke_handler(tauri::generate_handler![
             update_ui::accept_update,
             update_ui::dismiss_update,
             update_ui::restart_after_update,
+            export::save_export_pdf,
         ])
         .on_menu_event(|app, event| {
             if event.id() == CHECK_FOR_UPDATES_MENU_ID {

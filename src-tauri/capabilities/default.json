@@ -11,6 +11,7 @@
     "shell:allow-spawn",
     "deep-link:default",
     "updater:default",
-    "process:default"
+    "process:default",
+    "dialog:allow-save"
   ]
 }
