@@ -2,6 +2,11 @@
 
 All notable changes to Inkwell will be documented in this file.
 
+## [0.3.10] - 2026-05-07
+
+### Fixed
+- **Tauri desktop app: PDF export now shows a native Save dialog.** On macOS (and other Wry-based platforms), WKWebView's PDFKit intercepted `application/pdf` responses and displayed them inline, ignoring the `Content-Disposition: attachment` header — so clicking **Save as PDF** opened a PDF viewer instead of a save dialog. The fix routes the click through a dedicated `save_export_pdf` Tauri command: the Rust side fetches the PDF bytes from the daemon's local HTTP endpoint, then shows an OS file-save dialog via `tauri-plugin-dialog`. In a regular browser (not Tauri), the anchor navigation is unchanged and the browser's own save dialog still fires. No general filesystem write capability is granted to the webview — only the path the user selects in the dialog is written.
+
 ## [0.3.9] - 2026-05-06
 
 ### Added

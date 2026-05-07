@@ -2,6 +2,7 @@ import "phoenix_html";
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import topbar from "../vendor/topbar";
+import { installPdfExportBridge } from "./lib/tauri_export";
 
 import DiffView from "./hooks/diff_view";
 import DocMap from "./hooks/doc_map";
@@ -44,3 +45,5 @@ window.addEventListener("phx:page-loading-stop", () => topbar.hide());
 
 liveSocket.connect();
 window.liveSocket = liveSocket;
+
+installPdfExportBridge();
