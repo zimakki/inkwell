@@ -2,6 +2,12 @@
 
 All notable changes to Inkwell will be documented in this file.
 
+## [0.3.11] - 2026-05-20
+
+### Fixed
+- **Diff view: changed Markdown tables now render in full.** In diff mode, editing a table used to collapse it to a blank line. A modified block's word-level diff flattened it to plain text, and the browser discards loose text inside a `<table>` (it isn't valid table content), so every cell vanished. Tables — along with lists, code blocks, and blockquotes — now keep their structure and are highlighted as a whole when they change. Inline word-level diffing still applies to paragraphs and headings.
+- **Diff view: the "Accept all" button is back.** The floating Accept-all control (with its +added / ~modified / -removed summary) was dropped during the Phoenix/LiveView migration and never recreated, leaving only the Cmd/Ctrl+Enter shortcut to accept changes. It now reappears whenever diff mode has pending changes and hides once they're accepted.
+
 ## [0.3.10] - 2026-05-07
 
 ### Fixed
