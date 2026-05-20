@@ -8555,6 +8555,52 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
   // js/app.js
   var import_topbar = __toESM(require_topbar());
 
+  // js/lib/tauri_invoke.js
+  async function invoke(cmd, args = {}) {
+    return window.__TAURI_INTERNALS__.invoke(cmd, args);
+  }
+
+  // js/lib/tauri_export.js
+  function isTauri() {
+    return typeof window !== "undefined" && !!window.__TAURI_INTERNALS__;
+  }
+  async function invokeSavePdf(href, defaultName) {
+    const port = parseInt(window.location.port, 10) || 80;
+    await invoke("save_export_pdf", {
+      exportUrl: href,
+      defaultName,
+      daemonPort: port
+    });
+  }
+  function deriveDefaultName(href) {
+    try {
+      const u = new URL(href, window.location.origin);
+      const p = u.searchParams.get("path");
+      if (!p) return null;
+      return p.split("/").pop() + ".pdf";
+    } catch {
+      return null;
+    }
+  }
+  function installPdfExportBridge() {
+    if (!isTauri()) return;
+    document.addEventListener(
+      "click",
+      (e) => {
+        const a = e.target.closest && e.target.closest('a[href^="/export.pdf"]');
+        if (!a) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const href = a.getAttribute("href");
+        const defaultName = a.getAttribute("download") || deriveDefaultName(href) || "export.pdf";
+        invokeSavePdf(href, defaultName).catch(
+          (err) => console.error("save_export_pdf failed:", err)
+        );
+      },
+      true
+    );
+  }
+
   // js/lib/diff.js
   function extractBlocks(container) {
     const blocks = [];
@@ -8734,17 +8780,21 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
   };
 
   // js/hooks/diff_view.js
+  var WORD_DIFF_TAGS = /* @__PURE__ */ new Set(["p", "h1", "h2", "h3", "h4", "h5", "h6"]);
   var diff_view_default = {
     mounted() {
       this.mode = readMode();
       this.baseline = extractBlocks(this.el);
+      this.buildFab();
       this.onModeChange = (e) => {
         this.mode = e.detail.mode;
         if (this.mode !== "diff") this.clearHighlights();
+        this.updateFab();
       };
       document.addEventListener("inkwell:mode-changed", this.onModeChange);
       this.onKeydown = (e) => {
         if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+          if (this.mode !== "diff" || !this.fab.classList.contains("visible")) return;
           e.preventDefault();
           this.acceptAll();
         }
@@ -8755,6 +8805,18 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
     destroyed() {
       document.removeEventListener("inkwell:mode-changed", this.onModeChange);
       document.removeEventListener("keydown", this.onKeydown);
+      if (this.fab) this.fab.remove();
+    },
+    // The FAB lives on document.body (outside the phx-update="ignore" article) so
+    // it survives content reloads. It is created once per mount and removed on
+    // destroy to avoid leaking duplicates across LiveView navigations.
+    buildFab() {
+      const fab = document.createElement("div");
+      fab.id = "diff-accept-fab";
+      fab.innerHTML = '<div class="diff-summary"></div><div class="diff-separator"></div><button class="accept-all-btn"><span>\u2713 Accept</span> <span class="shortcut">\u2318\u23CE</span></button>';
+      fab.querySelector(".accept-all-btn").addEventListener("click", () => this.acceptAll());
+      document.body.appendChild(fab);
+      this.fab = fab;
     },
     onReload(payload) {
       if (this.mode === "static") return;
@@ -8798,12 +8860,15 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
           el = createElementFromHTML(entry.newBlock.outerHTML);
           el.classList.add("inkwell-diff-modified");
           el.dataset.diffIndex = idx;
-          el.innerHTML = buildWordDiffHTML(entry.oldBlock.textContent, entry.newBlock.textContent);
+          if (WORD_DIFF_TAGS.has(entry.newBlock.tag)) {
+            el.innerHTML = buildWordDiffHTML(entry.oldBlock.textContent, entry.newBlock.textContent);
+          }
           this.addAcceptButton(el, idx);
           this.el.appendChild(el);
         }
       });
       this.notifyMermaid();
+      this.updateFab();
       scrollEl.scrollTop = scrollPos;
     },
     addAcceptButton(el, diffIndex) {
@@ -8821,7 +8886,10 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
       if (el.classList.contains("inkwell-diff-removed")) {
         el.style.transition = "opacity 0.2s ease";
         el.style.opacity = "0";
-        setTimeout(() => el.remove(), 200);
+        setTimeout(() => {
+          el.remove();
+          this.updateFab();
+        }, 200);
       } else {
         const btn = el.querySelector(".inkwell-diff-accept-btn");
         if (btn) btn.remove();
@@ -8833,6 +8901,7 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
         setTimeout(() => {
           el.classList.remove("inkwell-diff-added", "inkwell-diff-modified", "inkwell-diff-fade-out");
           el.removeAttribute("data-diff-index");
+          this.updateFab();
         }, 200);
       }
       setTimeout(() => {
@@ -8858,9 +8927,29 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
         }
       });
       this.baseline = extractBlocks(this.el);
+      this.updateFab();
     },
     clearHighlights() {
       this.acceptAll();
+    },
+    // Show/hide the FAB and refresh its +added ~modified -removed summary based on
+    // the highlights currently in the article. Hidden unless in diff mode with at
+    // least one pending change.
+    updateFab() {
+      if (!this.fab) return;
+      const added = this.el.querySelectorAll(".inkwell-diff-added").length;
+      const modified = this.el.querySelectorAll(".inkwell-diff-modified").length;
+      const removed = this.el.querySelectorAll(".inkwell-diff-removed").length;
+      if (this.mode !== "diff" || added + modified + removed === 0) {
+        this.fab.classList.remove("visible");
+        return;
+      }
+      const parts = [];
+      if (added > 0) parts.push(`<span class="added">+${added}</span>`);
+      if (modified > 0) parts.push(`<span class="modified">~${modified}</span>`);
+      if (removed > 0) parts.push(`<span class="removed">-${removed}</span>`);
+      this.fab.querySelector(".diff-summary").innerHTML = parts.join(" ");
+      this.fab.classList.add("visible");
     },
     notifyMermaid() {
       document.dispatchEvent(new CustomEvent("inkwell:rerender-mermaid"));
@@ -9632,6 +9721,7 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
   window.addEventListener("phx:page-loading-stop", () => import_topbar.default.hide());
   liveSocket.connect();
   window.liveSocket = liveSocket;
+  installPdfExportBridge();
 })();
 /**
  * @license MIT
