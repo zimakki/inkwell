@@ -15,7 +15,7 @@ cask "inkwell" do
   desc "Live markdown preview desktop app"
   homepage "https://github.com/zimakki/inkwell"
 
-  depends_on macos: ">= :catalina"
+  depends_on macos: :catalina
 
   app "Inkwell.app"
   binary "#{appdir}/Inkwell.app/Contents/MacOS/inkwell"
